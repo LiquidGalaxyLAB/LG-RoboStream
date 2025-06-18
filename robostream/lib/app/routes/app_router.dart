@@ -1,0 +1,22 @@
+import 'package:go_router/go_router.dart';
+// Importamos la nueva LoginScreen
+import 'package:robostream/features/login/view/login_screen.dart';
+import 'package:robostream/features/home/view/home_screen.dart';
+
+class AppRouter {
+  static final router = GoRouter(
+    // La ruta inicial ahora es '/login'
+    initialLocation: '/login',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const HomeScreen(),
+      ),
+      // La ruta '/connect' ahora es '/login' y apunta a LoginScreen
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+    ],
+  );
+}
