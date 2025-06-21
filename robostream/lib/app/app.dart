@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:robostream/app/routes/app_router.dart'; // 1. Importar el router
+import 'package:robostream/app/app_router.dart'; // 1. Importar el router
 import 'package:robostream/app/app_theme.dart';
 
 class App extends StatelessWidget {
