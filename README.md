@@ -95,14 +95,6 @@ Follow these steps to set up the project locally.
 
 ## 🛣️ Roadmap
 
-* [x] Define overall architecture
-* [ ] Replace simulator with live ROS 2/rosbridge data
-* [ ] Integrate live WebSocket updates in UI
-* [ ] Implement KML commands for Liquid Galaxy
-* [ ] Add live video streaming widget
-* [ ] Persist user settings securely
-* [ ] Publish v0.1.0 release
-
 ---
 
 ## 📜 License
