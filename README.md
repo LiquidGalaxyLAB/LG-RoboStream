@@ -8,15 +8,13 @@
 2. [Features](#features)
 3. [Technology Stack](#technology-stack)
 4. [Getting Started](#getting-started)
-
    * [Prerequisites](#prerequisites)
    * [Installation](#installation)
    * [Configuration](#configuration)
 5. [Usage](#usage)
 6. [Roadmap](#roadmap)
-7. [Contributing](#contributing)
-8. [License](#license)
-9. [Contact](#contact)
+7. [License](#license)
+8. [Contact](#contact)
 
 ---
 
