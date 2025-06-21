@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:robostream/app/view/app.dart';
+import 'package:robostream/app/app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

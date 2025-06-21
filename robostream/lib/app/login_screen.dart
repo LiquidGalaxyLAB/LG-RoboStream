@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:robostream/core/theme/app_theme.dart';
-import 'package:robostream/features/login/state/login_cubit.dart';
-import 'package:robostream/features/login/state/login_state.dart';
+import 'package:robostream/app/app_theme.dart';
+import 'package:robostream/app/login_cubit.dart';
+import 'package:robostream/app/login_state.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});

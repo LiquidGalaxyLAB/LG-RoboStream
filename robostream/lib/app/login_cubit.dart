@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:robostream/data/services/lg_service.dart';
+import 'package:robostream/services/lg_service.dart';
 import 'login_state.dart';
 
 class LoginCubit extends Cubit<LoginState> {

@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 // Importamos la nueva LoginScreen
-import 'package:robostream/features/login/view/login_screen.dart';
-import 'package:robostream/features/home/view/home_screen.dart';
+import 'package:robostream/app/login_screen.dart';
+import 'package:robostream/app/home_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(

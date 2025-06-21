@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:robostream/core/widgets/telemetry_card.dart';
-import 'package:robostream/core/theme/app_theme.dart';
+import 'package:robostream/app/telemetry_card.dart';
+import 'package:robostream/app/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
