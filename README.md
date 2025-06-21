@@ -1,15 +1,3 @@
-<!-- Logo and Badges -->
-
-<p align="center">
-  <img src="assets/logo.png" alt="RoboStream Logo" width="150">
-  <br/>
-  <a href="https://github.com/username/RoboStream/actions"><img src="https://github.com/username/RoboStream/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-lightgrey.svg" alt="License"></a>
-  <a href="https://github.com/username/RoboStream/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version"></a>
-  <a href="https://github.com/username/RoboStream/issues"><img src="https://img.shields.io/badge/issues-open%20issues-important.svg" alt="Open Issues"></a>
-  <a href="https://github.com/username/RoboStream/stargazers"><img src="https://img.shields.io/github/stars/username/RoboStream?style=social" alt="Stars"></a>
-</p>
-
 # RoboStream: Real-Time Telemetry & Streaming System for Liquid Galaxy
 
 <p align="center"><em>A modern solution for immersive telemetry and live video streaming from a robot simulator, powered by Flutter and FastAPI, built for the Liquid Galaxy ecosystem.</em></p>
@@ -119,23 +107,8 @@ Follow these steps to set up the project locally.
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repo
-2. Create a branch: `git checkout -b feature/YourFeature`
-3. Commit changes: \`git commit -m 'Add feature'
-4. Push: `git push origin feature/YourFeature`
-5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
----
-
 ## 📜 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
