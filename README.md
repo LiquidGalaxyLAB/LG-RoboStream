@@ -1,4 +1,16 @@
-RoboStream: Real-Time Telemetry & Streaming System for Liquid Galaxy
+<!-- Logo and Badges -->
+
+<p align="center">
+  <img src="assets/logo.png" alt="RoboStream Logo" width="150">
+  <br/>
+  <a href="https://github.com/username/RoboStream/actions"><img src="https://github.com/username/RoboStream/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-lightgrey.svg" alt="License"></a>
+  <a href="https://github.com/username/RoboStream/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/version-0.1.0-blue.svg" alt="Version"></a>
+  <a href="https://github.com/username/RoboStream/issues"><img src="https://img.shields.io/badge/issues-open%20issues-important.svg" alt="Open Issues"></a>
+  <a href="https://github.com/username/RoboStream/stargazers"><img src="https://img.shields.io/github/stars/username/RoboStream?style=social" alt="Stars"></a>
+</p>
+
+# RoboStream: Real-Time Telemetry & Streaming System for Liquid Galaxy
 
 <p align="center"><em>A modern solution for immersive telemetry and live video streaming from a robot simulator, powered by Flutter and FastAPI, built for the Liquid Galaxy ecosystem.</em></p>
 
@@ -55,8 +67,9 @@ The goal is to bridge the gap between remote robot monitoring and intuitive, col
 
   * Operate without actual Liquid Galaxy hardware using simulated data
 
+---
 
-🏗️ Technology Stack
+## 🏗️ Technology Stack
 
 | Layer          | Technology & Version                                   |
 | -------------- | ------------------------------------------------------ |
@@ -67,30 +80,34 @@ The goal is to bridge the gap between remote robot monitoring and intuitive, col
 
 ---
 
-🚀 Getting Started
+## 🚀 Getting Started
 
 Follow these steps to set up the project locally.
 
-Prerequisites
+### Prerequisites
 
 * **Git** (>= 2.30)
 * **Docker & Docker Compose** (optional, recommended)
 * **Python 3.9+** and **pip**
 * **Flutter SDK 3.x+**
 
-Installation
+### Installation
 
 > Installation instructions will be provided once development progresses.
 
-Configuration
+### Configuration
 
-Configuration details will be provided once development progresses.
+> Configuration details will be provided once development progresses.
 
-⚙️ Usage
+---
 
-Usage instructions will be provided once development progresses.
+## ⚙️ Usage
 
-🛣️ Roadmap
+> Usage instructions will be provided once development progresses.
+
+---
+
+## 🛣️ Roadmap
 
 * [x] Define overall architecture
 * [ ] Replace simulator with live ROS 2/rosbridge data
@@ -100,11 +117,32 @@ Usage instructions will be provided once development progresses.
 * [ ] Persist user settings securely
 * [ ] Publish v0.1.0 release
 
+---
 
+## 🤝 Contributing
 
+Contributions are welcome! Please:
 
-📞 Contact
+1. Fork the repo
+2. Create a branch: `git checkout -b feature/YourFeature`
+3. Commit changes: \`git commit -m 'Add feature'
+4. Push: `git push origin feature/YourFeature`
+5. Open a Pull Request
 
-Alejandro Bernaldo de Quirós Gómez
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 📞 Contact
+
+**Alejandro Bernaldo de Quirós Gómez**
 Email: [alejandrobernaldog@gmail.com](mailto:alejandrobernaldog@gmail.com)
 Universidad Francisco de Vitoria, Madrid, Spain
+
+> *This README is designed following best practices for clarity, structure, and community engagement.*
