@@ -62,6 +62,10 @@ class RobotSimulator:
         self.base_lat = 40.4238
         self.base_lon = -3.7123
         
+        # Update interval in seconds
+        self.update_interval = 5.0
+        self.last_update = 0.0
+        
         self.sensor_data = SensorData(
             timestamp=time.time(),
             imu=IMUData(
@@ -106,8 +110,15 @@ class RobotSimulator:
         )
     
     def update_sensors(self):
-        """Simulate sensor data changes"""
-        self.sensor_data.timestamp = time.time()
+        """Simulate sensor data changes - only update every 5 seconds"""
+        current_time = time.time()
+        
+        # Only update if 5 seconds have passed since last update
+        if current_time - self.last_update < self.update_interval:
+            return
+        
+        self.last_update = current_time
+        self.sensor_data.timestamp = current_time
         
         # Update IMU data
         self.sensor_data.imu.accelerometer = self._create_three_axis_data()
@@ -121,22 +132,55 @@ class RobotSimulator:
         self.sensor_data.gps.speed = round(random.uniform(0.0, 5.0), 1)
         self.sensor_data.gps.satellites = random.randint(8, 12)
         
-        # LiDAR and Camera status remain constant
-        self.sensor_data.lidar = "Connected"
-        self.sensor_data.camera = "Streaming"
+        # LiDAR and Camera status with occasional changes
+        self.sensor_data.lidar = "Connected" if random.random() > 0.1 else "Disconnected"
+        self.sensor_data.camera = "Streaming" if random.random() > 0.05 else "Offline"
         
         # Update actuator data
         self.actuator_data.front_left_wheel = self._create_servo_data()
         self.actuator_data.front_right_wheel = self._create_servo_data()
         self.actuator_data.back_left_wheel = self._create_servo_data()
         self.actuator_data.back_right_wheel = self._create_servo_data()
+        
+        print(f"[{time.strftime('%H:%M:%S')}] Sensor data updated - GPS: {self.sensor_data.gps.latitude:.6f}, {self.sensor_data.gps.longitude:.6f}")
+
+    def force_update(self):
+        """Force an immediate sensor data update"""
+        self.last_update = 0.0  # Reset last update time to force update
+        self.update_sensors()
+
+    def get_update_info(self):
+        """Get information about the update schedule"""
+        current_time = time.time()
+        time_since_last = current_time - self.last_update
+        time_until_next = max(0, self.update_interval - time_since_last)
+        
+        return {
+            "update_interval_seconds": self.update_interval,
+            "last_update_timestamp": self.last_update,
+            "time_since_last_update": round(time_since_last, 1),
+            "time_until_next_update": round(time_until_next, 1),
+            "current_timestamp": current_time
+        }
 
 robot = RobotSimulator()
 connected_clients: List[WebSocket] = []
 
 @app.get("/")
 async def root():
-    return {"message": "Robot Sensor API", "status": "running"}
+    return {
+        "message": "Robot Sensor API", 
+        "status": "running",
+        "version": "1.0.0",
+        "update_interval_seconds": robot.update_interval,
+        "endpoints": {
+            "sensors": "/sensors",
+            "actuators": "/actuators", 
+            "config": "/config",
+            "force_update": "/force-update",
+            "websocket": "/ws"
+        }
+    }
 
 @app.get("/sensors", response_model=SensorData)
 async def get_sensors():
@@ -148,21 +192,61 @@ async def get_actuators():
     robot.update_sensors()
     return robot.actuator_data
 
+@app.get("/config")
+async def get_config():
+    """Get server configuration and update information"""
+    return {
+        "server_info": {
+            "name": "Robot Sensor API",
+            "version": "1.0.0",
+            "status": "running"
+        },
+        "update_schedule": robot.get_update_info()
+    }
+
+@app.post("/force-update")
+async def force_update():
+    """Force an immediate sensor data update"""
+    robot.force_update()
+    return {
+        "message": "Sensor data updated successfully",
+        "timestamp": robot.sensor_data.timestamp,
+        "update_info": robot.get_update_info()
+    }
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.append(websocket)
     try:
         while True:
+            # Check for updates (will only update if 5 seconds have passed)
             robot.update_sensors()
+            
+            # Send current data regardless of whether it was updated
             data = {
                 "sensors": robot.sensor_data.dict(),
-                "actuators": robot.actuator_data.dict()
+                "actuators": robot.actuator_data.dict(),
+                "update_info": robot.get_update_info()
             }
             await websocket.send_text(json.dumps(data))
-            await asyncio.sleep(1)
+            
+            # Send data every 2 seconds via WebSocket, but data only updates every 5 seconds
+            await asyncio.sleep(2)
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
+        print(f"Client disconnected. Active connections: {len(connected_clients)}")
 
 if __name__ == "__main__":
+    print("🤖 Robot Sensor API Server")
+    print("=" * 40)
+    print(f"📡 Data update interval: {robot.update_interval} seconds")
+    print(f"🌐 Server running on: http://0.0.0.0:8000")
+    print(f"📊 Available endpoints:")
+    print(f"   GET  /sensors     - Current sensor data")
+    print(f"   GET  /actuators   - Current actuator data")
+    print(f"   GET  /config      - Server configuration")
+    print(f"   POST /force-update - Force data update")
+    print(f"   WS   /ws          - WebSocket real-time data")
+    print("=" * 40)
     uvicorn.run(app, host="0.0.0.0", port=8000)

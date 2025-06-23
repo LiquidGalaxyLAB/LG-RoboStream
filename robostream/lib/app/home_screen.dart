@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/app/telemetry_card.dart';
 import 'package:robostream/app/app_theme.dart';
+import 'package:robostream/services/server.dart';
+import 'package:robostream/app/server_config_screen.dart';
+import 'package:robostream/config/server_config.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,8 +30,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
   bool _isConnected = false;
-  int _activeStreams = 3;
-  String _robotStatus = "Active";
+  bool _isStreaming = false; // Estado del streaming
+  
+  // Servicio del servidor y datos
+  final RobotServerService _serverService = RobotServerService();
+  SensorData? _sensorData;
+  ActuatorData? _actuatorData;
 
   @override
   void initState() {
@@ -36,6 +43,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _initializeAnimations();
     _setupScrollListener();
     _startContinuousAnimations();
+    _setupServerConnection();
+  }
+
+  void _setupServerConnection() {
+    // Configurar listeners para los streams del servidor
+    _serverService.connectionStream.listen((connected) {
+      if (mounted) {
+        setState(() {
+          _isConnected = connected;
+        });
+      }
+    });
+
+    _serverService.sensorStream.listen((sensorData) {
+      if (mounted) {
+        setState(() {
+          _sensorData = sensorData;
+        });
+      }
+    });
+
+    _serverService.actuatorStream.listen((actuatorData) {
+      if (mounted) {
+        setState(() {
+          _actuatorData = actuatorData;
+        });
+      }
+    });
+
+    // Sincronizar el estado de streaming con el servicio
+    setState(() {
+      _isStreaming = _serverService.isStreaming;
+    });
+
+    // NO iniciar las solicitudes automáticamente
+    // El usuario debe presionar el botón para comenzar
   }
 
   void _initializeAnimations() {
@@ -102,65 +145,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _statsController.dispose();
     _pulseController.dispose();
     _scrollController.dispose();
+    _serverService.dispose(); // Limpiar el servicio del servidor
     super.dispose();
   }
 
   Future<void> _onRefresh() async {
     HapticFeedback.lightImpact();
-    setState(() {
-      _isConnected = !_isConnected;
-      _activeStreams = math.Random().nextInt(5) + 1;
-    });
+    // Hacer una solicitud manual al servidor
+    await _serverService.checkConnection();
     await Future.delayed(const Duration(milliseconds: 1500));
     HapticFeedback.selectionClick();
   }
 
   @override
   Widget build(BuildContext context) {
-    final cardsData = [
-      {
-        'icon': Icons.camera_alt_outlined, 
-        'label': 'RGB Camera', 
-        'color': const Color(0xFF6366F1),
-        'status': 'Online',
-        'value': '1080p'
-      },
-      {
-        'icon': Icons.camera_rounded, 
-        'label': 'Stereo Camera', 
-        'color': const Color(0xFF8B5CF6),
-        'status': 'Online',
-        'value': '720p'
-      },
-      {
-        'icon': Icons.location_on_outlined, 
-        'label': 'Location', 
-        'color': const Color(0xFF06B6D4),
-        'status': 'Active',
-        'value': 'GPS'
-      },
-      {
-        'icon': Icons.speed_outlined, 
-        'label': 'Odometry', 
-        'color': const Color(0xFF10B981),
-        'status': 'Tracking',
-        'value': '2.3 m/s'
-      },
-      {
-        'icon': Icons.precision_manufacturing_outlined, 
-        'label': 'Servos', 
-        'color': const Color(0xFFF59E0B),
-        'status': 'Ready',
-        'value': '6 DOF'
-      },
-      {
-        'icon': Icons.settings_outlined, 
-        'label': 'Connection', 
-        'color': const Color(0xFFEF4444),
-        'status': _isConnected ? 'Connected' : 'Offline',
-        'value': _isConnected ? 'Stable' : 'N/A'
-      },
-    ];
+    // Generar datos de tarjetas con información del servidor
+    final cardsData = _generateCardsData();
 
     return Scaffold(
       body: Container(
@@ -179,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             slivers: [
               _buildEnhancedAppBar(),
               _buildStatsSection(),
-              _buildQuickActionsSection(),
               _buildEnhancedGrid(cardsData),
               _buildFooterSection(),
             ],
@@ -189,6 +188,101 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       floatingActionButton: _buildEnhancedFAB(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
+  }
+
+  List<Map<String, dynamic>> _generateCardsData() {
+    // Si no hay datos del sensor, usar valores por defecto
+    final gpsData = _sensorData?.gps;
+    final imuData = _sensorData?.imu;
+    final cameraStatus = _sensorData?.camera ?? 'Offline';
+    final lidarStatus = _sensorData?.lidar ?? 'Disconnected';
+    final timestamp = _sensorData?.timestamp;
+    
+    // Calcular aceleración total para mostrar actividad del IMU
+    double totalAcceleration = 0.0;
+    if (imuData != null) {
+      final acc = imuData.accelerometer;
+      totalAcceleration = math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+    }
+    
+    // Calcular velocidad promedio de las ruedas
+    double avgWheelSpeed = 0.0;
+    if (_actuatorData != null) {
+      final wheels = _actuatorData!;
+      avgWheelSpeed = (wheels.frontLeftWheel.speed + 
+                      wheels.frontRightWheel.speed + 
+                      wheels.backLeftWheel.speed + 
+                      wheels.backRightWheel.speed) / 4.0;
+    }
+    
+    // Tiempo desde la última actualización
+    String lastUpdateText = 'N/A';
+    if (timestamp != null) {
+      final lastUpdate = DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt());
+      final now = DateTime.now();
+      final diff = now.difference(lastUpdate).inSeconds;
+      lastUpdateText = diff < 60 ? '${diff}s ago' : 'Stale';
+    }
+    
+    return [
+      {
+        'icon': Icons.camera_alt_outlined, 
+        'label': 'RGB Camera', 
+        'color': cameraStatus == 'Streaming' ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+        'status': cameraStatus,
+        'value': cameraStatus == 'Streaming' ? '1080p@30fps' : 'N/A'
+      },
+      {
+        'icon': Icons.radar_outlined, 
+        'label': 'LiDAR Sensor', 
+        'color': lidarStatus == 'Connected' ? const Color(0xFF8B5CF6) : const Color(0xFF64748B),
+        'status': lidarStatus,
+        'value': lidarStatus == 'Connected' ? '360° scan' : 'N/A'
+      },
+      {
+        'icon': Icons.location_on_outlined, 
+        'label': 'GPS Position', 
+        'color': gpsData != null ? const Color(0xFF06B6D4) : const Color(0xFF64748B),
+        'status': gpsData != null ? 'Active' : 'Offline',
+        'value': gpsData != null ? '${gpsData.satellites} sats' : 'N/A'
+      },
+      {
+        'icon': Icons.speed_outlined, 
+        'label': 'Movement', 
+        'color': gpsData != null && gpsData.speed > 0 ? const Color(0xFF10B981) : const Color(0xFF64748B),
+        'status': gpsData != null ? 'Tracking' : 'Offline',
+        'value': gpsData != null ? '${gpsData.speed.toStringAsFixed(1)} m/s' : 'N/A'
+      },
+      {
+        'icon': Icons.settings_input_component_outlined, 
+        'label': 'IMU Sensors', 
+        'color': imuData != null ? const Color(0xFFF59E0B) : const Color(0xFF64748B),
+        'status': imuData != null ? 'Active' : 'Offline',
+        'value': imuData != null ? '${totalAcceleration.toStringAsFixed(1)} m/s²' : 'N/A'
+      },
+      {
+        'icon': Icons.precision_manufacturing_outlined, 
+        'label': 'Wheel Motors', 
+        'color': _actuatorData != null ? const Color(0xFF8B5CF6) : const Color(0xFF64748B),
+        'status': _actuatorData != null ? 'Ready' : 'Offline',
+        'value': _actuatorData != null ? '${avgWheelSpeed.toStringAsFixed(0)} RPM' : 'N/A'
+      },
+      {
+        'icon': Icons.cloud_outlined, 
+        'label': 'Server Link', 
+        'color': _isConnected ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+        'status': _isConnected ? 'Online' : 'Offline',
+        'value': _isConnected ? lastUpdateText : 'N/A'
+      },
+      {
+        'icon': Icons.thermostat_outlined, 
+        'label': 'Temperature', 
+        'color': _actuatorData != null ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+        'status': _actuatorData != null ? 'Monitoring' : 'Offline',
+        'value': _actuatorData != null ? 
+            '${((_actuatorData!.frontLeftWheel.temperature + _actuatorData!.frontRightWheel.temperature + _actuatorData!.backLeftWheel.temperature + _actuatorData!.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C' : 'N/A'
+      },
+    ];
   }
 
   Widget _buildEnhancedAppBar() {
@@ -209,61 +303,66 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           builder: (context, child) {
             return Transform.translate(
               offset: Offset(_headerSlideAnimation.value, -_scrollOffset * 0.1),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                    child: const Text(
-                      'RoboStream',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 32,
-                        letterSpacing: -0.8,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
+                      child: const Text(
+                        'RoboStream',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 28,
+                          letterSpacing: -0.8,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  AnimatedBuilder(
-                    animation: _pulseAnimation,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _pulseAnimation.value,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _isConnected ? AppTheme.successColor : AppTheme.errorColor,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (_isConnected ? AppTheme.successColor : AppTheme.errorColor)
-                                        .withOpacity(0.5),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                    const SizedBox(height: 2),
+                    AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _pulseAnimation.value,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _isConnected ? AppTheme.successColor : AppTheme.errorColor,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (_isConnected ? AppTheme.successColor : AppTheme.errorColor)
+                                          .withOpacity(0.5),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isConnected ? 'Robot Connected' : 'Robot Offline',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black54,
+                              const SizedBox(width: 6),
+                              Text(
+                                _isConnected ? 'Robot Connected' : 'Robot Offline',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black54,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -299,7 +398,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               _buildHeaderButton(
                 icon: Icons.settings_outlined,
-                onPressed: () => HapticFeedback.lightImpact(),
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  final result = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ServerConfigScreen(
+                        serverService: _serverService,
+                      ),
+                    ),
+                  );
+                  
+                  // Si se devolvió una nueva URL, forzar una actualización
+                  if (result != null && result.isNotEmpty) {
+                    // La configuración ya se actualizó en el servicio
+                    // Solo necesitamos forzar una actualización de la UI
+                    await Future.delayed(const Duration(milliseconds: 500));
+                    HapticFeedback.selectionClick();
+                  }
+                },
               ),
               const SizedBox(width: 12),
               _buildHeaderButton(
@@ -378,9 +495,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Expanded(
                       child: _buildStatItem(
-                        'Active Streams',
-                        '$_activeStreams',
-                        Icons.stream,
+                        'GPS Satellites',
+                        _sensorData?.gps.satellites.toString() ?? '0',
+                        Icons.satellite_alt,
                         AppTheme.primaryColor,
                       ),
                     ),
@@ -391,10 +508,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     Expanded(
                       child: _buildStatItem(
-                        'Robot Status',
-                        _robotStatus,
-                        Icons.memory,
-                        AppTheme.successColor,
+                        'Server Status',
+                        _isConnected ? 'Online' : 'Offline',
+                        Icons.cloud,
+                        _isConnected ? AppTheme.successColor : const Color(0xFFEF4444),
                       ),
                     ),
                     Container(
@@ -404,9 +521,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     Expanded(
                       child: _buildStatItem(
-                        'Uptime',
-                        '2h 34m',
-                        Icons.timer,
+                        'Altitude',
+                        '${_sensorData?.gps.altitude.toStringAsFixed(0) ?? '0'}m',
+                        Icons.height,
                         AppTheme.accentColor,
                       ),
                     ),
@@ -450,104 +567,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           textAlign: TextAlign.center,
         ),
       ],
-    );
-  }
-
-  Widget _buildQuickActionsSection() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickActionButton(
-                    'Emergency Stop',
-                    Icons.stop_circle_outlined,
-                    AppTheme.errorColor,
-                    () => HapticFeedback.heavyImpact(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickActionButton(
-                    'Reset Position',
-                    Icons.home_outlined,
-                    AppTheme.warningColor,
-                    () => HapticFeedback.mediumImpact(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickActionButton(
-                    'Calibrate',
-                    Icons.tune_outlined,
-                    AppTheme.accentColor,
-                    () => HapticFeedback.lightImpact(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionButton(
-    String label,
-    IconData icon,
-    Color color,
-    VoidCallback onPressed,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.2)),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -703,14 +722,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: Container(
-              key: ValueKey(_isConnected),
+              key: ValueKey(_isStreaming),
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withOpacity(0.2),
               ),
               child: Icon(
-                _isConnected ? Icons.stop : Icons.play_arrow,
+                _isStreaming ? Icons.stop : Icons.play_arrow,
                 color: Colors.white,
                 size: 24,
               ),
@@ -719,8 +738,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           label: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             child: Text(
-              _isConnected ? 'Stop Stream' : 'Start Stream',
-              key: ValueKey(_isConnected),
+              _isStreaming ? 'Stop Stream' : 'Start Stream',
+              key: ValueKey(_isStreaming),
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -735,13 +754,113 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _toggleStreaming() {
+    // Usar el método toggleStreaming del servicio
+    _serverService.toggleStreaming();
+    
+    // Actualizar el estado local de streaming
     setState(() {
-      _isConnected = !_isConnected;
-      _robotStatus = _isConnected ? "Streaming" : "Standby";
+      _isStreaming = _serverService.isStreaming;
     });
+    
+    // El estado de _isConnected se actualizará automáticamente 
+    // a través del stream connectionStream cuando el servicio
+    // actualice su estado de conexión
   }
 
   void _showCardDetails(Map<String, dynamic> cardData) {
+    final String label = cardData['label'] as String;
+    List<Widget> detailWidgets = [];
+
+    // Agregar información específica basada en el tipo de tarjeta
+    if (label == 'GPS Position' && _sensorData?.gps != null) {
+      final gps = _sensorData!.gps;
+      detailWidgets.addAll([
+        _buildDetailRow('Latitude', '${gps.latitude.toStringAsFixed(6)}°'),
+        _buildDetailRow('Longitude', '${gps.longitude.toStringAsFixed(6)}°'),
+        _buildDetailRow('Altitude', '${gps.altitude.toStringAsFixed(1)} m'),
+        _buildDetailRow('Speed', '${gps.speed.toStringAsFixed(2)} m/s'),
+        _buildDetailRow('Satellites', '${gps.satellites}'),
+      ]);
+    } else if (label == 'Wheel Motors' && _actuatorData != null) {
+      final actuators = _actuatorData!;
+      detailWidgets.addAll([
+        _buildDetailRow('Front Left', '${actuators.frontLeftWheel.speed} RPM • ${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Front Right', '${actuators.frontRightWheel.speed} RPM • ${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Back Left', '${actuators.backLeftWheel.speed} RPM • ${actuators.backLeftWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Back Right', '${actuators.backRightWheel.speed} RPM • ${actuators.backRightWheel.temperature.toStringAsFixed(1)}°C'),
+        const SizedBox(height: 8),
+        _buildDetailRow('Avg Power', '${((actuators.frontLeftWheel.consumption + actuators.frontRightWheel.consumption + actuators.backLeftWheel.consumption + actuators.backRightWheel.consumption) / 4).toStringAsFixed(2)} A'),
+        _buildDetailRow('Avg Voltage', '${((actuators.frontLeftWheel.voltage + actuators.frontRightWheel.voltage + actuators.backLeftWheel.voltage + actuators.backRightWheel.voltage) / 4).toStringAsFixed(1)} V'),
+      ]);
+    } else if (label == 'IMU Sensors' && _sensorData?.imu != null) {
+      final imu = _sensorData!.imu;
+      detailWidgets.addAll([
+        const Text(
+          'Accelerometer (m/s²)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 4),
+        _buildDetailRow('X-axis', '${imu.accelerometer.x.toStringAsFixed(2)}'),
+        _buildDetailRow('Y-axis', '${imu.accelerometer.y.toStringAsFixed(2)}'),
+        _buildDetailRow('Z-axis', '${imu.accelerometer.z.toStringAsFixed(2)}'),
+        const SizedBox(height: 12),
+        const Text(
+          'Gyroscope (rad/s)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 4),
+        _buildDetailRow('X-axis', '${imu.gyroscope.x.toStringAsFixed(3)}'),
+        _buildDetailRow('Y-axis', '${imu.gyroscope.y.toStringAsFixed(3)}'),
+        _buildDetailRow('Z-axis', '${imu.gyroscope.z.toStringAsFixed(3)}'),
+        const SizedBox(height: 12),
+        const Text(
+          'Magnetometer (µT)',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        const SizedBox(height: 4),
+        _buildDetailRow('X-axis', '${imu.magnetometer.x.toStringAsFixed(2)}'),
+        _buildDetailRow('Y-axis', '${imu.magnetometer.y.toStringAsFixed(2)}'),
+        _buildDetailRow('Z-axis', '${imu.magnetometer.z.toStringAsFixed(2)}'),
+      ]);
+    } else if (label == 'Server Link') {
+      final timestamp = _sensorData?.timestamp;
+      detailWidgets.addAll([
+        _buildDetailRow('Status', _isConnected ? 'Connected' : 'Disconnected'),
+        _buildDetailRow('Server URL', _serverService.currentBaseUrl),
+        _buildDetailRow('Update Interval', '${ServerConfig.updateInterval.inSeconds}s'),
+        if (timestamp != null) ...[
+          _buildDetailRow('Last Update', 
+            DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt())
+              .toString().substring(11, 19)),
+          _buildDetailRow('Data Age', 
+            '${DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt())).inSeconds}s'),
+        ],
+      ]);
+    } else if (label == 'Temperature' && _actuatorData != null) {
+      final actuators = _actuatorData!;
+      detailWidgets.addAll([
+        _buildDetailRow('Front Left Motor', '${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Front Right Motor', '${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Back Left Motor', '${actuators.backLeftWheel.temperature.toStringAsFixed(1)}°C'),
+        _buildDetailRow('Back Right Motor', '${actuators.backRightWheel.temperature.toStringAsFixed(1)}°C'),
+        const SizedBox(height: 8),
+        _buildDetailRow('Average', '${((actuators.frontLeftWheel.temperature + actuators.frontRightWheel.temperature + actuators.backLeftWheel.temperature + actuators.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C'),
+        _buildDetailRow('Max Safe Temp', '80.0°C'),
+      ]);
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -791,9 +910,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: Colors.grey[600],
               ),
             ),
+            if (detailWidgets.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              ...detailWidgets,
+            ],
             const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
       ),
     );
   }

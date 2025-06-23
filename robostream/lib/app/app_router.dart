@@ -6,7 +6,7 @@ import 'package:robostream/app/home_screen.dart';
 class AppRouter {
   static final router = GoRouter(
     // La ruta inicial ahora es '/login'
-    initialLocation: '/login',
+    initialLocation: '/',
     routes: [
       GoRoute(
         path: '/',
