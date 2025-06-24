@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:robostream/app/app_theme.dart';
 import 'package:robostream/app/login_cubit.dart';
 import 'package:robostream/app/login_state.dart';
+import 'package:robostream/assets/styles/login_styles.dart';
+import 'package:robostream/assets/styles/app_styles.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -17,7 +18,7 @@ class LoginScreen extends StatelessWidget {
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
-            gradient: AppTheme.backgroundGradient,
+            gradient: AppStyles.backgroundGradient,
           ),
           child: BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
@@ -28,7 +29,7 @@ class LoginScreen extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message),
-                    backgroundColor: AppTheme.errorColor,
+                    backgroundColor: AppStyles.errorColor,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -54,28 +55,27 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgIpController = TextEditingController();
   final _lgUsernameController = TextEditingController();
   final _lgPasswordController = TextEditingController();
-  final _robotIpController = TextEditingController();
+
+  // Removidas las variables estáticas para guardar configuración - no las necesitamos
 
   late AnimationController _slideController;
   late AnimationController _fadeController;
-  late AnimationController _breathingController;
   late AnimationController _particleController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _breathingAnimation;
   late Animation<double> _particleAnimation;
 
   // Focus nodes for better interaction feedback
   final _lgIpFocus = FocusNode();
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
-  final _robotIpFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _startContinuousAnimations();
+    // Removido: _loadSavedConfiguration(); - No queremos cargar datos guardados
   }
 
   void _initializeAnimations() {
@@ -85,10 +85,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _breathingController = AnimationController(
-      duration: const Duration(milliseconds: 4000),
       vsync: this,
     );
     _particleController = AnimationController(
@@ -101,7 +97,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _slideController,
-      curve: AppTheme.bouncyCurve,
+      curve: AppStyles.bouncyCurve,
     ));
     
     _fadeAnimation = Tween<double>(
@@ -109,15 +105,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _fadeController,
-      curve: AppTheme.smoothCurve,
-    ));
-
-    _breathingAnimation = Tween<double>(
-      begin: 0.95,
-      end: 1.05,
-    ).animate(CurvedAnimation(
-      parent: _breathingController,
-      curve: Curves.easeInOut,
+      curve: AppStyles.smoothCurve,
     ));
 
     _particleAnimation = Tween<double>(
@@ -133,36 +121,31 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   void _startContinuousAnimations() {
-    _breathingController.repeat(reverse: true);
     _particleController.repeat();
   }
-
   @override
   void dispose() {
     _lgIpController.dispose();
     _lgUsernameController.dispose();
     _lgPasswordController.dispose();
-    _robotIpController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
-    _breathingController.dispose();
     _particleController.dispose();
     _lgIpFocus.dispose();
     _lgUsernameFocus.dispose();
     _lgPasswordFocus.dispose();
-    _robotIpFocus.dispose();
     super.dispose();
   }
-
   void _onLoginPressed() {
     // Add haptic feedback
     HapticFeedback.mediumImpact();
+    
+    // Removido: _saveConfiguration(); - No queremos guardar la configuración
     
     context.read<LoginCubit>().login(
           lgIpAddress: _lgIpController.text,
           lgUsername: _lgUsernameController.text,
           lgPassword: _lgPasswordController.text,
-          robotIpAddress: _robotIpController.text,
         );
   }
 
@@ -183,8 +166,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.08),
-                    AppTheme.primaryColor.withOpacity(0.04),
+                    AppStyles.primaryColor.withOpacity(0.08),
+                    AppStyles.primaryColor.withOpacity(0.04),
                   ],
                 ),
               ),
@@ -203,8 +186,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.secondaryColor.withOpacity(0.08),
-                    AppTheme.secondaryColor.withOpacity(0.04),
+                    AppStyles.secondaryColor.withOpacity(0.08),
+                    AppStyles.secondaryColor.withOpacity(0.04),
                   ],
                 ),
               ),
@@ -219,7 +202,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           child: Center(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: SlideTransition(
                 position: _slideAnimation,
                 child: FadeTransition(
@@ -227,39 +210,25 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Enhanced logo with breathing animation
-                      AnimatedBuilder(
-                        animation: _breathingAnimation,
-                        builder: (context, child) {
+                      // Enhanced logo without breathing animation
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 1400),
+                        curve: AppStyles.bouncyCurve,
+                        builder: (context, value, child) {
                           return Transform.scale(
-                            scale: _breathingAnimation.value,
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 1400),
-                              curve: AppTheme.bouncyCurve,
-                              builder: (context, value, child) {
-                                return Transform.scale(
-                                  scale: value,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(28),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: AppTheme.primaryGradient,
-                                      boxShadow: AppTheme.floatingShadow,
-                                    ),
-                                    child: const Icon(
-                                      Icons.memory,
-                                      size: 52,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                );
-                              },
+                            scale: value,
+                            child: Container(
+                              width: 150,
+                              height: 150,
+                              child: Image.asset(
+                                'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(height: 32),
                       
                       // Enhanced title with shimmer effect
                       TweenAnimationBuilder<double>(
@@ -270,9 +239,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             shaderCallback: (bounds) {
                               return LinearGradient(
                                 colors: [
-                                  AppTheme.primaryColor.withOpacity(value),
-                                  AppTheme.secondaryColor.withOpacity(value),
-                                  AppTheme.accentColor.withOpacity(value * 0.8),
+                                  AppStyles.primaryColor.withOpacity(value),
+                                  AppStyles.secondaryColor.withOpacity(value),
+                                  AppStyles.accentColor.withOpacity(value * 0.8),
                                 ],
                                 stops: const [0.0, 0.5, 1.0],
                               ).createShader(bounds);
@@ -282,12 +251,13 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                               style: Theme.of(context).textTheme.displayLarge?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
+                                fontSize: 36,
                               ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
@@ -299,7 +269,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                               'Connect to your robot and start streaming',
                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 color: Colors.grey[600],
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w500,
                               ),
                               textAlign: TextAlign.center,
@@ -307,12 +277,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                           );
                         },
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 36),
                       
                       // Enhanced form fields with better animations
                       ..._buildEnhancedAnimatedFields(),
                       
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
                       
                       // Enhanced button with better feedback
                       BlocBuilder<LoginCubit, LoginState>(
@@ -365,8 +335,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.06),
-                    AppTheme.secondaryColor.withOpacity(0.03),
+                    AppStyles.primaryColor.withOpacity(0.06),
+                    AppStyles.secondaryColor.withOpacity(0.03),
                     Colors.transparent,
                   ],
                 ),
@@ -377,7 +347,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       },
     );
   }
-
   List<Widget> _buildEnhancedAnimatedFields() {
     final fields = [
       _buildEnhancedTextField(
@@ -400,13 +369,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         label: 'LG Password',
         icon: Icons.lock_outline,
         obscureText: true,
-        nextFocus: _robotIpFocus,
-      ),
-      _buildEnhancedTextField(
-        controller: _robotIpController,
-        focusNode: _robotIpFocus,
-        label: 'Robot IP Address',
-        icon: Icons.memory,
       ),
     ];
 
@@ -416,14 +378,14 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         .map((entry) => TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
               duration: Duration(milliseconds: 700 + (entry.key * 150)),
-              curve: AppTheme.bouncyCurve,
+              curve: AppStyles.bouncyCurve,
               builder: (context, value, child) {
                 return Transform.translate(
                   offset: Offset(0, 30 * (1 - value)),
                   child: Opacity(
                     opacity: value.clamp(0.0, 1.0),
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.only(bottom: 18),
                       child: entry.value,
                     ),
                   ),
@@ -440,6 +402,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     required IconData icon,
     bool obscureText = false,
     FocusNode? nextFocus,
+    String? hintText,
   }) {
     return AnimatedBuilder(
       animation: focusNode,
@@ -447,11 +410,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         final isFocused = focusNode.hasFocus;
         
         return AnimatedContainer(
-          duration: AppTheme.mediumDuration,
-          curve: AppTheme.primaryCurve,
+          duration: AppStyles.mediumDuration,
+          curve: AppStyles.primaryCurve,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            boxShadow: isFocused ? AppTheme.elevatedShadow : AppTheme.cardShadow,
+            boxShadow: isFocused ? AppStyles.elevatedShadow : AppStyles.cardShadow,
           ),
           child: TextField(
             controller: controller,
@@ -468,16 +431,17 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             onTap: () => HapticFeedback.selectionClick(),
             decoration: InputDecoration(
               labelText: label,
+              hintText: hintText,
               prefixIcon: AnimatedContainer(
-                duration: AppTheme.mediumDuration,
+                duration: AppStyles.mediumDuration,
                 margin: const EdgeInsets.all(14),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: isFocused ? AppTheme.primaryGradient : AppTheme.accentGradient,
+                  gradient: isFocused ? AppStyles.primaryGradient : AppStyles.accentGradient,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: isFocused ? [
                     BoxShadow(
-                      color: AppTheme.primaryColor.withOpacity(0.25),
+                      color: AppStyles.primaryColor.withOpacity(0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -495,10 +459,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(20),
                 borderSide: BorderSide.none,
               ),
-              labelStyle: TextStyle(
-                color: isFocused ? AppTheme.primaryColor : Colors.grey[600],
-                fontWeight: isFocused ? FontWeight.w600 : FontWeight.w500,
-              ),
+              labelStyle: LoginStyles.getTextFieldLabelStyle(isFocused),
             ),
           ),
         );
@@ -510,20 +471,20 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
-      curve: AppTheme.bouncyCurve,
+      curve: AppStyles.bouncyCurve,
       builder: (context, value, child) {
         return Transform.scale(
           scale: value,
           child: AnimatedContainer(
-            duration: AppTheme.mediumDuration,
+            duration: AppStyles.mediumDuration,
             width: double.infinity,
             height: 64,
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
+              gradient: AppStyles.primaryGradient,
               borderRadius: BorderRadius.circular(20),
               boxShadow: state is LoginInProgress 
-                  ? AppTheme.cardShadow 
-                  : AppTheme.floatingShadow,
+                  ? AppStyles.cardShadow 
+                  : AppStyles.floatingShadow,
             ),
             child: Material(
               color: Colors.transparent,
@@ -552,17 +513,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             Icon(
                               Icons.rocket_launch,
                               color: Colors.white,
-                              size: 24,
+                              size: LoginStyles.buttonIconSize,
                             ),
-                            SizedBox(width: 12),
+                            SizedBox(width: LoginStyles.buttonIconSpacing),
                             Text(
                               'Connect',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
+                              style: LoginStyles.buttonTextStyle,
                             ),
                           ],
                         ),

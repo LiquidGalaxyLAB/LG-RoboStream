@@ -1,6 +1,6 @@
 name: robostream
 
-description: "A new Flutter project."
+description: "RoboStream - Aplicación de control y monitoreo robótico con interfaz Flutter"
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -48,6 +48,8 @@ dependencies:
   
   http: ^1.2.1
 
+  shared_preferences: ^2.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,6 +60,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Paquete para generar iconos automáticamente
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,10 +75,38 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - lib/assets/Images/
+
   # Usar solo las dos fuentes Roboto que tienes en assets
   fonts:
     - family: Roboto
       fonts:
-        - asset: lib/assets/Roboto-Regular.ttf
-        - asset: lib/assets/Roboto-Bold.ttf
+        - asset: lib/assets/fonts/Roboto-Regular.ttf
+        - asset: lib/assets/fonts/Roboto-Bold.ttf
           weight: 700
+
+# Configuración para los iconos de la aplicación
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/assets/Images/ROBOSTREAM_FINAL_ICON.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  remove_alpha_ios: false # Mantener transparencia en iOS
+  adaptive_icon_background: "#1F2937" # Fondo más oscuro para mayor contraste
+  adaptive_icon_foreground: "lib/assets/Images/ROBOSTREAM_FINAL_ICON.png" # Icono frontal para Android adaptativo
+  adaptive_icon_padding: 0 # Sin padding para icono más grande
+  web:
+    generate: true
+    image_path: "lib/assets/Images/ROBOSTREAM_FINAL_ICON.png"
+    background_color: "#1F2937"
+    theme_color: "#6366F1"
+  windows:
+    generate: true
+    image_path: "lib/assets/Images/ROBOSTREAM_FINAL_ICON.png"
+    icon_size: 256 # Máximo permitido para Windows
+  macos:
+    generate: true
+    image_path: "lib/assets/Images/ROBOSTREAM_FINAL_ICON.png"
+    icon_size: 1024 # Aumentado a 1024 para macOS (máximo soporte)

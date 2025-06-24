@@ -45,14 +45,12 @@ class GPSData {
   final double longitude;
   final double altitude;
   final double speed;
-  final int satellites;
 
   GPSData({
     required this.latitude,
     required this.longitude,
     required this.altitude,
     required this.speed,
-    required this.satellites,
   });
 
   factory GPSData.fromJson(Map<String, dynamic> json) {
@@ -61,7 +59,6 @@ class GPSData {
       longitude: json['longitude']?.toDouble() ?? 0.0,
       altitude: json['altitude']?.toDouble() ?? 0.0,
       speed: json['speed']?.toDouble() ?? 0.0,
-      satellites: json['satellites']?.toInt() ?? 0,
     );
   }
 }
@@ -194,24 +191,20 @@ class RobotServerService {
   void stopPeriodicRequests() {
     _timer?.cancel();
     _timer = null;
-  }
-  // Iniciar el streaming de datos
+  }  // Iniciar el streaming de datos
   void startStreaming() {
     if (!_isStreaming) {
       _isStreaming = true;
       _updateConnectionStatus(false); // Reset connection status
       startPeriodicRequests(); // Iniciar el temporizador
-      print('🟢 Streaming started');
     }
   }
-
   // Detener el streaming de datos
   void stopStreaming() {
     if (_isStreaming) {
       _isStreaming = false;
       stopPeriodicRequests(); // Detener el temporizador
       _updateConnectionStatus(false);
-      print('🔴 Streaming stopped');
     }
   }
 
@@ -238,12 +231,10 @@ class RobotServerService {
         _updateConnectionStatus(true);
         return sensorData;
       } else {
-        _updateConnectionStatus(false);
-        return null;
+        _updateConnectionStatus(false);        return null;
       }
     } catch (e) {
       _updateConnectionStatus(false);
-      print('Error fetching sensor data: $e');
       return null;
     }
   }
@@ -260,11 +251,9 @@ class RobotServerService {
         final actuatorData = ActuatorData.fromJson(jsonData);
         _lastActuatorData = actuatorData;
         return actuatorData;
-      } else {
-        return null;
+      } else {        return null;
       }
     } catch (e) {
-      print('Error fetching actuator data: $e');
       return null;
     }
   }
@@ -302,10 +291,9 @@ class RobotServerService {
         _sensorController.add(sensorData);
       }
       if (actuatorData != null) {
-        _actuatorController.add(actuatorData);
-      }
+        _actuatorController.add(actuatorData);      }
     } catch (e) {
-      print('Error fetching all data: $e');
+      // Error handling without print
     }
   }
 

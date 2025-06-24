@@ -9,14 +9,12 @@ class LoginCubit extends Cubit<LoginState> {
     required String lgIpAddress,
     required String lgUsername,
     required String lgPassword,
-    required String robotIpAddress,
   }) async {
     emit(LoginInProgress()); // Cambiado de LoginLoading a LoginInProgress
 
     if (lgIpAddress.isEmpty ||
         lgUsername.isEmpty ||
-        lgPassword.isEmpty ||
-        robotIpAddress.isEmpty) {
+        lgPassword.isEmpty) {
       emit(const LoginFailure('Por favor, rellena todos los campos.'));
       return;
     }

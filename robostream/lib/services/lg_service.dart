@@ -1,7 +1,6 @@
 // Contenido para: lib/data/services/lg_service.dart
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/foundation.dart';
 
 class LGService {
   final String _host;
@@ -32,10 +31,8 @@ class LGService {
       // Si esto falla, lanzará una excepción.
       await _client!.run('echo "Connection successful"');
       
-      debugPrint('Conexión con Liquid Galaxy establecida correctamente.');
       return true;
     } catch (e) {
-      debugPrint('Error al conectar con Liquid Galaxy: $e');
       _client?.close(); // Cerramos si algo ha fallado.
       _client = null;
       return false;
