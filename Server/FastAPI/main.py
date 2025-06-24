@@ -34,7 +34,6 @@ class GPSData(BaseModel):
     longitude: float
     altitude: float
     speed: float
-    satellites: int
 
 class SensorData(BaseModel):
     timestamp: float
@@ -77,8 +76,7 @@ class RobotSimulator:
                 latitude=self.base_lat,
                 longitude=self.base_lon,
                 altitude=655.0,
-                speed=0.0,
-                satellites=10
+                speed=0.0
             ),
             lidar="Connected",
             camera="Streaming"
@@ -130,7 +128,6 @@ class RobotSimulator:
         self.sensor_data.gps.longitude = self.base_lon + random.uniform(-0.0001, 0.0001)
         self.sensor_data.gps.altitude = round(random.uniform(650.0, 660.0), 1)
         self.sensor_data.gps.speed = round(random.uniform(0.0, 5.0), 1)
-        self.sensor_data.gps.satellites = random.randint(8, 12)
         
         # LiDAR and Camera status with occasional changes
         self.sensor_data.lidar = "Connected" if random.random() > 0.1 else "Disconnected"

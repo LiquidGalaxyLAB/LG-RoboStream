@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:robostream/app/telemetry_card.dart';
-import 'package:robostream/app/app_theme.dart';
+import 'package:robostream/widgets/widgets.dart';
+import 'package:robostream/assets/styles/home_styles.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/config/server_config.dart';
@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _initializeAnimations() {
     _fabController = AnimationController(
-      duration: AppTheme.mediumDuration,
+      duration: AppStyles.mediumDuration,
       vsync: this,
     );
     _parallaxController = AnimationController(
@@ -91,11 +91,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     );
     _headerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: HomeStyles.headerDuration,
       vsync: this,
     );
     _statsController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: HomeStyles.statsDuration,
       vsync: this,
     );
     _pulseController = AnimationController(
@@ -104,16 +104,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     
     _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fabController, curve: AppTheme.bouncyCurve),
+      CurvedAnimation(parent: _fabController, curve: AppStyles.bouncyCurve),
     );
     _parallaxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _parallaxController, curve: Curves.linear),
     );
     _headerSlideAnimation = Tween<double>(begin: -50.0, end: 0.0).animate(
-      CurvedAnimation(parent: _headerController, curve: AppTheme.smoothCurve),
+      CurvedAnimation(parent: _headerController, curve: AppStyles.smoothCurve),
     );
     _statsAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _statsController, curve: AppTheme.bouncyCurve),
+      CurvedAnimation(parent: _statsController, curve: AppStyles.bouncyCurve),
     );
     _pulseAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -165,12 +165,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
+          gradient: AppStyles.backgroundGradient,
         ),
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           backgroundColor: Colors.white,
-          color: AppTheme.primaryColor,
+          color: AppStyles.primaryColor,
           strokeWidth: 3,
           displacement: 120,
           child: CustomScrollView(
@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         'label': 'GPS Position', 
         'color': gpsData != null ? const Color(0xFF06B6D4) : const Color(0xFF64748B),
         'status': gpsData != null ? 'Active' : 'Offline',
-        'value': gpsData != null ? '${gpsData.satellites} sats' : 'N/A'
+        'value': gpsData != null ? 'Tracking' : 'N/A'
       },
       {
         'icon': Icons.speed_outlined, 
@@ -297,132 +297,103 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           StretchMode.blurBackground,
         ],
         titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        centerTitle: false,
-        title: AnimatedBuilder(
+        centerTitle: false,        title: AnimatedBuilder(
           animation: _headerSlideAnimation,
           builder: (context, child) {
             return Transform.translate(
               offset: Offset(_headerSlideAnimation.value, -_scrollOffset * 0.1),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ShaderMask(
-                      shaderCallback: (bounds) => AppTheme.primaryGradient.createShader(bounds),
-                      child: const Text(
-                        'RoboStream',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 28,
-                          letterSpacing: -0.8,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    AnimatedBuilder(
-                      animation: _pulseAnimation,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _pulseAnimation.value,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _isConnected ? AppTheme.successColor : AppTheme.errorColor,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (_isConnected ? AppTheme.successColor : AppTheme.errorColor)
-                                          .withOpacity(0.5),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _isConnected ? 'Robot Connected' : 'Robot Offline',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
+              child: child,
             );
           },
-        ),
-        background: AnimatedBuilder(
+          child: _buildHeaderTitle(),
+        ),        background: AnimatedBuilder(
           animation: _parallaxAnimation,
           builder: (context, child) {
             return Stack(
               children: [
                 ...List.generate(6, (index) => _buildBackgroundParticle(index)),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        AppTheme.backgroundColor.withOpacity(0.3),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
+                child!,
               ],
             );
           },
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  AppStyles.backgroundColor.withOpacity(0.3),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
         ),
-      ),
-      actions: [
+      ),      actions: [
         Padding(
           padding: const EdgeInsets.only(right: 20),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildHeaderButton(
-                icon: Icons.settings_outlined,
-                onPressed: () async {
-                  HapticFeedback.lightImpact();
-                  final result = await Navigator.push<String>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ServerConfigScreen(
-                        serverService: _serverService,
+            children: [              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: AppStyles.cardShadow,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  color: AppStyles.primaryColor,
+                  iconSize: 24,
+                  onPressed: () async {
+                    HapticFeedback.lightImpact();
+                    final result = await Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ServerConfigScreen(
+                          serverService: _serverService,
+                        ),
+                      ),
+                    );
+                    
+                    // Si se devolvió una nueva URL, forzar una actualización
+                    if (result != null && result.isNotEmpty) {
+                      // La configuración ya se actualizó en el servicio
+                      // Solo necesitamos forzar una actualización de la UI
+                      await Future.delayed(const Duration(milliseconds: 500));
+                      HapticFeedback.selectionClick();
+                    }
+                  },
+                ),
+              ),const SizedBox(width: 12),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: AppStyles.cardShadow,
+                ),
+                child: Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      color: AppStyles.primaryColor,
+                      iconSize: 24,
+                      onPressed: () => HapticFeedback.lightImpact(),
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppStyles.errorColor,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
-                  );
-                  
-                  // Si se devolvió una nueva URL, forzar una actualización
-                  if (result != null && result.isNotEmpty) {
-                    // La configuración ya se actualizó en el servicio
-                    // Solo necesitamos forzar una actualización de la UI
-                    await Future.delayed(const Duration(milliseconds: 500));
-                    HapticFeedback.selectionClick();
-                  }
-                },
-              ),
-              const SizedBox(width: 12),
-              _buildHeaderButton(
-                icon: Icons.notifications_outlined,
-                onPressed: () => HapticFeedback.lightImpact(),
-                badge: true,
+                  ],
+                ),
               ),
             ],
           ),
@@ -430,106 +401,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ],
     );
   }
-
-  Widget _buildHeaderButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    bool badge = false,
-  }) {
-    return AnimatedContainer(
-      duration: AppTheme.mediumDuration,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white,
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Stack(
-        children: [
-          IconButton(
-            icon: Icon(icon),
-            color: AppTheme.primaryColor,
-            iconSize: 24,
-            onPressed: onPressed,
-          ),
-          if (badge)
-            Positioned(
-              right: 8,
-              top: 8,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.errorColor,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatsSection() {
     return SliverToBoxAdapter(
       child: AnimatedBuilder(
         animation: _statsAnimation,
         builder: (context, child) {
           return Transform.translate(
-            offset: Offset(0, 30 * (1 - _statsAnimation.value)),
-            child: Opacity(
-              opacity: _statsAnimation.value.clamp(0.0, 1.0),
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Colors.white, Color(0xFFFAFBFF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            offset: Offset(0, 30 * (1 - _statsAnimation.value)),              child: Opacity(
+                opacity: _statsAnimation.value.clamp(0.0, 1.0),
+                child: CustomCard(
+                  margin: const EdgeInsets.all(24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatItem(
+                          'Server Status',
+                          _isConnected ? 'Online' : 'Offline',
+                          Icons.cloud,
+                          _isConnected ? AppStyles.successColor : const Color(0xFFEF4444),
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: Colors.grey.shade200,
+                      ),
+                      Expanded(
+                        child: _buildStatItem(
+                          'Altitude',
+                          '${_sensorData?.gps.altitude.toStringAsFixed(0) ?? '0'}m',
+                          Icons.height,
+                          AppStyles.accentColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: AppTheme.cardShadow,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatItem(
-                        'GPS Satellites',
-                        _sensorData?.gps.satellites.toString() ?? '0',
-                        Icons.satellite_alt,
-                        AppTheme.primaryColor,
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.grey.shade200,
-                    ),
-                    Expanded(
-                      child: _buildStatItem(
-                        'Server Status',
-                        _isConnected ? 'Online' : 'Offline',
-                        Icons.cloud,
-                        _isConnected ? AppTheme.successColor : const Color(0xFFEF4444),
-                      ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: Colors.grey.shade200,
-                    ),
-                    Expanded(
-                      child: _buildStatItem(
-                        'Altitude',
-                        '${_sensorData?.gps.altitude.toStringAsFixed(0) ?? '0'}m',
-                        Icons.height,
-                        AppTheme.accentColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ),
           );
         },
@@ -602,8 +509,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppTheme.primaryColor.withOpacity(0.12),
-                    AppTheme.accentColor.withOpacity(0.06),
+                    AppStyles.primaryColor.withOpacity(0.12),
+                    AppStyles.accentColor.withOpacity(0.06),
                     Colors.transparent,
                   ],
                 ),
@@ -614,7 +521,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
     );
   }
-
   Widget _buildEnhancedGrid(List<Map<String, dynamic>> cardsData) {
     return SliverPadding(
       padding: const EdgeInsets.all(24.0),
@@ -624,129 +530,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         mainAxisSpacing: 20,
         childAspectRatio: 0.85,
         children: List.generate(cardsData.length, (index) {
-          return TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: Duration(milliseconds: 600 + (index * 100)),
-            curve: AppTheme.bouncyCurve,
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, 50 * (1 - value)),
-                child: Transform.scale(
-                  scale: value,
-                  child: Opacity(
-                    opacity: value.clamp(0.0, 1.0),
-                    child: TelemetryCard(
-                      icon: cardsData[index]['icon'] as IconData,
-                      label: cardsData[index]['label'] as String,
-                      color: cardsData[index]['color'] as Color,
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
-                        _showCardDetails(cardsData[index]);
-                      },
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
+          return _buildAnimatedCard(cardsData[index], index);
         }),
       ),
     );
   }
 
-  Widget _buildFooterSection() {
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primaryColor.withOpacity(0.05),
-              AppTheme.accentColor.withOpacity(0.05),
-            ],
+  Widget _buildAnimatedCard(Map<String, dynamic> cardData, int index) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 600 + (index * 100)),
+      curve: AppStyles.bouncyCurve,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 50 * (1 - value)),
+          child: Transform.scale(
+            scale: value,
+            child: Opacity(
+              opacity: value.clamp(0.0, 1.0),
+              child: child,
+            ),
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.info_outline,
-              color: AppTheme.primaryColor,
-              size: 32,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'System Information',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ROS2 Humble • Ubuntu 22.04 • Build v1.2.3',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+        );
+      },
+      child: CustomCard.simple(
+        icon: cardData['icon'] as IconData,
+        name: cardData['label'] as String,
+        color: cardData['color'] as Color,
+        onTap: () {
+          HapticFeedback.mediumImpact();
+          _showCardDetails(cardData);
+        },
       ),
     );
   }
-
-  Widget _buildEnhancedFAB() {
+  Widget _buildFooterSection() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: CustomCard.info(
+          icon: Icons.info_outline,
+          title: 'System Information',
+          subtitle: 'ROS2 Humble • Ubuntu 22.04 • Build v1.2.3',
+        ),
+      ),
+    );
+  }  Widget _buildEnhancedFAB() {
     return ScaleTransition(
       scale: _fabAnimation,
       child: Container(
-        decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: AppTheme.floatingShadow,
-        ),
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            HapticFeedback.heavyImpact();
-            _toggleStreaming();
-          },
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          splashColor: Colors.white.withOpacity(0.3),
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Container(
-              key: ValueKey(_isStreaming),
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.2),
-              ),
-              child: Icon(
-                _isStreaming ? Icons.stop : Icons.play_arrow,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-          label: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: Text(
-              _isStreaming ? 'Stop Stream' : 'Start Stream',
-              key: ValueKey(_isStreaming),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                letterSpacing: 0.5,
-              ),
-            ),
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        child: SizedBox(
+          width: 200, // Limitar el ancho del botón
+          child: CustomButton.streaming(
+            text: _isStreaming ? 'Stop Stream' : 'Start Stream',
+            streamIcon: _isStreaming ? Icons.stop_circle : Icons.play_circle,
+            onPressed: () {
+              HapticFeedback.heavyImpact();
+              _toggleStreaming();
+            },
           ),
         ),
       ),
@@ -779,7 +621,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _buildDetailRow('Longitude', '${gps.longitude.toStringAsFixed(6)}°'),
         _buildDetailRow('Altitude', '${gps.altitude.toStringAsFixed(1)} m'),
         _buildDetailRow('Speed', '${gps.speed.toStringAsFixed(2)} m/s'),
-        _buildDetailRow('Satellites', '${gps.satellites}'),
       ]);
     } else if (label == 'Wheel Motors' && _actuatorData != null) {
       final actuators = _actuatorData!;
@@ -868,26 +709,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        ),        padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 40,
               height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
+              ),            ),
+            const SizedBox(height: 20), // Reducido de 24 a 20
             Icon(
               cardData['icon'] as IconData,
               size: 48,
               color: cardData['color'] as Color,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14), // Reducido de 16 a 14
             Text(
               cardData['label'] as String,
               style: const TextStyle(
@@ -895,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6), // Reducido de 8 a 6
             Text(
               'Status: ${cardData['status']}',
               style: TextStyle(
@@ -909,15 +749,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
-            ),
-            if (detailWidgets.isNotEmpty) ...[
-              const SizedBox(height: 24),
+            ),            if (detailWidgets.isNotEmpty) ...[
+              const SizedBox(height: 20), // Reducido de 24 a 20
               const Divider(),
-              const SizedBox(height: 16),
-              ...detailWidgets,
-            ],
-            const SizedBox(height: 24),
+              const SizedBox(height: 14), // Reducido de 16 a 14
+              ...detailWidgets,            ],
+            const SizedBox(height: 20), // Reducido de 24 a 20
           ],
+          ),
         ),
       ),
     );
@@ -942,6 +781,74 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1E293B),
+            ),
+          ),
+        ],      ),
+    );
+  }
+
+  Widget _buildHeaderTitle() {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ShaderMask(
+            shaderCallback: (bounds) => AppStyles.primaryGradient.createShader(bounds),
+            child: const Text(
+              'RoboStream',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 28,
+                letterSpacing: -0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          _buildConnectionStatus(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectionStatus() {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _pulseAnimation.value,
+          child: child,
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isConnected ? AppStyles.successColor : AppStyles.errorColor,
+              boxShadow: [
+                BoxShadow(
+                  color: (_isConnected ? AppStyles.successColor : AppStyles.errorColor)
+                      .withOpacity(0.5),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isConnected ? 'Robot Connected' : 'Robot Offline',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
             ),
           ),
         ],

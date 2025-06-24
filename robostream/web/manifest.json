@@ -1,11 +1,11 @@
 {
-    "name": "robostream",
-    "short_name": "robostream",
+    "name": "RoboStream",
+    "short_name": "RoboStream",
     "start_url": ".",
-    "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "display": "fullscreen",
+    "background_color": "#1F2937",
+    "theme_color": "#6366F1",
+    "description": "RoboStream - Aplicación de control y monitoreo robótico",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

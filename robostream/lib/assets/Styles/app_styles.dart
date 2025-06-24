@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
+class AppStyles {
   // Enhanced color palette with more variants
   static const primaryColor = Color(0xFF6366F1);
   static const secondaryColor = Color(0xFF8B5CF6);
@@ -258,6 +258,5 @@ class AppTheme {
       color: Colors.black.withOpacity(0.08),
       blurRadius: 20,
       offset: const Offset(0, 8),
-    ),
-  ];
+    ),  ];
 }
