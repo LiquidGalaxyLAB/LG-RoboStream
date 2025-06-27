@@ -70,6 +70,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
 
+  // Secret functionality variables
+  int _secretTapCount = 0;
+  static const int _requiredTaps = 7;
+
   @override
   void initState() {
     super.initState();
@@ -149,6 +153,16 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         );
   }
 
+  // Secret functionality method
+  void _handleSecretTap() {
+    _secretTapCount++;
+    if (_secretTapCount >= _requiredTaps) {
+      // Navigate directly to home screen without any message
+      _secretTapCount = 0; // Reset counter
+      context.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -211,23 +225,26 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Enhanced logo without breathing animation
-                      TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(milliseconds: 1400),
-                        curve: AppStyles.bouncyCurve,
-                        builder: (context, value, child) {
-                          return Transform.scale(
-                            scale: value,
-                            child: Container(
-                              width: 150,
-                              height: 150,
-                              child: Image.asset(
-                                'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
-                                fit: BoxFit.contain,
+                      GestureDetector(
+                        onTap: _handleSecretTap,
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: const Duration(milliseconds: 1400),
+                          curve: AppStyles.bouncyCurve,
+                          builder: (context, value, child) {
+                            return Transform.scale(
+                              scale: value,
+                              child: Container(
+                                width: 150,
+                                height: 150,
+                                child: Image.asset(
+                                  'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
+                                  fit: BoxFit.contain,
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                       
                       // Enhanced title with shimmer effect

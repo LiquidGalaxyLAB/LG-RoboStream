@@ -165,12 +165,13 @@ class RobotServerService {
 
   // Actualizar la URL del servidor
   void updateServerUrl(String newUrl) {
+    // Si estamos cambiando la URL y actualmente hay streaming, detenerlo
+    if (_currentBaseUrl != newUrl && _isStreaming) {
+      stopStreaming();
+    }
+    
     _currentBaseUrl = newUrl;
     _updateConnectionStatus(false); // Reset connection status
-    // Reiniciar las solicitudes con la nueva URL
-    if (_timer != null) {
-      startPeriodicRequests();
-    }
   }  // Iniciar las solicitudes periódicas con el intervalo configurado
   void startPeriodicRequests() {
     stopPeriodicRequests(); // Asegurar que no hay timers duplicados

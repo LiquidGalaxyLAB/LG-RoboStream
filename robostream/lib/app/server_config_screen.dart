@@ -17,6 +17,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   String _currentUrl = ServerConfig.baseUrl;
   bool _isTestingConnection = false;
   String? _connectionStatus;
+  RobotServerService? _testService;
 
   @override
   void initState() {
@@ -24,19 +25,28 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     _loadConfiguration();
   }  Future<void> _loadConfiguration() async {
     // Cargar configuración del servidor
+    if (!mounted) return;
+    
     setState(() {
       // Usar la URL actual del servicio si está disponible
       _currentUrl = widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
       _urlController.text = _currentUrl;
-    });  }
+    });
+  }
 
   @override
   void dispose() {
+    _testService?.dispose();
     _urlController.dispose();
     super.dispose();
   }
 
   Future<void> _testConnection(String url) async {
+    if (!mounted) return;
+    
+    // Cancel any previous test
+    _testService?.dispose();
+    
     setState(() {
       _isTestingConnection = true;
       _connectionStatus = null;
@@ -44,22 +54,38 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
     try {
       // Crear un servicio temporal para probar la conexión
-      final testService = RobotServerService();
-      testService.updateServerUrl(url);
+      _testService = RobotServerService();
+      _testService!.updateServerUrl(url);
       
-      final isConnected = await testService.checkConnection();
+      final isConnected = await _testService!.checkConnection();
+      
+      if (!mounted) {
+        _testService?.dispose();
+        _testService = null;
+        return;
+      }
       
       setState(() {
         _connectionStatus = isConnected ? 'Connected successfully!' : 'Connection failed';
         _isTestingConnection = false;
       });
       
-      testService.dispose();
+      _testService?.dispose();
+      _testService = null;
     } catch (e) {
+      if (!mounted) {
+        _testService?.dispose();
+        _testService = null;
+        return;
+      }
+      
       setState(() {
         _connectionStatus = 'Error: ${e.toString()}';
         _isTestingConnection = false;
       });
+      
+      _testService?.dispose();
+      _testService = null;
     }
   }
   @override
@@ -205,8 +231,20 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                 onPressed: () async {
                   final newUrl = _urlController.text.trim();
                   if (newUrl.isNotEmpty) {
+                    // Si la URL ha cambiado, detener el streaming actual
+                    if (widget.serverService != null && 
+                        widget.serverService!.currentBaseUrl != newUrl && 
+                        widget.serverService!.isStreaming) {
+                      widget.serverService!.stopStreaming();
+                    }
+                    
                     // Actualizar la URL del servicio si está disponible
                     widget.serverService?.updateServerUrl(newUrl);
+                    
+                    // Iniciar el streaming automáticamente después de guardar
+                    if (widget.serverService != null) {
+                      widget.serverService!.startStreaming();
+                    }
                     
                     // Mostrar mensaje de confirmación
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +253,9 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                           children: [
                             const Icon(Icons.check_circle, color: Colors.white),
                             const SizedBox(width: ServerConfigStyles.tinySpacing),
-                            Text('Server URL updated to: $newUrl'),
+                            Expanded(
+                              child: Text('Configuration saved and streaming started!'),
+                            ),
                           ],
                         ),
                         backgroundColor: ServerConfigStyles.successColor,
@@ -239,7 +279,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                 },
                 style: ServerConfigStyles.saveButtonStyle,
                 child: Text(
-                  'Save Configuration',
+                  'Save & Start Streaming',
                   style: ServerConfigStyles.buttonTextStyle,
                 ),
               ),
@@ -254,6 +294,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     
     return GestureDetector(
       onTap: () {
+        if (!mounted) return;
+        
         setState(() {
           _urlController.text = url;
           _connectionStatus = null; // Reset connection status

@@ -15,13 +15,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  late AnimationController _fabController;
   late AnimationController _parallaxController;
   late AnimationController _headerController;
   late AnimationController _statsController;
   late AnimationController _pulseController;
   
-  late Animation<double> _fabAnimation;
   late Animation<double> _parallaxAnimation;
   late Animation<double> _headerSlideAnimation;
   late Animation<double> _statsAnimation;
@@ -30,7 +28,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
   bool _isConnected = false;
-  bool _isStreaming = false; // Estado del streaming
   
   // Servicio del servidor y datos
   final RobotServerService _serverService = RobotServerService();
@@ -72,20 +69,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
 
-    // Sincronizar el estado de streaming con el servicio
-    setState(() {
-      _isStreaming = _serverService.isStreaming;
-    });
-
     // NO iniciar las solicitudes automáticamente
     // El usuario debe presionar el botón para comenzar
   }
 
   void _initializeAnimations() {
-    _fabController = AnimationController(
-      duration: AppStyles.mediumDuration,
-      vsync: this,
-    );
     _parallaxController = AnimationController(
       duration: const Duration(milliseconds: 3000),
       vsync: this,
@@ -103,9 +91,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     );
     
-    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fabController, curve: AppStyles.bouncyCurve),
-    );
     _parallaxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _parallaxController, curve: Curves.linear),
     );
@@ -119,7 +104,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
-    _fabController.forward();
     _headerController.forward();
     _statsController.forward();
   }
@@ -139,7 +123,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _fabController.dispose();
     _parallaxController.dispose();
     _headerController.dispose();
     _statsController.dispose();
@@ -185,8 +168,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
-      floatingActionButton: _buildEnhancedFAB(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -567,46 +548,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildFooterSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: CustomCard.info(
-          icon: Icons.info_outline,
-          title: 'System Information',
-          subtitle: 'ROS2 Humble • Ubuntu 22.04 • Build v1.2.3',
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: SystemInfoCard(
+          isConnected: _isConnected,
         ),
       ),
     );
-  }  Widget _buildEnhancedFAB() {
-    return ScaleTransition(
-      scale: _fabAnimation,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        child: SizedBox(
-          width: 200, // Limitar el ancho del botón
-          child: CustomButton.streaming(
-            text: _isStreaming ? 'Stop Stream' : 'Start Stream',
-            streamIcon: _isStreaming ? Icons.stop_circle : Icons.play_circle,
-            onPressed: () {
-              HapticFeedback.heavyImpact();
-              _toggleStreaming();
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _toggleStreaming() {
-    // Usar el método toggleStreaming del servicio
-    _serverService.toggleStreaming();
-    
-    // Actualizar el estado local de streaming
-    setState(() {
-      _isStreaming = _serverService.isStreaming;
-    });
-    
-    // El estado de _isConnected se actualizará automáticamente 
-    // a través del stream connectionStream cuando el servicio
-    // actualice su estado de conexión
   }
 
   void _showCardDetails(Map<String, dynamic> cardData) {

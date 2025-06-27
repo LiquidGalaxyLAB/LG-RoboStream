@@ -30,15 +30,13 @@ class LoginCubit extends Cubit<LoginState> {
       final bool isConnected = await lgService.connect();
 
       if (isConnected) {
-        // Si la conexión es exitosa, emitimos éxito
+        await lgService.showLogoUsingKML();
         emit(LoginSuccess());
       } else {
-        // Si lgService.connect() devuelve false, emitimos un error
         emit(const LoginFailure('No se pudo conectar a Liquid Galaxy. Verifica los datos.'));
       }
-    } catch (e) {
-      // Manejo de excepciones adicional
+        } catch (e) {
       emit(LoginFailure('Error de conexión: ${e.toString()}'));
-    }
+        }
   }
 }

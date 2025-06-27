@@ -1,6 +1,8 @@
 // Contenido para: lib/data/services/lg_service.dart
 
+import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter/services.dart';
 
 class LGService {
   final String _host;
@@ -37,6 +39,67 @@ class LGService {
       _client = null;
       return false;
     }
+  }
+
+  /// Envía un archivo por SCP al Liquid Galaxy
+  Future<bool> sendFile(String localAssetPath, String remotePath) async {
+    if (_client == null) return false;
+    
+    try {
+      // Cargar el archivo desde los assets
+      final ByteData data = await rootBundle.load(localAssetPath);
+      final Uint8List bytes = data.buffer.asUint8List();
+      
+      // Enviar archivo por SFTP
+      final sftp = await _client!.sftp();
+      final file = await sftp.open(remotePath, mode: SftpFileOpenMode.create | SftpFileOpenMode.write);
+      await file.writeBytes(bytes);
+      await file.close();
+      sftp.close();
+      
+      return true;
+    } catch (e) {
+      print('Error sending file: $e');
+      return false;
+    }
+  }
+
+  /// Ejecuta un comando SSH en el Liquid Galaxy
+  Future<bool> sendLGCommand(String command) async {
+    if (_client == null) return false;
+    
+    try {
+      await _client!.run(command);
+      return true;
+    } catch (e) {
+      print('Error executing command: $e');
+      return false;
+    }
+  }
+
+  /// Muestra el logo de RoboStream usando KML
+  Future<void> showLogoUsingKML() async {
+    // Primero enviar el logo
+    await sendFile('lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png', '/var/www/html/robostream_logo.png');
+    
+    // Luego enviar el KML
+    final kmlCommand = '''echo '<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>RoboStreamLogo</name>
+    <ScreenOverlay>
+      <name>RoboStreamLogo</name>
+      <Icon>
+        <href>http://$_host:81/robostream_logo.png</href>
+      </Icon>
+      <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
+      <screenXY  x="0.02" y="0.98" xunits="fraction" yunits="fraction"/>
+      <size     x="150" y="150" xunits="pixels" yunits="pixels"/>
+    </ScreenOverlay>
+  </Document>
+</kml>' > /var/www/html/kml/slave_3.kml''';
+    
+    await sendLGCommand(kmlCommand);
   }
 
   // Aunque no envíes comandos ahora, es buena práctica tener el método para desconectar.

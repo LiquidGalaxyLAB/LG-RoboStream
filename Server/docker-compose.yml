@@ -3,14 +3,22 @@ version: '3.8'
 services:
   robot-api:
     build: .
-    container_name: robot-sensor-api
+    container_name: robot-sensor-api-ros2
     ports:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
+      - ROS_DISTRO=humble
+      - ROS_VERSION=2
+      - ROS_PYTHON_VERSION=3
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
     restart: unless-stopped
+    volumes:
+      - /dev/shm:/dev/shm  # Shared memory for ROS2 communication
+    ipc: host  # Enable IPC for ROS2
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -8,8 +8,18 @@ import random
 import time
 from typing import Dict, List
 import uvicorn
+import atexit
 
-app = FastAPI(title="Robot Sensor API", version="1.0.0")
+# ROS2 Integration
+try:
+    from ros2_setup import ros2_manager
+    ROS2_AVAILABLE = True
+    print("ROS2 integration enabled")
+except ImportError as e:
+    ROS2_AVAILABLE = False
+    print(f"ROS2 integration disabled: {e}")
+
+app = FastAPI(title="Robot Sensor API with ROS2", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -139,7 +149,16 @@ class RobotSimulator:
         self.actuator_data.back_left_wheel = self._create_servo_data()
         self.actuator_data.back_right_wheel = self._create_servo_data()
         
+        # Publish to ROS2 if available
+        if ROS2_AVAILABLE:
+            try:
+                ros2_manager.update_sensor_data(self.sensor_data)
+            except Exception as e:
+                print(f"Error publishing to ROS2: {e}")
+        
         print(f"[{time.strftime('%H:%M:%S')}] Sensor data updated - GPS: {self.sensor_data.gps.latitude:.6f}, {self.sensor_data.gps.longitude:.6f}")
+        if ROS2_AVAILABLE:
+            print(f"[{time.strftime('%H:%M:%S')}] Data published to ROS2 topics")
 
     def force_update(self):
         """Force an immediate sensor data update"""
@@ -211,6 +230,28 @@ async def force_update():
         "update_info": robot.get_update_info()
     }
 
+@app.get("/ros2/status")
+async def get_ros2_status():
+    """Get ROS2 integration status"""
+    return {
+        "ros2_available": ROS2_AVAILABLE,
+        "ros2_initialized": ROS2_AVAILABLE and ros2_manager.node is not None,
+        "topics": {
+            "imu": "/robot/imu",
+            "gps": "/robot/gps"
+        } if ROS2_AVAILABLE else {},
+        "message": "ROS2 integration active" if ROS2_AVAILABLE else "ROS2 integration disabled"
+    }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Docker healthcheck"""
+    return {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "ros2_status": "available" if ROS2_AVAILABLE else "unavailable"
+    }
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -235,7 +276,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"Client disconnected. Active connections: {len(connected_clients)}")
 
 if __name__ == "__main__":
-    print("🤖 Robot Sensor API Server")
+    print("🤖 Robot Sensor API Server with ROS2")
     print("=" * 40)
     print(f"📡 Data update interval: {robot.update_interval} seconds")
     print(f"🌐 Server running on: http://0.0.0.0:8000")
@@ -245,5 +286,28 @@ if __name__ == "__main__":
     print(f"   GET  /config      - Server configuration")
     print(f"   POST /force-update - Force data update")
     print(f"   WS   /ws          - WebSocket real-time data")
+    print(f"   GET  /ros2/status - ROS2 integration status")
+    
+    # Initialize ROS2 if available
+    if ROS2_AVAILABLE:
+        print("🤖 Initializing ROS2...")
+        if ros2_manager.initialize():
+            print("✅ ROS2 initialized successfully")
+            print("📡 Publishing sensor data to ROS2 topics:")
+            print("   - /robot/imu (sensor_msgs/Imu)")
+            print("   - /robot/gps (sensor_msgs/NavSatFix)")
+            
+            # Setup cleanup on exit
+            def cleanup_ros2():
+                print("🔄 Shutting down ROS2...")
+                ros2_manager.shutdown()
+                print("✅ ROS2 shutdown complete")
+                
+            atexit.register(cleanup_ros2)
+        else:
+            print("❌ Failed to initialize ROS2")
+    else:
+        print("⚠️  ROS2 integration disabled")
+    
     print("=" * 40)
     uvicorn.run(app, host="0.0.0.0", port=8000)
