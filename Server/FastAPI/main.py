@@ -1,6 +1,7 @@
 # c:\Users\alexb\Documents\GSOC-lg\RoboStreamApp\robot_api\main.py
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import asyncio
 import json
@@ -9,6 +10,8 @@ import time
 from typing import Dict, List
 import uvicorn
 import atexit
+import os
+import base64
 
 # ROS2 Integration
 try:
@@ -45,12 +48,23 @@ class GPSData(BaseModel):
     altitude: float
     speed: float
 
+class RGBCameraData(BaseModel):
+    camera_id: str
+    resolution: str
+    fps: int
+    status: str
+    current_image: str
+    image_timestamp: float
+    images_available: int
+    rotation_interval: int
+
 class SensorData(BaseModel):
     timestamp: float
     imu: IMUData
     gps: GPSData
     lidar: str
     camera: str
+    rgb_camera: RGBCameraData
 
 class ServoData(BaseModel):
     speed: int
@@ -75,6 +89,13 @@ class RobotSimulator:
         self.update_interval = 5.0
         self.last_update = 0.0
         
+        # RGB Camera configuration
+        self.images_folder = "images"
+        self.image_files = self._load_image_files()
+        self.current_image_index = 0
+        self.last_image_update = time.time()
+        self.image_rotation_interval = 180.0  # 3 minutes (180 seconds)
+        
         self.sensor_data = SensorData(
             timestamp=time.time(),
             imu=IMUData(
@@ -89,7 +110,8 @@ class RobotSimulator:
                 speed=0.0
             ),
             lidar="Connected",
-            camera="Streaming"
+            camera="Streaming",
+            rgb_camera=self._create_rgb_camera_data()
         )
         
         self.actuator_data = ActuatorData(
@@ -109,6 +131,68 @@ class RobotSimulator:
             status="Operational" if random.random() > 0.05 else "Error"
         )
     
+    def _load_image_files(self) -> List[str]:
+        """Load available image files from the images folder"""
+        try:
+            if os.path.exists(self.images_folder):
+                files = [f for f in os.listdir(self.images_folder) 
+                        if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+                files.sort()  # Sort for consistent order
+                return files
+            return []
+        except Exception as e:
+            print(f"Error loading image files: {e}")
+            return []
+    
+    def _create_rgb_camera_data(self) -> RGBCameraData:
+        """Create RGB camera data with current image"""
+        current_image = ""
+        if self.image_files:
+            current_image = self.image_files[self.current_image_index]
+        
+        return RGBCameraData(
+            camera_id="RGB_CAM_01",
+            resolution="1920x1080",
+            fps=30,
+            status="Active" if self.image_files else "No Images",
+            current_image=current_image,
+            image_timestamp=self.last_image_update,
+            images_available=len(self.image_files),
+            rotation_interval=int(self.image_rotation_interval)
+        )
+    
+    def _update_rgb_camera(self):
+        """Update RGB camera image rotation"""
+        current_time = time.time()
+        
+        # Check if it's time to rotate the image
+        if (current_time - self.last_image_update >= self.image_rotation_interval 
+            and self.image_files):
+            self.current_image_index = (self.current_image_index + 1) % len(self.image_files)
+            self.last_image_update = current_time
+            print(f"[{time.strftime('%H:%M:%S')}] RGB Camera: Rotated to image {self.current_image_index + 1}/{len(self.image_files)}: {self.image_files[self.current_image_index]}")
+        
+        # Update RGB camera data
+        self.sensor_data.rgb_camera = self._create_rgb_camera_data()
+    
+    def get_current_image_path(self) -> str:
+        """Get the full path of the current image"""
+        if self.image_files and self.current_image_index < len(self.image_files):
+            return os.path.join(self.images_folder, self.image_files[self.current_image_index])
+        return ""
+    
+    def get_image_as_base64(self) -> str:
+        """Get current image as base64 encoded string"""
+        try:
+            image_path = self.get_current_image_path()
+            if image_path and os.path.exists(image_path):
+                with open(image_path, "rb") as img_file:
+                    return base64.b64encode(img_file.read()).decode('utf-8')
+            return ""
+        except Exception as e:
+            print(f"Error encoding image to base64: {e}")
+            return ""
+    
     def _create_three_axis_data(self, min_val: float = -9.8, max_val: float = 9.8) -> ThreeAxisData:
         """Create random three-axis data"""
         return ThreeAxisData(
@@ -123,6 +207,8 @@ class RobotSimulator:
         
         # Only update if 5 seconds have passed since last update
         if current_time - self.last_update < self.update_interval:
+            # Still update RGB camera (it has its own timing)
+            self._update_rgb_camera()
             return
         
         self.last_update = current_time
@@ -142,6 +228,9 @@ class RobotSimulator:
         # LiDAR and Camera status with occasional changes
         self.sensor_data.lidar = "Connected" if random.random() > 0.1 else "Disconnected"
         self.sensor_data.camera = "Streaming" if random.random() > 0.05 else "Offline"
+        
+        # Update RGB camera
+        self._update_rgb_camera()
         
         # Update actuator data
         self.actuator_data.front_left_wheel = self._create_servo_data()
@@ -194,6 +283,9 @@ async def root():
             "actuators": "/actuators", 
             "config": "/config",
             "force_update": "/force-update",
+            "rgb_camera": "/rgb-camera",
+            "rgb_camera_image": "/rgb-camera/image",
+            "rgb_camera_image_data": "/rgb-camera/image-data",
             "websocket": "/ws"
         }
     }
@@ -228,6 +320,60 @@ async def force_update():
         "message": "Sensor data updated successfully",
         "timestamp": robot.sensor_data.timestamp,
         "update_info": robot.get_update_info()
+    }
+
+@app.get("/rgb-camera", response_model=RGBCameraData)
+async def get_rgb_camera():
+    """Get RGB camera sensor data"""
+    robot.update_sensors()  # This will update camera if needed
+    return robot.sensor_data.rgb_camera
+
+@app.get("/rgb-camera/image")
+async def get_rgb_camera_image():
+    """Get the current RGB camera image file"""
+    robot.update_sensors()  # Update camera if needed
+    image_path = robot.get_current_image_path()
+    
+    if image_path and os.path.exists(image_path):
+        return FileResponse(
+            image_path,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Image-Index": str(robot.current_image_index),
+                "X-Total-Images": str(len(robot.image_files)),
+                "X-Current-Image": robot.image_files[robot.current_image_index] if robot.image_files else ""
+            }
+        )
+    else:
+        return {"error": "No image available", "message": "No images found in the images folder"}
+
+@app.get("/rgb-camera/image-data")
+async def get_rgb_camera_image_data():
+    """Get RGB camera image as base64 encoded data with metadata"""
+    robot.update_sensors()  # Update camera if needed
+    
+    image_base64 = robot.get_image_as_base64()
+    current_time = time.time()
+    time_since_last_rotation = current_time - robot.last_image_update
+    time_until_next_rotation = max(0, robot.image_rotation_interval - time_since_last_rotation)
+    
+    return {
+        "camera_info": robot.sensor_data.rgb_camera.dict(),
+        "image_data": image_base64,
+        "timing": {
+            "current_timestamp": current_time,
+            "last_rotation_timestamp": robot.last_image_update,
+            "time_since_last_rotation": round(time_since_last_rotation, 1),
+            "time_until_next_rotation": round(time_until_next_rotation, 1),
+            "rotation_interval_seconds": robot.image_rotation_interval
+        },
+        "image_metadata": {
+            "current_index": robot.current_image_index,
+            "total_images": len(robot.image_files),
+            "current_filename": robot.image_files[robot.current_image_index] if robot.image_files else "",
+            "all_images": robot.image_files
+        }
     }
 
 @app.get("/ros2/status")
@@ -277,16 +423,23 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     print("🤖 Robot Sensor API Server with ROS2")
-    print("=" * 40)
+    print("=" * 50)
     print(f"📡 Data update interval: {robot.update_interval} seconds")
+    print(f"📷 RGB Camera rotation interval: {robot.image_rotation_interval} seconds")
+    print(f"🖼️  Available images: {len(robot.image_files)}")
+    if robot.image_files:
+        print(f"   Images: {', '.join(robot.image_files)}")
     print(f"🌐 Server running on: http://0.0.0.0:8000")
     print(f"📊 Available endpoints:")
-    print(f"   GET  /sensors     - Current sensor data")
-    print(f"   GET  /actuators   - Current actuator data")
-    print(f"   GET  /config      - Server configuration")
-    print(f"   POST /force-update - Force data update")
-    print(f"   WS   /ws          - WebSocket real-time data")
-    print(f"   GET  /ros2/status - ROS2 integration status")
+    print(f"   GET  /sensors           - Current sensor data")
+    print(f"   GET  /actuators         - Current actuator data")
+    print(f"   GET  /config            - Server configuration")
+    print(f"   POST /force-update      - Force data update")
+    print(f"   GET  /rgb-camera        - RGB camera sensor data")
+    print(f"   GET  /rgb-camera/image  - Current camera image file")
+    print(f"   GET  /rgb-camera/image-data - Camera image as base64 + metadata")
+    print(f"   WS   /ws                - WebSocket real-time data")
+    print(f"   GET  /ros2/status       - ROS2 integration status")
     
     # Initialize ROS2 if available
     if ROS2_AVAILABLE:
@@ -309,5 +462,5 @@ if __name__ == "__main__":
     else:
         print("⚠️  ROS2 integration disabled")
     
-    print("=" * 40)
+    print("=" * 50)
     uvicorn.run(app, host="0.0.0.0", port=8000)

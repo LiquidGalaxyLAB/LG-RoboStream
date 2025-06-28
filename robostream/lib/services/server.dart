@@ -63,12 +63,48 @@ class GPSData {
   }
 }
 
+class RGBCameraData {
+  final String cameraId;
+  final String resolution;
+  final int fps;
+  final String status;
+  final String currentImage;
+  final double imageTimestamp;
+  final int imagesAvailable;
+  final int rotationInterval;
+
+  RGBCameraData({
+    required this.cameraId,
+    required this.resolution,
+    required this.fps,
+    required this.status,
+    required this.currentImage,
+    required this.imageTimestamp,
+    required this.imagesAvailable,
+    required this.rotationInterval,
+  });
+
+  factory RGBCameraData.fromJson(Map<String, dynamic> json) {
+    return RGBCameraData(
+      cameraId: json['camera_id'] ?? 'Unknown',
+      resolution: json['resolution'] ?? 'Unknown',
+      fps: json['fps']?.toInt() ?? 0,
+      status: json['status'] ?? 'Offline',
+      currentImage: json['current_image'] ?? '',
+      imageTimestamp: json['image_timestamp']?.toDouble() ?? 0.0,
+      imagesAvailable: json['images_available']?.toInt() ?? 0,
+      rotationInterval: json['rotation_interval']?.toInt() ?? 0,
+    );
+  }
+}
+
 class SensorData {
   final double timestamp;
   final IMUData imu;
   final GPSData gps;
   final String lidar;
   final String camera;
+  final RGBCameraData? rgbCamera;
 
   SensorData({
     required this.timestamp,
@@ -76,6 +112,7 @@ class SensorData {
     required this.gps,
     required this.lidar,
     required this.camera,
+    this.rgbCamera,
   });
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
@@ -85,6 +122,9 @@ class SensorData {
       gps: GPSData.fromJson(json['gps'] ?? {}),
       lidar: json['lidar'] ?? 'Disconnected',
       camera: json['camera'] ?? 'Offline',
+      rgbCamera: json['rgb_camera'] != null 
+        ? RGBCameraData.fromJson(json['rgb_camera'])
+        : null,
     );
   }
 }
@@ -257,6 +297,48 @@ class RobotServerService {
     } catch (e) {
       return null;
     }
+  }
+
+  // Obtener datos específicos de la cámara RGB
+  Future<RGBCameraData?> getRGBCameraData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_currentBaseUrl/rgb-camera'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        return RGBCameraData.fromJson(jsonData);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Obtener datos completos de la cámara RGB con metadatos
+  Future<Map<String, dynamic>?> getRGBCameraImageData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_currentBaseUrl/rgb-camera/image-data'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Obtener URL de la imagen actual de la cámara RGB
+  String getRGBCameraImageUrl() {
+    return '$_currentBaseUrl/rgb-camera/image';
   }
 
   // Verificar conexión con el servidor

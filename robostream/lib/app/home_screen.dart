@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final RobotServerService _serverService = RobotServerService();
   SensorData? _sensorData;
   ActuatorData? _actuatorData;
+  int _imageRefreshKey = 0; // Para forzar actualización de imagen
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _sensorData = sensorData;
+          _imageRefreshKey++; // Incrementar para forzar actualización de imagen
         });
       }
     });
@@ -187,7 +189,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Si no hay datos del sensor, usar valores por defecto
     final gpsData = _sensorData?.gps;
     final imuData = _sensorData?.imu;
-    final cameraStatus = _sensorData?.camera ?? 'Offline';
     final lidarStatus = _sensorData?.lidar ?? 'Disconnected';
     final timestamp = _sensorData?.timestamp;
     
@@ -217,13 +218,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       lastUpdateText = diff < 60 ? '${diff}s ago' : 'Stale';
     }
     
+    // Datos de la cámara RGB
+    final rgbCamera = _sensorData?.rgbCamera;
+    String rgbCameraStatus = rgbCamera?.status ?? 'Offline';
+    String rgbCameraValue = 'N/A';
+    Color rgbCameraColor = const Color(0xFF64748B);
+    
+    if (rgbCamera != null && rgbCamera.status == 'Active') {
+      rgbCameraValue = '${rgbCamera.resolution}@${rgbCamera.fps}fps';
+      rgbCameraColor = const Color(0xFF6366F1);
+    }
+    
     return [
       {
         'icon': Icons.camera_alt_outlined, 
         'label': 'RGB Camera', 
-        'color': cameraStatus == 'Streaming' ? const Color(0xFF6366F1) : const Color(0xFF64748B),
-        'status': cameraStatus,
-        'value': cameraStatus == 'Streaming' ? '1080p@30fps' : 'N/A'
+        'color': rgbCameraColor,
+        'status': rgbCameraStatus,
+        'value': rgbCameraValue
       },
       {
         'icon': Icons.radar_outlined, 
@@ -638,6 +650,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _buildDetailRow('Average', '${((actuators.frontLeftWheel.temperature + actuators.frontRightWheel.temperature + actuators.backLeftWheel.temperature + actuators.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C'),
         _buildDetailRow('Max Safe Temp', '80.0°C'),
       ]);
+    } else if (label == 'RGB Camera' && _sensorData?.rgbCamera != null) {
+      final rgbCamera = _sensorData!.rgbCamera!;
+      detailWidgets.addAll([
+        _buildCameraPreview(),
+        const SizedBox(height: 12),
+        _buildDetailRow('Camera ID', rgbCamera.cameraId),
+        _buildDetailRow('Resolution', rgbCamera.resolution),
+        _buildDetailRow('Frame Rate', '${rgbCamera.fps} FPS'),
+      ]);
     }
 
     showModalBottomSheet(
@@ -845,6 +866,89 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    final imageUrl = _serverService.getRGBCameraImageUrl();
+    
+    return Container(
+      height: 180,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          '$imageUrl?refresh=$_imageRefreshKey', // Agregar query param para forzar refresh
+          key: ValueKey(_imageRefreshKey), // Key único para forzar rebuild del widget
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              color: Colors.grey[100],
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Loading...',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[100],
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.image_not_supported,
+                      size: 32,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Image not available',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+        ),
       ),
     );
   }
