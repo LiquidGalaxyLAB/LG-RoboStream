@@ -253,16 +253,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                         duration: const Duration(milliseconds: 800),
                         builder: (context, value, child) {
                           return ShaderMask(
-                            shaderCallback: (bounds) {
-                              return LinearGradient(
-                                colors: [
-                                  AppStyles.primaryColor.withOpacity(value),
-                                  AppStyles.secondaryColor.withOpacity(value),
-                                  AppStyles.accentColor.withOpacity(value * 0.8),
-                                ],
-                                stops: const [0.0, 0.5, 1.0],
-                              ).createShader(bounds);
-                            },
+                            shaderCallback: (bounds) => AppStyles.primaryGradient.createShader(bounds),
                             child: Text(
                               'RoboStream',
                               style: Theme.of(context).textTheme.displayLarge?.copyWith(

@@ -16,18 +16,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _parallaxController;
-  late AnimationController _headerController;
   late AnimationController _statsController;
   late AnimationController _pulseController;
   
   late Animation<double> _parallaxAnimation;
-  late Animation<double> _headerSlideAnimation;
   late Animation<double> _statsAnimation;
   late Animation<double> _pulseAnimation;
   
   final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0.0;
   bool _isConnected = false;
+  bool _isStreaming = false;
   
   // Servicio del servidor y datos
   final RobotServerService _serverService = RobotServerService();
@@ -38,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _initializeAnimations();
-    _setupScrollListener();
     _startContinuousAnimations();
     _setupServerConnection();
   }
@@ -78,10 +75,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 3000),
       vsync: this,
     );
-    _headerController = AnimationController(
-      duration: HomeStyles.headerDuration,
-      vsync: this,
-    );
     _statsController = AnimationController(
       duration: HomeStyles.statsDuration,
       vsync: this,
@@ -94,9 +87,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _parallaxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _parallaxController, curve: Curves.linear),
     );
-    _headerSlideAnimation = Tween<double>(begin: -50.0, end: 0.0).animate(
-      CurvedAnimation(parent: _headerController, curve: AppStyles.smoothCurve),
-    );
     _statsAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _statsController, curve: AppStyles.bouncyCurve),
     );
@@ -104,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
-    _headerController.forward();
     _statsController.forward();
   }
 
@@ -113,18 +102,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _pulseController.repeat(reverse: true);
   }
 
-  void _setupScrollListener() {
-    _scrollController.addListener(() {
-      setState(() {
-        _scrollOffset = _scrollController.offset;
-      });
-    });
-  }
-
   @override
   void dispose() {
     _parallaxController.dispose();
-    _headerController.dispose();
     _statsController.dispose();
     _pulseController.dispose();
     _scrollController.dispose();
@@ -138,6 +118,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _serverService.checkConnection();
     await Future.delayed(const Duration(milliseconds: 1500));
     HapticFeedback.selectionClick();
+  }
+
+  void _toggleStreaming() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isStreaming = !_isStreaming;
+    });
+    
+    if (_isStreaming) {
+      // Aquí se implementaría la lógica para iniciar el streaming al LG
+      // Por ejemplo, llamar al servicio que maneje el envío de datos al LG
+      _startStreamingToLG();
+    } else {
+      // Detener el streaming
+      _stopStreamingToLG();
+    }
+  }
+
+  void _startStreamingToLG() {
+    // TODO: Implementar la lógica para enviar datos al LG
+    print('Iniciando streaming al LG...');
+  }
+
+  void _stopStreamingToLG() {
+    // TODO: Implementar la lógica para detener el streaming al LG
+    print('Deteniendo streaming al LG...');
   }
 
   @override
@@ -168,6 +174,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+      floatingActionButton: StreamingButton(
+        isStreaming: _isStreaming,
+        isEnabled: _isConnected,
+        onPressed: _toggleStreaming,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -249,19 +261,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         'value': _actuatorData != null ? '${avgWheelSpeed.toStringAsFixed(0)} RPM' : 'N/A'
       },
       {
-        'icon': Icons.cloud_outlined, 
-        'label': 'Server Link', 
-        'color': _isConnected ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-        'status': _isConnected ? 'Online' : 'Offline',
-        'value': _isConnected ? lastUpdateText : 'N/A'
-      },
-      {
         'icon': Icons.thermostat_outlined, 
         'label': 'Temperature', 
         'color': _actuatorData != null ? const Color(0xFFEF4444) : const Color(0xFF64748B),
         'status': _actuatorData != null ? 'Monitoring' : 'Offline',
         'value': _actuatorData != null ? 
             '${((_actuatorData!.frontLeftWheel.temperature + _actuatorData!.frontRightWheel.temperature + _actuatorData!.backLeftWheel.temperature + _actuatorData!.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C' : 'N/A'
+      },
+      {
+        'icon': Icons.cloud_outlined, 
+        'label': 'Server Link', 
+        'color': _isConnected ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+        'status': _isConnected ? 'Online' : 'Offline',
+        'value': _isConnected ? lastUpdateText : 'N/A'
       },
     ];
   }
@@ -278,16 +290,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           StretchMode.blurBackground,
         ],
         titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        centerTitle: false,        title: AnimatedBuilder(
-          animation: _headerSlideAnimation,
-          builder: (context, child) {
-            return Transform.translate(
-              offset: Offset(_headerSlideAnimation.value, -_scrollOffset * 0.1),
-              child: child,
-            );
-          },
-          child: _buildHeaderTitle(),
-        ),        background: AnimatedBuilder(
+        centerTitle: true,
+        title: _buildHeaderTitle(),        background: AnimatedBuilder(
           animation: _parallaxAnimation,
           builder: (context, child) {
             return Stack(
@@ -310,73 +314,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
-      ),      actions: [
+      ),
+      actions: [
         Padding(
-          padding: const EdgeInsets.only(right: 20),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: AppStyles.cardShadow,
-                ),
+          padding: const EdgeInsets.only(right: 16),
+          child: Center(
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: AppStyles.cardShadow,
+              ),
+              child: Center(
                 child: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   color: AppStyles.primaryColor,
                   iconSize: 24,
                   onPressed: () async {
-                    HapticFeedback.lightImpact();
-                    final result = await Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ServerConfigScreen(
-                          serverService: _serverService,
-                        ),
-                      ),
-                    );
-                    
-                    // Si se devolvió una nueva URL, forzar una actualización
-                    if (result != null && result.isNotEmpty) {
-                      // La configuración ya se actualizó en el servicio
-                      // Solo necesitamos forzar una actualización de la UI
-                      await Future.delayed(const Duration(milliseconds: 500));
-                      HapticFeedback.selectionClick();
-                    }
-                  },
-                ),
-              ),const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: AppStyles.cardShadow,
-                ),
-                child: Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined),
-                      color: AppStyles.primaryColor,
-                      iconSize: 24,
-                      onPressed: () => HapticFeedback.lightImpact(),
+                HapticFeedback.lightImpact();
+                final result = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ServerConfigScreen(
+                      serverService: _serverService,
                     ),
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppStyles.errorColor,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                );
+                
+                // Si se devolvió una nueva URL, forzar una actualización
+                if (result != null && result.isNotEmpty) {
+                  // La configuración ya se actualizó en el servicio
+                  // Solo necesitamos forzar una actualización de la UI
+                  await Future.delayed(const Duration(milliseconds: 500));
+                  HapticFeedback.selectionClick();
+                }
+              },
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ],
@@ -388,36 +365,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         animation: _statsAnimation,
         builder: (context, child) {
           return Transform.translate(
-            offset: Offset(0, 30 * (1 - _statsAnimation.value)),              child: Opacity(
-                opacity: _statsAnimation.value.clamp(0.0, 1.0),
-                child: CustomCard(
-                  margin: const EdgeInsets.all(24),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatItem(
-                          'Server Status',
-                          _isConnected ? 'Online' : 'Offline',
-                          Icons.cloud,
-                          _isConnected ? AppStyles.successColor : const Color(0xFFEF4444),
-                        ),
+            offset: Offset(0, 30 * (1 - _statsAnimation.value)),
+            child: Opacity(
+              opacity: _statsAnimation.value.clamp(0.0, 1.0),
+              child: CustomCard(
+                margin: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatItem(
+                        'Server Status',
+                        _isConnected ? 'Online' : 'Offline',
+                        Icons.cloud,
+                        _isConnected ? AppStyles.successColor : const Color(0xFFEF4444),
                       ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.grey.shade200,
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.grey.shade200,
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        'Altitude',
+                        '${_sensorData?.gps.altitude.toStringAsFixed(0) ?? '0'}m',
+                        Icons.height,
+                        AppStyles.accentColor,
                       ),
-                      Expanded(
-                        child: _buildStatItem(
-                          'Altitude',
-                          '${_sensorData?.gps.altitude.toStringAsFixed(0) ?? '0'}m',
-                          Icons.height,
-                          AppStyles.accentColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
             ),
           );
         },
@@ -622,6 +600,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _buildDetailRow('Y-axis', '${imu.magnetometer.y.toStringAsFixed(2)}'),
         _buildDetailRow('Z-axis', '${imu.magnetometer.z.toStringAsFixed(2)}'),
       ]);
+    } else if (label == 'LG Streaming') {
+      detailWidgets.addAll([
+        _buildDetailRow('Status', _isStreaming ? 'Streaming Active' : 'Not Streaming'),
+        _buildDetailRow('Connection', _isConnected ? 'Robot Connected' : 'Robot Offline'),
+        _buildDetailRow('Data Rate', _isStreaming ? '10 Hz' : 'N/A'),
+        _buildDetailRow('Last Sync', _isStreaming ? 'Live' : 'N/A'),
+        if (_isStreaming) ...[
+          const SizedBox(height: 8),
+          _buildDetailRow('GPS Data', _sensorData?.gps != null ? 'Transmitting' : 'No Data'),
+          _buildDetailRow('Camera Feed', _sensorData?.camera == 'Streaming' ? 'Transmitting' : 'No Feed'),
+          _buildDetailRow('Sensor Data', _sensorData?.imu != null ? 'Transmitting' : 'No Data'),
+        ],
+      ]);
     } else if (label == 'Server Link') {
       final timestamp = _sensorData?.timestamp;
       detailWidgets.addAll([
@@ -737,9 +728,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildHeaderTitle() {
     return FittedBox(
       fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.center,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           ShaderMask(
@@ -755,7 +746,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 2),
-          _buildConnectionStatus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(width: 8),
+                _buildConnectionStatus(),
+                const SizedBox(width: 16),
+                _buildStreamingStatusHeader(),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -792,6 +796,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(width: 6),
           Text(
             _isConnected ? 'Robot Connected' : 'Robot Offline',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreamingStatusHeader() {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _pulseAnimation.value,
+          child: child,
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isStreaming ? const Color(0xFF10B981) : Colors.grey.shade400,
+              boxShadow: [
+                BoxShadow(
+                  color: (_isStreaming ? const Color(0xFF10B981) : Colors.grey.shade400)
+                      .withOpacity(0.5),
+                  blurRadius: 6,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isStreaming ? 'Streaming' : 'Not Streaming',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,

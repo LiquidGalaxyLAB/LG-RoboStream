@@ -254,7 +254,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                             const Icon(Icons.check_circle, color: Colors.white),
                             const SizedBox(width: ServerConfigStyles.tinySpacing),
                             Expanded(
-                              child: Text('Configuration saved and streaming started!'),
+                              child: Text('Configuration saved and monitoring'),
                             ),
                           ],
                         ),
@@ -279,7 +279,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                 },
                 style: ServerConfigStyles.saveButtonStyle,
                 child: Text(
-                  'Save & Start Streaming',
+                  'Save & Monitor',
                   style: ServerConfigStyles.buttonTextStyle,
                 ),
               ),
