@@ -10,6 +10,7 @@ export 'custom_text_field.dart';
 export 'custom_card.dart';
 export 'system_info_card.dart';
 export 'streaming_button.dart';
+export 'sensor_selection_dialog.dart';
 
 // Re-exportar estilos para fácil acceso
 export 'package:robostream/assets/styles/app_styles.dart';

@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:robostream/widgets/widgets.dart';
 import 'package:robostream/assets/styles/home_styles.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/services/lg_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
+import 'package:robostream/app/lg_config_screen.dart';
 import 'package:robostream/config/server_config.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -33,6 +35,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ActuatorData? _actuatorData;
   int _imageRefreshKey = 0; // Para forzar actualización de imagen
 
+  // Servicio de Liquid Galaxy y configuración
+  LGService? _lgService;
+  List<String> _selectedSensors = [];
+  bool _isStreamingToLG = false;
+  String _lgHost = '192.168.1.100';
+  String _lgUsername = 'lg';
+  String _lgPassword = 'lg';
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +67,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _sensorData = sensorData;
           _imageRefreshKey++; // Incrementar para forzar actualización de imagen
         });
+        
+        // Si estamos streaming al LG y hay sensores seleccionados, enviar datos actualizados
+        if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty) {
+          _sendSelectedSensorsToLG(sensorData);
+        }
       }
     });
 
@@ -111,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _pulseController.dispose();
     _scrollController.dispose();
     _serverService.dispose(); // Limpiar el servicio del servidor
+    _lgService?.disconnect(); // Limpiar el servicio del LG
     super.dispose();
   }
 
@@ -124,28 +140,177 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _toggleStreaming() {
     HapticFeedback.mediumImpact();
-    setState(() {
-      _isStreaming = !_isStreaming;
-    });
     
-    if (_isStreaming) {
-      // Aquí se implementaría la lógica para iniciar el streaming al LG
-      // Por ejemplo, llamar al servicio que maneje el envío de datos al LG
-      _startStreamingToLG();
-    } else {
-      // Detener el streaming
+    if (_isStreamingToLG) {
+      // Detener solo el streaming al LG, mantener conexión con robot
       _stopStreamingToLG();
+    } else {
+      // Verificar si hay conexión al robot primero
+      if (!_isConnected) {
+        // Si no hay conexión al robot, iniciarla primero
+        _startRobotConnection();
+        // Dar tiempo para establecer conexión antes de mostrar el diálogo
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (_isConnected) {
+            _showSensorSelectionDialog();
+          }
+        });
+      } else {
+        // Si ya hay conexión al robot, ir directo al diálogo de sensores
+        _showSensorSelectionDialog();
+      }
     }
   }
 
-  void _startStreamingToLG() {
-    // TODO: Implementar la lógica para enviar datos al LG
-    print('Iniciando streaming al LG...');
+  void _startRobotConnection() {
+    // Iniciar las solicitudes de datos del servidor si no están ya iniciadas
+    if (!_serverService.isStreaming) {
+      _serverService.startStreaming();
+      print('Conexión al robot iniciada');
+    }
   }
 
-  void _stopStreamingToLG() {
-    // TODO: Implementar la lógica para detener el streaming al LG
-    print('Deteniendo streaming al LG...');
+  void _showSensorSelectionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => SensorSelectionDialog(
+        onSelectionConfirmed: (selectedSensors) {
+          _selectedSensors = selectedSensors;
+          _startStreamingToLG();
+        },
+      ),
+    );
+  }
+
+  Future<void> _showLGConfigDialog() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LGConfigScreen(
+          currentHost: _lgHost,
+          currentUsername: _lgUsername,
+          currentPassword: _lgPassword,
+          onConfigSaved: (host, username, password) {
+            setState(() {
+              _lgHost = host;
+              _lgUsername = username;
+              _lgPassword = password;
+            });
+          },
+        ),
+      ),
+    );
+    
+    if (result == true) {
+      HapticFeedback.selectionClick();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Liquid Galaxy configuration saved'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _startStreamingToLG() async {
+    print('🚀 Iniciando streaming al LG...');
+    print('Sensores seleccionados: $_selectedSensors');
+    
+    setState(() {
+      _isStreamingToLG = true;
+    });
+    
+    // Inicializar servicio LG con configuración actual
+    print('Configuración LG:');
+    print('  Host: $_lgHost');
+    print('  Usuario: $_lgUsername');
+    print('  Password: ${_lgPassword.length > 0 ? '[CONFIGURADA]' : '[VACÍA]'}');
+    
+    _lgService = LGService(
+      host: _lgHost,
+      username: _lgUsername,
+      password: _lgPassword,
+    );
+    
+    // Intentar conectar al LG
+    print('Conectando al LG...');
+    bool connected = await _lgService!.connect();
+    if (!connected) {
+      print('❌ Error: No se pudo conectar al LG');
+      // Si no se puede conectar, mostrar error y detener
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to connect to Liquid Galaxy'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      _stopStreamingToLG();
+      return;
+    }
+    
+    print('✅ Conectado al LG exitosamente');
+    
+    // Iniciar las solicitudes de datos del servidor SOLO si no están ya iniciadas
+    if (!_serverService.isStreaming) {
+      print('Iniciando streaming del servidor robot...');
+      _serverService.startStreaming();
+    }
+    
+    // Verificar si tenemos datos del sensor para enviar
+    if (_sensorData != null) {
+      await _sendSelectedSensorsToLG(_sensorData!);
+    }
+    
+    print('✅ Proceso completado');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Streaming ${_selectedSensors.length} sensors to Liquid Galaxy'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _sendSelectedSensorsToLG(SensorData sensorData) async {
+    if (_lgService == null || _selectedSensors.isEmpty) return;
+
+    String serverBaseUrl = _serverService.currentBaseUrl;
+    String serverHost = serverBaseUrl.replaceAll('http://', '').replaceAll(':8000', '');
+    
+    print('URL base del servidor: $serverBaseUrl');
+    print('Host extraído: $serverHost');
+
+    // Si se seleccionó solo la cámara RGB, usar el método simple
+    if (_selectedSensors.length == 1 && _selectedSensors.contains('RGB Camera')) {
+      await _lgService!.showRGBCameraImage(serverHost);
+    } else {
+      // Usar el método completo de sensores
+      await _lgService!.showSensorData(sensorData, _selectedSensors);
+    }
+  }
+
+  void _stopStreamingToLG() async {
+    setState(() {
+      _isStreamingToLG = false;
+    });
+    
+    // NO detener el streaming del servidor - solo limpiar el LG
+    // _serverService.stopStreaming(); // <-- ESTA LÍNEA ERA EL PROBLEMA
+    
+    // Limpiar datos del LG
+    if (_lgService != null) {
+      await _lgService!.hideSensorData();
+      _lgService!.disconnect();
+      _lgService = null;
+    }
+    
+    _selectedSensors.clear();
+    print('Streaming al LG detenido - conexión con robot mantenida');
   }
 
   @override
@@ -177,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       floatingActionButton: StreamingButton(
-        isStreaming: _isStreaming,
+        isStreaming: _isStreamingToLG,
         isEnabled: _isConnected,
         onPressed: _toggleStreaming,
       ),
@@ -328,6 +493,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       actions: [
+        // Botón de configuración LG
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: Center(
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: AppStyles.cardShadow,
+              ),
+              child: Center(
+                child: IconButton(
+                  icon: const Icon(Icons.cast_connected),
+                  color: AppStyles.primaryColor,
+                  iconSize: 24,
+                  onPressed: () async {
+                    HapticFeedback.lightImpact();
+                    await _showLGConfigDialog();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Botón de configuración del servidor
         Padding(
           padding: const EdgeInsets.only(right: 16),
           child: Center(
@@ -845,10 +1037,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             height: 6,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _isStreaming ? const Color(0xFF10B981) : Colors.grey.shade400,
+              color: _isStreamingToLG ? const Color(0xFF10B981) : Colors.grey.shade400,
               boxShadow: [
                 BoxShadow(
-                  color: (_isStreaming ? const Color(0xFF10B981) : Colors.grey.shade400)
+                  color: (_isStreamingToLG ? const Color(0xFF10B981) : Colors.grey.shade400)
                       .withOpacity(0.5),
                   blurRadius: 6,
                   offset: const Offset(0, 1),
@@ -858,7 +1050,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 6),
           Text(
-            _isStreaming ? 'Streaming' : 'Not Streaming',
+            _isStreamingToLG ? 'Streaming to LG' : 'LG Offline',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
