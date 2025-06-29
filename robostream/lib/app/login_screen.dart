@@ -23,7 +23,22 @@ class LoginScreen extends StatelessWidget {
           child: BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
               if (state is LoginSuccess) {
-                context.go('/');
+                // Mostrar mensaje de éxito si está disponible
+                if (state.message != null && state.message!.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message!),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                // Navegar después de un breve delay para que se vea el mensaje
+                Future.delayed(const Duration(milliseconds: 800), () {
+                  context.go('/');
+                });
               }
               if (state is LoginFailure) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +159,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     // Add haptic feedback
     HapticFeedback.mediumImpact();
     
-    // Removido: _saveConfiguration(); - No queremos guardar la configuración
+    // La configuración se guardará automáticamente cuando el login sea exitoso
     
     context.read<LoginCubit>().login(
           lgIpAddress: _lgIpController.text,
