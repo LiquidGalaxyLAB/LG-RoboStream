@@ -12,7 +12,14 @@ class LoginInitial extends LoginState {}
 
 class LoginInProgress extends LoginState {}
 
-class LoginSuccess extends LoginState {}
+class LoginSuccess extends LoginState {
+  final String? message;
+  
+  const LoginSuccess({this.message});
+  
+  @override
+  List<Object> get props => [message ?? ''];
+}
 
 class LoginFailure extends LoginState {
   final String message;
