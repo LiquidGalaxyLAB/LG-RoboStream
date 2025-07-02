@@ -17,24 +17,32 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  // Constants for better performance
+  static const Duration _animationDuration = Duration(milliseconds: 3000);
+  static const Duration _indicatorDuration = Duration(milliseconds: 600);
+  static const Duration _indicatorReverseDuration = Duration(milliseconds: 450);
+  static const Duration _refreshDelay = Duration(milliseconds: 1500);
+  
   late AnimationController _parallaxController;
+  late AnimationController _indicatorsController;
   
   late Animation<double> _parallaxAnimation;
+  late Animation<double> _indicatorsAnimation;
   
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
   bool _isStreaming = false;
+  bool _lastHadEnoughHeight = true;
   
-  // Servicio del servidor y datos
   final RobotServerService _serverService = RobotServerService();
   SensorData? _sensorData;
   ActuatorData? _actuatorData;
-  int _imageRefreshKey = 0; // Para forzar actualización de imagen
+  int _imageRefreshKey = 0;
 
-  // Servicio de Liquid Galaxy y configuración
   LGService? _lgService;
   List<String> _selectedSensors = [];
   bool _isStreamingToLG = false;
+  bool _isLGConnected = false;
   String _lgHost = '192.168.1.100';
   String _lgUsername = 'lg';
   String _lgPassword = 'lg';
@@ -45,10 +53,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _initializeAnimations();
     _startContinuousAnimations();
     _setupServerConnection();
-    _loadLGConfigFromLogin(); // Cargar configuración guardada del login
+    _loadLGConfigFromLogin();
+    
+    _indicatorsController.value = 1.0;
   }
 
-  /// Carga la configuración de LG guardada desde el login exitoso
   void _loadLGConfigFromLogin() async {
     try {
       final config = await LGConfigService.getLGConfig();
@@ -58,15 +67,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _lgUsername = config['username'] ?? 'lg';
           _lgPassword = config['password'] ?? 'lg';
         });
-        print('✅ Configuración LG cargada desde login: $_lgHost, $_lgUsername');
+        
+        _checkLGConnection();
       }
     } catch (e) {
-      print('❌ Error cargando configuración LG: $e');
+    }
+  }
+
+  Future<void> _checkLGConnection() async {
+    try {
+      final testLGService = LGService(
+        host: _lgHost,
+        username: _lgUsername,
+        password: _lgPassword,
+      );
+      
+      bool connected = await testLGService.connect();
+      if (mounted) {
+        setState(() {
+          _isLGConnected = connected;
+        });
+      }
+      
+      if (connected) {
+        testLGService.disconnect();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLGConnected = false;
+        });
+      }
     }
   }
 
   void _setupServerConnection() {
-    // Configurar listeners para los streams del servidor
     _serverService.connectionStream.listen((connected) {
       if (mounted) {
         setState(() {
@@ -79,10 +114,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _sensorData = sensorData;
-          _imageRefreshKey++; // Incrementar para forzar actualización de imagen
+          _imageRefreshKey++;
         });
         
-        // Si estamos streaming al LG y hay sensores seleccionados, enviar datos actualizados
         if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty) {
           _sendSelectedSensorsToLG(sensorData);
         }
@@ -97,18 +131,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     });
 
-    // NO iniciar las solicitudes automáticamente
-    // El usuario debe presionar el botón para comenzar
   }
 
   void _initializeAnimations() {
     _parallaxController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+      duration: _animationDuration,
       vsync: this,
     );
     
     _parallaxAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _parallaxController, curve: Curves.linear),
+    );
+
+    _indicatorsController = AnimationController(
+      duration: _indicatorDuration,
+      reverseDuration: _indicatorReverseDuration,
+      vsync: this,
+    );
+    
+    _indicatorsAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _indicatorsController, 
+        curve: Curves.easeOutBack,
+        reverseCurve: Curves.easeOutBack,
+      ),
     );
   }
 
@@ -119,17 +165,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _parallaxController.dispose();
+    _indicatorsController.dispose();
     _scrollController.dispose();
-    _serverService.dispose(); // Limpiar el servicio del servidor
-    _lgService?.disconnect(); // Limpiar el servicio del LG
+    _serverService.dispose();
+    _lgService?.disconnect();
     super.dispose();
   }
 
   Future<void> _onRefresh() async {
     HapticFeedback.lightImpact();
-    // Hacer una solicitud manual al servidor
     await _serverService.checkConnection();
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(_refreshDelay);
     HapticFeedback.selectionClick();
   }
 
@@ -161,12 +207,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               _lgPassword = password;
             });
             
-            // Guardar también en el servicio de configuración
             await LGConfigService.saveLGConfig(
               host: host,
               username: username,
               password: password,
             );
+            
+            _checkLGConnection();
           },
         ),
       ),
@@ -184,18 +231,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _startStreamingToLG() async {
-    print('🚀 Iniciando streaming al LG...');
-    print('Sensores seleccionados: $_selectedSensors');
-    
     setState(() {
       _isStreamingToLG = true;
     });
-    
-    // Inicializar servicio LG con configuración actual
-    print('Configuración LG:');
-    print('  Host: $_lgHost');
-    print('  Usuario: $_lgUsername');
-    print('  Password: ${_lgPassword.length > 0 ? '[CONFIGURADA]' : '[VACÍA]'}');
     
     _lgService = LGService(
       host: _lgHost,
@@ -203,13 +241,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       password: _lgPassword,
     );
     
-    // Intentar conectar al LG
-    print('Conectando al LG...');
     bool connected = await _lgService!.connect();
     if (!connected) {
-      print('❌ Error: No se pudo conectar al LG');
-      // Si no se puede conectar, mostrar error y detener
       if (mounted) {
+        setState(() {
+          _isLGConnected = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to connect to Liquid Galaxy'),
@@ -221,20 +258,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
     
-    print('✅ Conectado al LG exitosamente');
-    
-    // Iniciar las solicitudes de datos del servidor SOLO si no están ya iniciadas
+    if (mounted) {
+      setState(() {
+        _isLGConnected = true;
+      });
+    }
+
     if (!_serverService.isStreaming) {
-      print('Iniciando streaming del servidor robot...');
       _serverService.startStreaming();
     }
     
-    // Verificar si tenemos datos del sensor para enviar
     if (_sensorData != null) {
       await _sendSelectedSensorsToLG(_sensorData!);
     }
-    
-    print('✅ Proceso completado');
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,15 +287,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     String serverBaseUrl = _serverService.currentBaseUrl;
     String serverHost = serverBaseUrl.replaceAll('http://', '').replaceAll(':8000', '');
-    
-    print('URL base del servidor: $serverBaseUrl');
-    print('Host extraído: $serverHost');
 
-    // Si se seleccionó solo la cámara RGB, usar el método simple
     if (_selectedSensors.length == 1 && _selectedSensors.contains('RGB Camera')) {
       await _lgService!.showRGBCameraImage(serverHost);
     } else {
-      // Usar el método completo de sensores
       await _lgService!.showSensorData(sensorData, _selectedSensors);
     }
   }
@@ -269,10 +300,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _isStreamingToLG = false;
     });
     
-    // NO detener el streaming del servidor - solo limpiar el LG
-    // _serverService.stopStreaming(); // <-- ESTA LÍNEA ERA EL PROBLEMA
-    
-    // Limpiar datos del LG
     if (_lgService != null) {
       await _lgService!.hideSensorData();
       _lgService!.disconnect();
@@ -280,12 +307,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
     
     _selectedSensors.clear();
-    print('Streaming al LG detenido - conexión con robot mantenida');
   }
 
   @override
   Widget build(BuildContext context) {
-    // Generar datos de tarjetas con información del servidor
     final cardsData = _generateCardsData();
 
     return Scaffold(
@@ -294,10 +319,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           gradient: LinearGradient(
             colors: [
               const Color(0xFFF8FAFC),
-              const Color(0xFFE2E8F0).withOpacity(0.8),
+              const Color(0xFFF8FAFC),
+              const Color(0xFFF1F5F9).withOpacity(0.9),
               const Color(0xFFF1F5F9),
             ],
-            stops: const [0.0, 0.7, 1.0],
+            stops: const [0.0, 0.6, 0.8, 1.0],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -325,8 +351,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   List<Map<String, dynamic>> _generateCardsData() {
-    // Datos simplificados - solo lo básico para mostrar las tarjetas
-    // Los detalles se mostrarán cuando se abra cada tarjeta
     final gpsData = _sensorData?.gps;
     final imuData = _sensorData?.imu;
     final lidarStatus = _sensorData?.lidar ?? 'Disconnected';
@@ -410,13 +434,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           builder: (context, child) {
             return Stack(
               children: [
-                // Fondo gradiente moderno
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF6366F1).withOpacity(0.1),
-                        const Color(0xFF8B5CF6).withOpacity(0.05),
+                        Colors.transparent,
                         Colors.transparent,
                       ],
                       begin: Alignment.topLeft,
@@ -424,15 +446,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                // Partículas de fondo animadas
                 ...List.generate(8, (index) => _buildModernBackgroundParticle(index)),
-                // Overlay de gradiente
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        AppStyles.backgroundColor.withOpacity(0.2),
+                        Colors.transparent,
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -445,7 +465,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       actions: [
-        // Botón de configuración unificado
         Padding(
           padding: const EdgeInsets.only(right: 16),
           child: _buildUnifiedConfigButton(),
@@ -482,8 +501,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final animatedValue = (_parallaxAnimation.value + (index * 0.125)) % 1.0;
         final sinValue = math.sin(animatedValue * math.pi * 2);
         final cosValue = math.cos(animatedValue * math.pi * 2);
-        final baseOpacity = 0.03;
-        final variation = 0.02 * sinValue.abs();
+        final baseOpacity = 0.01;
+        final variation = 0.005 * sinValue.abs();
         final opacity = (baseOpacity + variation).clamp(0.0, 1.0);
         
         return Positioned(
@@ -513,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
   Widget _buildEnhancedGrid(List<Map<String, dynamic>> cardsData) {
     return SliverPadding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.fromLTRB(24.0, 8.0, 24.0, 24.0),
       sliver: SliverGrid.count(
         crossAxisCount: 2,
         crossAxisSpacing: 18,
@@ -590,7 +609,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Icono principal
                 Container(
                   width: 56,
                   height: 56,
@@ -612,7 +630,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Título solamente
                 Text(
                   cardData['label'] as String,
                   style: const TextStyle(
@@ -673,11 +690,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _showCardDetails(Map<String, dynamic> cardData) {
     final String label = cardData['label'] as String;
     
-    // Calcular dinámicamente el status y value para cada tarjeta
     String status = 'Offline';
     String value = 'N/A';
     
-    // Determinar status y value basado en el tipo de tarjeta
     if (label == 'RGB Camera') {
       final rgbCamera = _sensorData?.rgbCamera;
       status = rgbCamera?.status ?? 'Offline';
@@ -736,7 +751,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     List<Widget> detailWidgets = [];
 
-    // Agregar información específica basada en el tipo de tarjeta
     if (label == 'GPS Position' && _sensorData?.gps != null) {
       final gps = _sensorData!.gps;
       detailWidgets.addAll([
@@ -759,41 +773,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } else if (label == 'IMU Sensors' && _sensorData?.imu != null) {
       final imu = _sensorData!.imu;
       detailWidgets.addAll([
-        const Text(
-          'Accelerometer (m/s²)',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        const SizedBox(height: 4),
+        _buildSectionTitle('Accelerometer (m/s²)', Icons.speed_rounded),
+        const SizedBox(height: 8),
         _buildDetailRow('X-axis', '${imu.accelerometer.x.toStringAsFixed(2)}'),
         _buildDetailRow('Y-axis', '${imu.accelerometer.y.toStringAsFixed(2)}'),
         _buildDetailRow('Z-axis', '${imu.accelerometer.z.toStringAsFixed(2)}'),
-        const SizedBox(height: 12),
-        const Text(
-          'Gyroscope (rad/s)',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 16),
+        _buildSectionTitle('Gyroscope (rad/s)', Icons.rotate_right_rounded),
+        const SizedBox(height: 8),
         _buildDetailRow('X-axis', '${imu.gyroscope.x.toStringAsFixed(3)}'),
         _buildDetailRow('Y-axis', '${imu.gyroscope.y.toStringAsFixed(3)}'),
         _buildDetailRow('Z-axis', '${imu.gyroscope.z.toStringAsFixed(3)}'),
-        const SizedBox(height: 12),
-        const Text(
-          'Magnetometer (µT)',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 16),
+        _buildSectionTitle('Magnetometer (µT)', Icons.explore_rounded),
+        const SizedBox(height: 8),
         _buildDetailRow('X-axis', '${imu.magnetometer.x.toStringAsFixed(2)}'),
         _buildDetailRow('Y-axis', '${imu.magnetometer.y.toStringAsFixed(2)}'),
         _buildDetailRow('Z-axis', '${imu.magnetometer.z.toStringAsFixed(2)}'),
@@ -847,77 +840,289 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ]);
     }
 
+    // Calcular el tamaño inicial basado en el contenido
+    double initialSize = 0.5; // Tamaño base
+    if (detailWidgets.isNotEmpty) {
+      // Si hay datos detallados, expandir más para mostrarlos
+      if (detailWidgets.length > 5) {
+        initialSize = 0.75; // Mucho contenido
+      } else if (detailWidgets.length > 2) {
+        initialSize = 0.65; // Contenido moderado
+      } else {
+        initialSize = 0.55; // Poco contenido adicional
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),        padding: const EdgeInsets.all(24),
-        child: SingleChildScrollView(
+      isScrollControlled: true,
+      isDismissible: true, // Permite cerrar tocando fuera
+      enableDrag: true, // Permite cerrar arrastrando
+      builder: (context) => GestureDetector(
+        onTap: () {
+          // Detecta toques en el área fuera del contenido del modal
+          Navigator.of(context).pop();
+        },
+        child: Container(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: () {
+              // Evita que los toques en el contenido del modal lo cierren
+              // Este GestureDetector intercepta los toques en el contenido
+            },
+            child: StatefulBuilder(
+              builder: (context, setState) => DraggableScrollableSheet(
+                initialChildSize: initialSize, // Tamaño dinámico basado en contenido
+                minChildSize: 0.3, // Mínimo 30% de la pantalla
+                maxChildSize: 0.8, // Máximo 80% de la pantalla como solicitado
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFFF8FAFC),
+                const Color(0xFFF1F5F9),
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: [
+              BoxShadow(
+                color: (cardData['color'] as Color).withOpacity(0.1),
+                blurRadius: 30,
+                offset: const Offset(0, -15),
+                spreadRadius: 0,
+              ),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, -8),
+              ),
+            ],
+            border: Border.all(
+              color: (cardData['color'] as Color).withOpacity(0.08),
+              width: 1,
+            ),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),            ),
-            const SizedBox(height: 20), // Reducido de 24 a 20
-            Icon(
-              cardData['icon'] as IconData,
-              size: 48,
-              color: cardData['color'] as Color,
-            ),
-            const SizedBox(height: 14), // Reducido de 16 a 14
-            Text(
-              cardData['label'] as String,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
+              // Handle de arrastre mejorado con indicador visual
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            (cardData['color'] as Color).withOpacity(0.6),
+                            (cardData['color'] as Color).withOpacity(0.3),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Desliza para ajustar',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 6), // Reducido de 8 a 6
-            Text(
-              'Status: $status',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
+              // Contenido scrollable
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      (cardData['color'] as Color),
+                      (cardData['color'] as Color).withOpacity(0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (cardData['color'] as Color).withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  cardData['icon'] as IconData,
+                  size: 28,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            Text(
-              'Value: $value',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
+              const SizedBox(height: 20),
+              Text(
+                cardData['label'] as String,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),            if (detailWidgets.isNotEmpty) ...[
-              const SizedBox(height: 20), // Reducido de 24 a 20
-              const Divider(),
-              const SizedBox(height: 14), // Reducido de 16 a 14
-              ...detailWidgets,            ],
-            const SizedBox(height: 20), // Reducido de 24 a 20
-          ],
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: status == 'Active' || status == 'Online' || status == 'Tracking'
+                        ? [
+                            const Color(0xFF10B981).withOpacity(0.15),
+                            const Color(0xFF10B981).withOpacity(0.08),
+                          ]
+                        : [
+                            Colors.grey.withOpacity(0.15),
+                            Colors.grey.withOpacity(0.08),
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: status == 'Active' || status == 'Online' || status == 'Tracking'
+                        ? const Color(0xFF10B981).withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: status == 'Active' || status == 'Online' || status == 'Tracking'
+                            ? const Color(0xFF10B981)
+                            : Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: status == 'Active' || status == 'Online' || status == 'Tracking'
+                            ? const Color(0xFF10B981)
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFF8FAFC),
+                      const Color(0xFFF1F5F9),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (cardData['color'] as Color).withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+              if (detailWidgets.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        (cardData['color'] as Color).withOpacity(0.2),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ...detailWidgets,
+              ],
+              const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+        ), // Cierre del DraggableScrollableSheet
+      ), // Cierre del StatefulBuilder
+      ), // Cierre del segundo GestureDetector (contenido)
+      ), // Cierre del Container
+      ), // Cierre del primer GestureDetector (fuera del modal)
     );
   }
 
   Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
             ),
           ),
           Text(
@@ -928,84 +1133,212 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               color: Color(0xFF1E293B),
             ),
           ),
-        ],      ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF6366F1).withOpacity(0.1),
+            const Color(0xFF8B5CF6).withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6366F1).withOpacity(0.15),
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF6366F1),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildHeaderTitle() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Título principal sin recuadro
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
-          child: const Text(
-            'RoboStream',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 30,
-              letterSpacing: -1.2,
-              height: 1.0,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Contenedor moderno para los indicadores de estado
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-                spreadRadius: 0,
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.8),
-                blurRadius: 8,
-                offset: const Offset(0, -1),
-                spreadRadius: 0,
-              ),
-            ],
-            border: Border.all(
-              color: Colors.white.withOpacity(0.6),
-              width: 1.5,
-            ),
-          ),
-          child: Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool hasEnoughHeight = constraints.maxHeight > 70;
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            if (hasEnoughHeight && !_lastHadEnoughHeight) {
+              _indicatorsController.forward();
+            } else if (!hasEnoughHeight && _lastHadEnoughHeight) {
+              _indicatorsController.reverse();
+            }
+            _lastHadEnoughHeight = hasEnoughHeight;
+          }
+        });
+        
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildModernConnectionStatus(),
-              Container(
-                width: 1,
-                height: 14,
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.grey.shade300.withOpacity(0.0),
-                      Colors.grey.shade300,
-                      Colors.grey.shade300.withOpacity(0.0),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF06B6D4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: hasEnoughHeight ? 28 : 22,
+                    letterSpacing: -1.2,
+                    height: 0.95,
+                  ),
+                  child: const Text(
+                    'RoboStream',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ),
-              _buildModernStreamingStatus(),
+              AnimatedBuilder(
+                animation: _indicatorsAnimation,
+                builder: (context, child) {
+                  double opacity = _indicatorsAnimation.value.clamp(0.0, 1.0);
+                  
+                  double scale = (0.7 + (0.3 * opacity)).clamp(0.1, 1.0);
+                  
+                  double translateY = (1.0 - opacity) * 8.0;
+                  
+                  double translateX = (1.0 - opacity) * 2.0;
+                  
+                  if (opacity < 0.02) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  return AnimatedContainer(
+                    duration: Duration(milliseconds: hasEnoughHeight ? 0 : 250),
+                    curve: Curves.easeOutCubic,
+                    height: hasEnoughHeight ? null : 0,
+                    child: ClipRect(
+                      child: Transform.translate(
+                        offset: Offset(translateX, translateY),
+                        child: Transform.scale(
+                          scale: scale,
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 150),
+                            opacity: opacity,
+                            curve: Curves.easeInOutSine,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 6.0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.95),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.06 * opacity * opacity),
+                                      blurRadius: 10 * opacity,
+                                      offset: Offset(0, 2 * opacity),
+                                      spreadRadius: 0,
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.white.withOpacity(0.7 * opacity),
+                                      blurRadius: 6 * opacity,
+                                      offset: Offset(0, -0.5 * opacity),
+                                      spreadRadius: 0,
+                                    ),
+                                  ],
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.5 * opacity),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      AnimatedOpacity(
+                                        duration: const Duration(milliseconds: 100),
+                                        opacity: opacity,
+                                        child: _buildModernConnectionStatus(),
+                                      ),
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 150),
+                                        width: 1 * opacity,
+                                        height: 14,
+                                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.grey.shade300.withOpacity(0.0),
+                                              Colors.grey.shade300.withOpacity(0.8 * opacity),
+                                              Colors.grey.shade300.withOpacity(0.0),
+                                            ],
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                          ),
+                                        ),
+                                      ),
+                                      AnimatedOpacity(
+                                        duration: const Duration(milliseconds: 100),
+                                        opacity: opacity,
+                                        child: _buildModernStreamingStatus(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -1056,13 +1389,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           width: 8,
           height: 8,
           decoration: BoxDecoration(
-            color: _isStreamingToLG 
+            color: _isLGConnected 
                 ? const Color(0xFF10B981) 
                 : const Color(0xFFEF4444),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: (_isStreamingToLG 
+                color: (_isLGConnected 
                     ? const Color(0xFF10B981) 
                     : const Color(0xFFEF4444)).withOpacity(0.3),
                 blurRadius: 4,
@@ -1073,11 +1406,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(width: 6),
         Text(
-          'Streaming',
+          'LG Connection',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: _isStreamingToLG 
+            color: _isLGConnected 
                 ? const Color(0xFF10B981) 
                 : const Color(0xFFEF4444),
             letterSpacing: 0.2,
@@ -1091,44 +1424,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final imageUrl = _serverService.getRGBCameraImageUrl();
     
     return Container(
-      height: 180,
+      height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         child: Image.network(
-          '$imageUrl?refresh=$_imageRefreshKey', // Agregar query param para forzar refresh
-          key: ValueKey(_imageRefreshKey), // Key único para forzar rebuild del widget
+          '$imageUrl?refresh=$_imageRefreshKey',
+          key: ValueKey(_imageRefreshKey),
           fit: BoxFit.cover,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
             return Container(
-              color: Colors.grey[100],
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFFF1F5F9),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-                        strokeWidth: 2,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFF59E0B).withOpacity(0.1),
+                            const Color(0xFFF59E0B).withOpacity(0.05),
+                          ],
+                        ),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF59E0B)),
+                            strokeWidth: 2.5,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     const Text(
-                      'Loading...',
+                      'Loading camera feed...',
                       style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -1138,22 +1514,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           },
           errorBuilder: (context, error, stackTrace) {
             return Container(
-              color: Colors.grey[100],
-              child: const Center(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFFF1F5F9),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.image_not_supported,
-                      size: 32,
-                      color: Colors.grey,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.grey.withOpacity(0.1),
+                            Colors.grey.withOpacity(0.05),
+                          ],
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.image_not_supported_rounded,
+                        size: 24,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Image not available',
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Camera feed unavailable',
                       style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -1186,14 +1585,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: const Color(0xFF6366F1).withOpacity(0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
         border: Border.all(
@@ -1237,16 +1636,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
+      isDismissible: true, // Permite cerrar tocando fuera
+      enableDrag: true, // Permite cerrar arrastrando
+      builder: (context) => GestureDetector(
+        onTap: () {
+          // Detecta toques en el área fuera del contenido del modal
+          Navigator.of(context).pop();
+        },
+        child: Container(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: () {
+              // Evita que los toques en el contenido del modal lo cierren
+            },
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
             Container(
               width: 40,
               height: 4,
@@ -1256,7 +1667,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 24),
-            // Título
             const Text(
               'Configuration',
               style: TextStyle(
@@ -1274,7 +1684,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 32),
-            // Opciones de configuración
             _buildConfigOption(
               icon: Icons.dns_rounded,
               title: 'Robot Server',
@@ -1313,7 +1722,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 32),
           ],
         ),
-      ),
+      ), // Cierre del Container principal
+      ), // Cierre del segundo GestureDetector (contenido)
+      ), // Cierre del Container exterior
+      ), // Cierre del primer GestureDetector (fuera del modal)
     );
   }
 
@@ -1457,7 +1869,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Icono animado
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder: (child, animation) {
@@ -1484,11 +1895,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Texto con animación
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Text(
-                    _isStreamingToLG ? 'Stop Streaming' : (_isConnected ? 'Start Streaming' : 'Robot Offline'),
+                    _isStreamingToLG ? 'Stop Streaming' : (_isConnected ? 'Start Streaming' : 'Streaming Offline'),
                     key: ValueKey('${_isStreamingToLG}_${_isConnected}'),
                     style: const TextStyle(
                       color: Colors.white,
@@ -1510,24 +1920,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     HapticFeedback.mediumImpact();
     
     if (_isStreamingToLG) {
-      // Si ya está streaming, detener directamente
       _stopStreamingToLG();
     } else {
-      // Si no está streaming, mostrar menú de opciones
       showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (context) => Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
+        isDismissible: true, // Permite cerrar tocando fuera
+        enableDrag: true, // Permite cerrar arrastrando
+        builder: (context) => GestureDetector(
+          onTap: () {
+            // Detecta toques en el área fuera del contenido del modal
+            Navigator.of(context).pop();
+          },
+          child: Container(
+            color: Colors.transparent,
+            child: GestureDetector(
+              onTap: () {
+                // Evita que los toques en el contenido del modal lo cierren
+              },
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle bar
               Container(
                 width: 40,
                 height: 4,
@@ -1537,7 +1957,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 24),
-              // Icono y título
               Container(
                 width: 64,
                 height: 64,
@@ -1580,7 +1999,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: 32),
-              // Opciones de sensores
               _buildSensorStreamOption(
                 icon: Icons.camera_alt_rounded,
                 title: 'RGB Camera Only',
@@ -1606,7 +2024,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 32),
             ],
           ),
-        ),
+        ), // Cierre del Container principal
+        ), // Cierre del segundo GestureDetector (contenido)
+        ), // Cierre del Container exterior
+        ), // Cierre del primer GestureDetector (fuera del modal)
       );
     }
   }

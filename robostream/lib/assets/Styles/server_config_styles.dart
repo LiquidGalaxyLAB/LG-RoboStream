@@ -138,15 +138,6 @@ class ServerConfigStyles {
   );
   
   // Button styles
-  static ButtonStyle get testButtonStyle => ElevatedButton.styleFrom(
-    backgroundColor: cyanColor,
-    foregroundColor: Colors.white,
-    padding: buttonVerticalPadding,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(buttonBorderRadius),
-    ),
-  );
-  
   static ButtonStyle get saveButtonStyle => ElevatedButton.styleFrom(
     backgroundColor: primaryColor,
     foregroundColor: Colors.white,

@@ -41,10 +41,6 @@ class LGService {
   /// Devuelve 'true' si la conexión es exitosa, 'false' en caso contrario.
   Future<bool> connect() async {
     try {
-      print('Conectando a Liquid Galaxy...');
-      print('Host: $_host');
-      print('Usuario: $_username');
-      
       final socket = await SSHSocket.connect(_host, 22);
       _client = SSHClient(
         socket,
@@ -53,13 +49,10 @@ class LGService {
       );
       
       // Ejecutamos un comando simple para verificar que la autenticación es correcta.
-      print('Verificando autenticación...');
       await _client!.run('echo "Connection successful"');
       
-      print('✅ Conexión SSH establecida exitosamente');
       return true;
     } catch (e) {
-      print('❌ Error conectando a Liquid Galaxy: $e');
       _client?.close(); // Cerramos si algo ha fallado.
       _client = null;
       return false;
@@ -84,7 +77,6 @@ class LGService {
       
       return true;
     } catch (e) {
-      print('Error sending file: $e');
       return false;
     }
   }
@@ -92,20 +84,13 @@ class LGService {
   /// Ejecuta un comando SSH en el Liquid Galaxy
   Future<bool> sendLGCommand(String command) async {
     if (_client == null) {
-      print('ERROR: Cliente SSH no conectado');
       return false;
     }
-    
+
     try {
-      print('Ejecutando comando SSH: $command');
-      final result = await _client!.run(command);
-      print('Comando ejecutado exitosamente');
-      if (result.isNotEmpty) {
-        print('Resultado: $result');
-      }
+      await _client!.run(command);
       return true;
     } catch (e) {
-      print('Error ejecutando comando SSH: $e');
       return false;
     }
   }
@@ -138,13 +123,8 @@ class LGService {
   /// Muestra solo la imagen de la cámara RGB en el slave 2
   Future<void> showRGBCameraImage(String serverHost) async {
     if (_client == null) {
-      print('ERROR: Cliente SSH no conectado');
       return;
     }
-    
-    print('Enviando imagen de cámara RGB al LG...');
-    print('Server host: $serverHost');
-    print('URL de imagen: http://$serverHost:8000/rgb-camera/image');
     
     // Crear KML que muestre la imagen pequeña en la esquina superior derecha del slave 2
     final kmlCommand = '''echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -163,15 +143,7 @@ class LGService {
   </Document>
 </kml>' > /var/www/html/kml/slave_2.kml''';
     
-    print('Ejecutando comando KML...');
-    print('Comando: $kmlCommand');
-    
-    bool success = await sendLGCommand(kmlCommand);
-    if (success) {
-      print('✅ Imagen de cámara RGB enviada exitosamente al slave 2 (esquina superior derecha)');
-    } else {
-      print('❌ Error al enviar imagen de cámara RGB al slave 2');
-    }
+    await sendLGCommand(kmlCommand);
   }
 
   /// Muestra datos de sensores seleccionados en el slave 2

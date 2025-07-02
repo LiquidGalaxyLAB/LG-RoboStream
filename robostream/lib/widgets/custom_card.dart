@@ -120,7 +120,12 @@ class CustomCard extends StatefulWidget {
 }
 
 class _CustomCardState extends State<CustomCard>
-    with SingleTickerProviderStateMixin {  late AnimationController _animationController;
+    with SingleTickerProviderStateMixin {
+  // Constants for better performance
+  static const Duration _animationDuration = Duration(milliseconds: 200);
+  static const double _pressedScale = 0.98;
+  
+  late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isHovered = false;
   bool _isPressed = false;
@@ -129,12 +134,12 @@ class _CustomCardState extends State<CustomCard>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: _animationDuration,
       vsync: this,
     );
-      _scaleAnimation = Tween<double>(
+    _scaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.98,
+      end: _pressedScale,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,

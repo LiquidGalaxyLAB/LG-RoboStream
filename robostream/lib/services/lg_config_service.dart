@@ -18,7 +18,6 @@ class LGConfigService {
       'username': username,
       'password': password,
     };
-    print('✅ Configuración LG guardada: $host, $username');
   }
 
   /// Obtiene toda la configuración de LG
@@ -56,6 +55,5 @@ class LGConfigService {
   /// Limpia toda la configuración guardada
   static Future<void> clearLGConfig() async {
     _lgConfig = null;
-    print('✅ Configuración LG eliminada');
   }
 }

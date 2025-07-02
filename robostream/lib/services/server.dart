@@ -179,8 +179,11 @@ class ActuatorData {
 }
 
 class RobotServerService {
+  // Constants for better performance
   static const Duration _timeout = ServerConfig.requestTimeout;
-    Timer? _timer;
+  static const Duration _updateInterval = ServerConfig.updateInterval;
+  
+  Timer? _timer;
   SensorData? _lastSensorData;
   ActuatorData? _lastActuatorData;
   bool _isConnected = false;
@@ -196,6 +199,7 @@ class RobotServerService {
   Stream<SensorData> get sensorStream => _sensorController.stream;
   Stream<ActuatorData> get actuatorStream => _actuatorController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
+  
   // Getters para datos actuales
   SensorData? get currentSensorData => _lastSensorData;
   ActuatorData? get currentActuatorData => _lastActuatorData;
@@ -216,7 +220,7 @@ class RobotServerService {
   void startPeriodicRequests() {
     stopPeriodicRequests(); // Asegurar que no hay timers duplicados
     
-    _timer = Timer.periodic(ServerConfig.updateInterval, (timer) {
+    _timer = Timer.periodic(_updateInterval, (timer) {
       if (_isStreaming) {
         _fetchAllData();
       }
