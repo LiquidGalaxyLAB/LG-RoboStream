@@ -23,7 +23,22 @@ class LoginScreen extends StatelessWidget {
           child: BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
               if (state is LoginSuccess) {
-                context.go('/');
+                // Mostrar mensaje de éxito si está disponible
+                if (state.message != null && state.message!.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message!),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                // Navegar después de un breve delay para que se vea el mensaje
+                Future.delayed(const Duration(milliseconds: 800), () {
+                  context.go('/');
+                });
               }
               if (state is LoginFailure) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -70,9 +85,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
 
-  // Secret functionality variables
-  int _secretTapCount = 0;
-  static const int _requiredTaps = 7;
+
 
   @override
   void initState() {
@@ -144,7 +157,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     // Add haptic feedback
     HapticFeedback.mediumImpact();
     
-    // Removido: _saveConfiguration(); - No queremos guardar la configuración
+    // La configuración se guardará automáticamente cuando el login sea exitoso
     
     context.read<LoginCubit>().login(
           lgIpAddress: _lgIpController.text,
@@ -153,15 +166,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         );
   }
 
-  // Secret functionality method
-  void _handleSecretTap() {
-    _secretTapCount++;
-    if (_secretTapCount >= _requiredTaps) {
-      // Navigate directly to home screen without any message
-      _secretTapCount = 0; // Reset counter
-      context.go('/');
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +214,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           ),
         ),
         // Enhanced animated background with floating particles
-        ...List.generate(6, (index) => _buildFloatingParticle(index)),
+        ..._buildFloatingParticles(),
         
         // Main content with enhanced animations
         SafeArea(
@@ -226,7 +231,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     children: [
                       // Enhanced logo without breathing animation
                       GestureDetector(
-                        onTap: _handleSecretTap,
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.0, end: 1.0),
                           duration: const Duration(milliseconds: 1400),
@@ -309,16 +313,22 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
+  // Generate floating particles efficiently
+  List<Widget> _buildFloatingParticles() {
+    return List.generate(6, (index) => _buildFloatingParticle(index));
+  }
+
   Widget _buildFloatingParticle(int index) {
-    final delays = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625];
-    final sizes = [80.0, 60.0, 100.0, 70.0, 90.0, 110.0];
-    final positions = [
-      const Offset(-50, 100),
-      const Offset(300, 50),
-      const Offset(50, 600),
-      const Offset(250, 500),
-      const Offset(100, 300),
-      const Offset(200, 200),
+    // Use const values for better performance
+    const delays = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625];
+    const sizes = [80.0, 60.0, 100.0, 70.0, 90.0, 110.0];
+    const positions = [
+      Offset(-50, 100),
+      Offset(300, 50),
+      Offset(50, 600),
+      Offset(250, 500),
+      Offset(100, 300),
+      Offset(200, 200),
     ];
 
     return AnimatedBuilder(
@@ -326,16 +336,20 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       builder: (context, child) {
         final animatedValue = (_particleAnimation.value + delays[index]) % 1.0;
         
+        // Pre-calculate values for better performance
+        final sinValue = math.sin(animatedValue * 2 * math.pi);
+        final cosValue = math.cos(animatedValue * 2 * math.pi);
+        
         // Safe opacity calculation
-        final baseOpacity = 0.03;
-        final variationOpacity = 0.02 * (0.5 + 0.5 * math.sin(animatedValue * 2 * math.pi));
-        final finalOpacity = (baseOpacity + variationOpacity);
+        const baseOpacity = 0.03;
+        final variationOpacity = 0.02 * (0.5 + 0.5 * sinValue);
+        final finalOpacity = (baseOpacity + variationOpacity).clamp(0.0, 1.0);
         
         return Positioned(
-          left: positions[index].dx + (20 * math.sin(animatedValue * 2 * math.pi)),
-          top: positions[index].dy + (15 * math.cos(animatedValue * 2 * math.pi)),
+          left: positions[index].dx + (20 * sinValue),
+          top: positions[index].dy + (15 * cosValue),
           child: Opacity(
-            opacity: finalOpacity.clamp(0.0, 1.0), // Clamping here for safety
+            opacity: finalOpacity,
             child: Container(
               width: sizes[index],
               height: sizes[index],

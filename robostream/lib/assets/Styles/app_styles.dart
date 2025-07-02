@@ -1,43 +1,46 @@
 import 'package:flutter/material.dart';
 
 class AppStyles {
+  // Private constructor to prevent instantiation
+  AppStyles._();
+  
   // Enhanced color palette with more variants
-  static const primaryColor = Color(0xFF6366F1);
-  static const secondaryColor = Color(0xFF8B5CF6);
-  static const accentColor = Color(0xFF06B6D4);
-  static const backgroundColor = Color(0xFFF8FAFC);
-  static const surfaceColor = Colors.white;
-  static const cardColor = Color(0xFFFFFBFF);
-  static const errorColor = Color(0xFFEF4444);
-  static const successColor = Color(0xFF10B981);
-  static const warningColor = Color(0xFFF59E0B);
+  static const Color primaryColor = Color(0xFF6366F1);
+  static const Color secondaryColor = Color(0xFF8B5CF6);
+  static const Color accentColor = Color(0xFF06B6D4);
+  static const Color backgroundColor = Color(0xFFF8FAFC);
+  static const Color surfaceColor = Colors.white;
+  static const Color cardColor = Color(0xFFFFFBFF);
+  static const Color errorColor = Color(0xFFEF4444);
+  static const Color successColor = Color(0xFF10B981);
+  static const Color warningColor = Color(0xFFF59E0B);
   
   // Gradient definitions with more variations
-  static const primaryGradient = LinearGradient(
+  static const LinearGradient primaryGradient = LinearGradient(
     colors: [primaryColor, secondaryColor],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  static const accentGradient = LinearGradient(
+  static const LinearGradient accentGradient = LinearGradient(
     colors: [accentColor, Color(0xFF0EA5E9)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  static const cardGradient = LinearGradient(
+  static const LinearGradient cardGradient = LinearGradient(
     colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   
-  static const backgroundGradient = LinearGradient(
+  static const LinearGradient backgroundGradient = LinearGradient(
     colors: [Color(0xFFF8FAFC), Color(0xFFE2E8F0)],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
   
-  static const shimmerGradient = LinearGradient(
+  static const LinearGradient shimmerGradient = LinearGradient(
     colors: [
       Color(0xFFE2E8F0),
       Color(0xFFF1F5F9),
@@ -49,14 +52,14 @@ class AppStyles {
   );
 
   // Animation curves
-  static const primaryCurve = Curves.easeOutCubic;
-  static const bouncyCurve = Curves.elasticOut;
-  static const smoothCurve = Curves.fastOutSlowIn;
+  static const Curve primaryCurve = Curves.easeOutCubic;
+  static const Curve bouncyCurve = Curves.elasticOut;
+  static const Curve smoothCurve = Curves.fastOutSlowIn;
 
   // Durations
-  static const shortDuration = Duration(milliseconds: 200);
-  static const mediumDuration = Duration(milliseconds: 400);
-  static const longDuration = Duration(milliseconds: 600);
+  static const Duration shortDuration = Duration(milliseconds: 200);
+  static const Duration mediumDuration = Duration(milliseconds: 400);
+  static const Duration longDuration = Duration(milliseconds: 600);
 
   static ThemeData get theme {
     return ThemeData(
@@ -221,8 +224,8 @@ class AppStyles {
     );
   }
 
-  // Custom box shadows for different elevations
-  static List<BoxShadow> get cardShadow => [
+  // Custom box shadows for different elevations (computed once)
+  static final List<BoxShadow> cardShadow = [
     BoxShadow(
       color: Colors.black.withOpacity(0.04),
       blurRadius: 20,
@@ -235,7 +238,7 @@ class AppStyles {
     ),
   ];
 
-  static List<BoxShadow> get elevatedShadow => [
+  static final List<BoxShadow> elevatedShadow = [
     BoxShadow(
       color: primaryColor.withOpacity(0.2),
       blurRadius: 25,
@@ -248,7 +251,7 @@ class AppStyles {
     ),
   ];
 
-  static List<BoxShadow> get floatingShadow => [
+  static final List<BoxShadow> floatingShadow = [
     BoxShadow(
       color: primaryColor.withOpacity(0.3),
       blurRadius: 30,
@@ -258,5 +261,6 @@ class AppStyles {
       color: Colors.black.withOpacity(0.08),
       blurRadius: 20,
       offset: const Offset(0, 8),
-    ),  ];
+    ),
+  ];
 }

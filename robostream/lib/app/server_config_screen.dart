@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:robostream/config/server_config.dart';
 import 'package:robostream/services/server.dart';
-import 'package:robostream/assets/Styles/server_config_styles.dart';
 
 class ServerConfigScreen extends StatefulWidget {
   final RobotServerService? serverService;
@@ -91,205 +90,480 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ServerConfigStyles.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Server Configuration',
-          style: ServerConfigStyles.appBarTitleStyle,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFF8FAFC),
+              const Color(0xFFF1F5F9),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: ServerConfigStyles.primaryTextColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),      body: SingleChildScrollView(
-        padding: ServerConfigStyles.screenPadding,child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [            Container(
-              padding: ServerConfigStyles.containerPadding,
-              decoration: ServerConfigStyles.cardDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [                  Row(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildModernHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
                     children: [
-                      Container(
-                        padding: ServerConfigStyles.iconContainerPadding,
-                        decoration: ServerConfigStyles.getIconContainerDecoration(ServerConfigStyles.primaryColor),
-                        child: const Icon(
-                          Icons.settings_ethernet,
-                          color: ServerConfigStyles.primaryColor,
-                          size: ServerConfigStyles.iconSize,
-                        ),
-                      ),
-                      const SizedBox(width: ServerConfigStyles.smallSpacing),
-                      Text(
-                        'Server Settings',
-                        style: ServerConfigStyles.sectionTitleStyle,
-                      ),
+                      _buildServerConfigCard(),
+                      const SizedBox(height: 20),
+                      _buildAdvancedSettingsCard(),
                     ],
                   ),
-                  const SizedBox(height: ServerConfigStyles.itemSpacing),
-                  Text(
-                    'Server URL',
-                    style: ServerConfigStyles.fieldLabelStyle,
-                  ),
-                  const SizedBox(height: ServerConfigStyles.fieldSpacing),
-                  TextField(
-                    controller: _urlController,
-                    decoration: ServerConfigStyles.textFieldDecoration,
-                  ),                  const SizedBox(height: ServerConfigStyles.smallSpacing),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _isTestingConnection ? null : () {
-                            _testConnection(_urlController.text);
-                          },
-                          icon: _isTestingConnection 
-                              ? const SizedBox(
-                                  width: ServerConfigStyles.smallIconSize,
-                                  height: ServerConfigStyles.smallIconSize,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.wifi_find, size: ServerConfigStyles.smallIconSize),
-                          label: Text(_isTestingConnection ? 'Testing...' : 'Test Connection'),
-                          style: ServerConfigStyles.testButtonStyle,
-                        ),
-                      ),
-                    ],
-                  ),                  if (_connectionStatus != null) ...[
-                    const SizedBox(height: ServerConfigStyles.smallSpacing),
-                    Container(
-                      padding: ServerConfigStyles.statusContainerPadding,
-                      decoration: ServerConfigStyles.getStatusDecoration(_connectionStatus!.contains('successfully')),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _connectionStatus!.contains('successfully') 
-                                ? Icons.check_circle_outline
-                                : Icons.error_outline,
-                            color: _connectionStatus!.contains('successfully')
-                                ? ServerConfigStyles.successColor
-                                : ServerConfigStyles.errorColor,
-                            size: ServerConfigStyles.smallIconSize,
-                          ),
-                          const SizedBox(width: ServerConfigStyles.tinySpacing),
-                          Expanded(
-                            child: Text(
-                              _connectionStatus!,
-                              style: ServerConfigStyles.getStatusTextStyle(_connectionStatus!.contains('successfully')),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),            const SizedBox(height: ServerConfigStyles.sectionSpacing),
-            Container(
-              padding: ServerConfigStyles.containerPadding,
-              decoration: ServerConfigStyles.cardDecoration,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Common Configurations',
-                    style: ServerConfigStyles.labelStyle,
-                  ),
-                  const SizedBox(height: ServerConfigStyles.labelFontSize),
-                  _buildConfigOption(
-                    'Local Docker',
-                    'http://localhost:8000',
-                    Icons.computer,
-                  ),
-                  _buildConfigOption(
-                    'Docker Desktop',
-                    'http://host.docker.internal:8000',
-                    Icons.desktop_windows,
-                  ),
-                  _buildConfigOption(
-                    'Custom IP',
-                    'http://000.000.0.000:0000',
-                    Icons.router,
-                  ),
-                  _buildConfigOption(
-                    'Flutter phone simulation',
-                    'http://10.0.2.2:8000',
-                    Icons.phone_android,
-                  ),
-                ],
+              _buildBottomActions(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+              border: Border.all(
+                color: const Color(0xFF6366F1).withOpacity(0.1),
+                width: 1,
               ),
-            ),            const SizedBox(height: ServerConfigStyles.sectionSpacing),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final newUrl = _urlController.text.trim();
-                  if (newUrl.isNotEmpty) {
-                    // Si la URL ha cambiado, detener el streaming actual
-                    if (widget.serverService != null && 
-                        widget.serverService!.currentBaseUrl != newUrl && 
-                        widget.serverService!.isStreaming) {
-                      widget.serverService!.stopStreaming();
-                    }
-                    
-                    // Actualizar la URL del servicio si está disponible
-                    widget.serverService?.updateServerUrl(newUrl);
-                    
-                    // Iniciar el streaming automáticamente después de guardar
-                    if (widget.serverService != null) {
-                      widget.serverService!.startStreaming();
-                    }
-                    
-                    // Mostrar mensaje de confirmación
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.white),
-                            const SizedBox(width: ServerConfigStyles.tinySpacing),
-                            Expanded(
-                              child: Text('Configuration saved and monitoring'),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: ServerConfigStyles.successColor,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(ServerConfigStyles.buttonBorderRadius),
-                        ),
-                      ),
-                    );
-                    
-                    // Devolver la nueva URL para que la pantalla principal se actualice
-                    Navigator.pop(context, newUrl);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid URL'),
-                        backgroundColor: ServerConfigStyles.errorColor,
-                      ),
-                    );
-                  }
-                },
-                style: ServerConfigStyles.saveButtonStyle,
-                child: Text(
-                  'Save & Monitor',
-                  style: ServerConfigStyles.buttonTextStyle,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Color(0xFF6366F1),
+                  size: 20,
                 ),
               ),
             ),
-            const SizedBox(height: ServerConfigStyles.sectionSpacing), // Add bottom padding for safe area
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Server Configuration',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Configure robot server connection',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.dns_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServerConfigCard() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF6366F1).withOpacity(0.1),
+                        const Color(0xFF6366F1).withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.settings_ethernet_rounded,
+                    color: Color(0xFF6366F1),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Server Settings',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Configure the robot server endpoint',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Server URL',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1,
+                ),
+                color: Colors.grey.shade50,
+              ),
+              child: TextField(
+                controller: _urlController,
+                decoration: InputDecoration(
+                  hintText: 'Enter server URL (e.g., http://192.168.1.100:8000)',
+                  hintStyle: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                  prefixIcon: const Icon(
+                    Icons.link_rounded,
+                    color: Color(0xFF6366F1),
+                    size: 20,
+                  ),
+                ),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildTestConnectionButton(),
+            if (_connectionStatus != null) ...[
+              const SizedBox(height: 16),
+              _buildConnectionStatus(),
+            ],
           ],
         ),
       ),
     );
-  }  Widget _buildConfigOption(String title, String url, IconData icon) {
+  }
+
+  Widget _buildTestConnectionButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: _isTestingConnection
+            ? LinearGradient(
+                colors: [Colors.grey.shade300, Colors.grey.shade400],
+              )
+            : const LinearGradient(
+                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+        boxShadow: _isTestingConnection
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _isTestingConnection
+              ? null
+              : () => _testConnection(_urlController.text),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isTestingConnection)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.wifi_find_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                const SizedBox(width: 12),
+                Text(
+                  _isTestingConnection ? 'Testing Connection...' : 'Test Connection',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConnectionStatus() {
+    final isSuccess = _connectionStatus!.contains('successfully');
+    final color = isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: color.withOpacity(0.1),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
+            color: color,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _connectionStatus!,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedSettingsCard() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF8B5CF6).withOpacity(0.1),
+                        const Color(0xFF8B5CF6).withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    color: Color(0xFF8B5CF6),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick Presets',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Common server configurations',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildPresetOption(
+              'Local Development',
+              'http://localhost:8000',
+              Icons.laptop_rounded,
+            ),
+            _buildPresetOption(
+              'Local Network',
+              'http://192.168.1.100:8000',
+              Icons.router_rounded,
+            ),
+            _buildPresetOption(
+              'Android Emulator',
+              'http://10.0.2.2:8000',
+              Icons.phone_android_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetOption(String title, String url, IconData icon) {
     final isSelected = _urlController.text == url;
     
     return GestureDetector(
@@ -298,45 +572,201 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         
         setState(() {
           _urlController.text = url;
-          _connectionStatus = null; // Reset connection status
+          _connectionStatus = null;
         });
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: ServerConfigStyles.configOptionSpacing),
-        padding: ServerConfigStyles.configOptionPadding,
-        decoration: ServerConfigStyles.getConfigOptionDecoration(isSelected),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: isSelected
+              ? const Color(0xFF6366F1).withOpacity(0.1)
+              : Colors.grey.shade50,
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF6366F1).withOpacity(0.3)
+                : Colors.grey.shade200,
+            width: 1.5,
+          ),
+        ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? ServerConfigStyles.primaryColor : ServerConfigStyles.secondaryTextColor,
-              size: ServerConfigStyles.iconSize,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: isSelected
+                    ? const Color(0xFF6366F1)
+                    : Colors.grey.shade300,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                size: 20,
+              ),
             ),
-            const SizedBox(width: ServerConfigStyles.smallSpacing),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: ServerConfigStyles.getConfigOptionTitleStyle(isSelected),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFF1E293B),
+                    ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     url,
-                    style: ServerConfigStyles.getConfigOptionUrlStyle(isSelected),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
               const Icon(
-                Icons.check_circle,
-                color: ServerConfigStyles.primaryColor,
-                size: ServerConfigStyles.iconSize,
+                Icons.check_circle_rounded,
+                color: Color(0xFF6366F1),
+                size: 24,
               ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildBottomActions() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _saveConfiguration(),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.save_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Save Configuration',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveConfiguration() async {
+    final newUrl = _urlController.text.trim();
+    if (newUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Please enter a valid URL')),
+            ],
+          ),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Stop current streaming if URL changed
+    if (widget.serverService != null && 
+        widget.serverService!.currentBaseUrl != newUrl && 
+        widget.serverService!.isStreaming) {
+      widget.serverService!.stopStreaming();
+    }
+    
+    // Update server URL
+    widget.serverService?.updateServerUrl(newUrl);
+    
+    // Start streaming automatically
+    if (widget.serverService != null) {
+      widget.serverService!.startStreaming();
+    }
+    
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(child: Text('Configuration saved successfully')),
+          ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+    
+    // Return new URL to update main screen
+    Navigator.pop(context, newUrl);
   }
 }

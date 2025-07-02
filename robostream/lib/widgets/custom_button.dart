@@ -32,16 +32,6 @@ class CustomButton extends StatefulWidget {
   })  : icon = Icons.rocket_launch,
         buttonStyle = CustomButtonStyle.launch;
 
-  /// Botón de prueba/test
-  const CustomButton.test({
-    super.key,
-    required this.text,
-    required this.onPressed,
-    this.isLoading = false,
-    this.isEnabled = true,
-  })  : icon = Icons.wifi_tethering,
-        buttonStyle = CustomButtonStyle.test;
-
   /// Botón de guardar
   const CustomButton.save({
     super.key,
@@ -79,6 +69,41 @@ class CustomButton extends StatefulWidget {
 
 class _CustomButtonState extends State<CustomButton>
     with SingleTickerProviderStateMixin {
+  // Constants for better performance
+  static const Duration _animationDuration = Duration(milliseconds: 100);
+  static const double _pressedScale = 0.95;
+  static const double _iconSpacing = 12.0;
+  
+  // Button height constants
+  static const double _primaryHeight = 64.0;
+  static const double _streamingHeight = 48.0;
+  static const double _secondaryHeight = 56.0;
+  
+  // Border radius constants
+  static const double _primaryRadius = 20.0;
+  static const double _streamingRadius = 32.0;
+  static const double _secondaryRadius = 16.0;
+  
+  // Icon size constants
+  static const double _primaryIconSize = 24.0;
+  static const double _streamingIconSize = 28.0;
+  static const double _secondaryIconSize = 20.0;
+  
+  // Text style constants
+  static const TextStyle _primaryTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.5,
+  );
+  
+  static const TextStyle _secondaryTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.3,
+  );
+  
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -86,12 +111,12 @@ class _CustomButtonState extends State<CustomButton>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 100),
+      duration: _animationDuration,
       vsync: this,
     );
     _scaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.95,
+      end: _pressedScale,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
@@ -191,26 +216,25 @@ class _CustomButtonState extends State<CustomButton>
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return 64.0;
+        return _primaryHeight;
       case CustomButtonStyle.streaming:
-        return 48.0; // Made smaller
-      case CustomButtonStyle.test:
+        return _streamingHeight;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return 56.0;
+        return _secondaryHeight;
     }
   }
+  
   double _getBorderRadius() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return 20.0;
+        return _primaryRadius;
       case CustomButtonStyle.streaming:
-        return 32.0; // Very rounded for the streaming button
-      case CustomButtonStyle.test:
+        return _streamingRadius;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return 16.0;
+        return _secondaryRadius;
     }
   }
 
@@ -233,16 +257,6 @@ class _CustomButtonState extends State<CustomButton>
         return BoxDecoration(
           gradient: LinearGradient(
             colors: [AppStyles.primaryColor, AppStyles.primaryColor.withOpacity(0.8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(_getBorderRadius()),
-          boxShadow: AppStyles.elevatedShadow,
-        );
-      case CustomButtonStyle.test:
-        return BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppStyles.accentColor, AppStyles.accentColor.withOpacity(0.8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -287,45 +301,27 @@ class _CustomButtonState extends State<CustomButton>
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return 24.0;
+        return _primaryIconSize;
       case CustomButtonStyle.streaming:
-        return 28.0; // Slightly larger for the streaming button
-      case CustomButtonStyle.test:
+        return _streamingIconSize;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return 20.0;
+        return _secondaryIconSize;
     }
   }
 
   double _getIconSpacing() {
-    return 12.0;
+    return _iconSpacing;
   }
   TextStyle _getTextStyle() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        );
       case CustomButtonStyle.streaming:
-        return const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        );
-      case CustomButtonStyle.test:
+        return _primaryTextStyle;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.3,
-        );
+        return _secondaryTextStyle;
     }
   }
 }
@@ -333,7 +329,6 @@ class _CustomButtonState extends State<CustomButton>
 enum CustomButtonStyle {
   primary,
   launch,
-  test,
   save,
   config,
   streaming,

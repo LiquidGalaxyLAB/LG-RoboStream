@@ -8,10 +8,6 @@ import time
 from typing import Optional
 
 class RobotROS2Node(Node):
-    """
-    ROS2 Node for Robot Sensor Data Publishing
-    """
-    
     def __init__(self):
         super().__init__('robot_sensor_node')
         

@@ -128,6 +128,10 @@ class CustomTextField extends StatefulWidget {
 
 class _CustomTextFieldState extends State<CustomTextField>
     with SingleTickerProviderStateMixin {
+  // Constants for better performance
+  static const double _focusAnimationBegin = 0.0;
+  static const double _focusAnimationEnd = 1.0;
+  
   late FocusNode _focusNode;
   bool _obscureText = false;
   late AnimationController _animationController;
@@ -145,8 +149,8 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
     
     _focusAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+      begin: _focusAnimationBegin,
+      end: _focusAnimationEnd,
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: AppStyles.primaryCurve,

@@ -11,6 +11,13 @@ class RGBCameraScreen extends StatefulWidget {
 }
 
 class _RGBCameraScreenState extends State<RGBCameraScreen> {
+  // Constants for better performance
+  static const Duration _autoRefreshInterval = Duration(seconds: 5);
+  static const Color _primaryColor = Color(0xFF6366F1);
+  static const Color _backgroundColor = Color(0xFFF8FAFC);
+  static const Color _textColor = Color(0xFF1E293B);
+  static const Color _subtitleColor = Color(0xFF64748B);
+  
   final RobotServerService _serverService = RobotServerService();
   RGBCameraData? _cameraData;
   Map<String, dynamic>? _imageMetadata;
@@ -34,7 +41,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   }
   
   void _startAutoRefresh() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    _refreshTimer = Timer.periodic(_autoRefreshInterval, (timer) {
       _loadCameraData();
     });
   }
@@ -65,9 +72,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
             if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
               try {
                 base64Decode(_imageBase64!);
-                print('✅ Imagen base64 decodificada correctamente');
               } catch (e) {
-                print('❌ Error decodificando imagen base64: $e');
                 setState(() {
                   _useDirectUrl = true;
                   _imageBase64 = null;
@@ -76,7 +81,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
             }
           }
         } catch (e) {
-          print('⚠️ Error obteniendo datos de imagen, usando URL directa: $e');
           if (mounted) {
             setState(() {
               _useDirectUrl = true;
@@ -93,7 +97,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error cargando datos de cámara: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -106,33 +109,33 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'RGB Camera',
           style: TextStyle(
-            color: Color(0xFF1E293B),
+            color: _textColor,
             fontWeight: FontWeight.w700,
             fontSize: 20,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF64748B)),
+          icon: Icon(Icons.arrow_back_ios, color: _subtitleColor),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF6366F1)),
+            icon: Icon(Icons.refresh, color: _primaryColor),
             onPressed: _loadCameraData,
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+                valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
               ),
             )
           : _cameraData == null
@@ -173,7 +176,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           ElevatedButton(
             onPressed: _loadCameraData,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
+              backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -209,58 +212,134 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0xFFF59E0B).withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withOpacity(0.08),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             child: Row(
               children: [
                 Container(
-                  width: 4,
-                  height: 20,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF6366F1),
-                    borderRadius: BorderRadius.all(Radius.circular(2)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Camera View',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: _cameraData?.status == 'Active' 
-                        ? const Color(0xFF10B981).withOpacity(0.1)
-                        : Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _cameraData?.status ?? 'Unknown',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _cameraData?.status == 'Active' 
-                          ? const Color(0xFF10B981)
-                          : Colors.grey[600],
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFF59E0B).withOpacity(0.1),
+                        const Color(0xFFF59E0B).withOpacity(0.05),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Camera View',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Real-time RGB camera feed',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _cameraData?.status == 'Active' 
+                          ? [
+                              const Color(0xFF10B981).withOpacity(0.15),
+                              const Color(0xFF10B981).withOpacity(0.08),
+                            ]
+                          : [
+                              Colors.grey.withOpacity(0.15),
+                              Colors.grey.withOpacity(0.08),
+                            ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _cameraData?.status == 'Active' 
+                          ? const Color(0xFF10B981).withOpacity(0.2)
+                          : Colors.grey.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _cameraData?.status == 'Active' 
+                              ? const Color(0xFF10B981)
+                              : Colors.grey[500],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _cameraData?.status ?? 'Unknown',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _cameraData?.status == 'Active' 
+                              ? const Color(0xFF10B981)
+                              : Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -268,20 +347,38 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           ),
           // Mostrar imagen usando base64 o URL directa
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 24),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFFF8FAFC),
+                  const Color(0xFFF1F5F9),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withOpacity(0.08),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                width: 1,
+              ),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(20),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: _buildImageWidget(),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -296,12 +393,10 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           imageBytes,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            print('❌ Error mostrando imagen base64: $error');
             return _buildImageFromUrl();
           },
         );
       } catch (e) {
-        print('❌ Error decodificando base64: $e');
         return _buildImageFromUrl();
       }
     }
@@ -345,7 +440,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        print('❌ Error cargando imagen desde URL: $error');
         return Container(
           color: Colors.grey[100],
           child: Center(
@@ -392,49 +486,100 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0xFF8B5CF6).withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withOpacity(0.08),
+          width: 1,
+        ),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 4,
-                height: 20,
-                decoration: const BoxDecoration(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF8B5CF6).withOpacity(0.1),
+                      const Color(0xFF8B5CF6).withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
                   color: Color(0xFF8B5CF6),
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Camera Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Camera Information',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Detailed camera specifications',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          _buildModernInfoRow('Camera ID', _cameraData?.cameraId ?? 'Unknown', Icons.videocam_rounded),
           const SizedBox(height: 16),
-          _buildInfoRow('Camera ID', _cameraData?.cameraId ?? 'Unknown'),
-          _buildInfoRow('Resolution', _cameraData?.resolution ?? 'Unknown'),
-          _buildInfoRow('Frame Rate', '${_cameraData?.fps ?? 0} FPS'),
-          _buildInfoRow('Status', _cameraData?.status ?? 'Unknown'),
-          _buildInfoRow('Current Image', _cameraData?.currentImage ?? 'None'),
-          _buildInfoRow('Images Available', '${_cameraData?.imagesAvailable ?? 0}'),
-          _buildInfoRow('Rotation Interval', '${_cameraData?.rotationInterval ?? 0}s'),
+          _buildModernInfoRow('Resolution', _cameraData?.resolution ?? 'Unknown', Icons.high_quality_rounded),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Frame Rate', '${_cameraData?.fps ?? 0} FPS', Icons.speed_rounded),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Status', _cameraData?.status ?? 'Unknown', Icons.power_settings_new_rounded),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Current Image', _cameraData?.currentImage ?? 'None', Icons.image_rounded),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Images Available', '${_cameraData?.imagesAvailable ?? 0}', Icons.photo_library_rounded),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Rotation Interval', '${_cameraData?.rotationInterval ?? 0}s', Icons.rotate_right_rounded),
         ],
       ),
     );
@@ -447,45 +592,92 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0xFF06B6D4).withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: const Color(0xFF06B6D4).withOpacity(0.08),
+          width: 1,
+        ),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 4,
-                height: 20,
-                decoration: const BoxDecoration(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF06B6D4).withOpacity(0.1),
+                      const Color(0xFF06B6D4).withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.access_time_rounded,
                   color: Color(0xFF06B6D4),
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                  size: 24,
                 ),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Timing Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Timing Information',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Rotation timing and intervals',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          _buildModernTimingRow('Time Since Last Rotation', '${timing['time_since_last_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.history_rounded),
           const SizedBox(height: 16),
-          _buildInfoRow('Time Since Last Rotation', '${timing['time_since_last_rotation']?.toStringAsFixed(1) ?? 'N/A'}s'),
-          _buildInfoRow('Time Until Next Rotation', '${timing['time_until_next_rotation']?.toStringAsFixed(1) ?? 'N/A'}s'),
-          _buildInfoRow('Rotation Interval', '${timing['rotation_interval_seconds']?.toStringAsFixed(0) ?? 'N/A'}s'),
+          _buildModernTimingRow('Time Until Next Rotation', '${timing['time_until_next_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.schedule_rounded),
+          const SizedBox(height: 16),
+          _buildModernTimingRow('Rotation Interval', '${timing['rotation_interval_seconds']?.toStringAsFixed(0) ?? 'N/A'}s', Icons.sync_rounded),
         ],
       ),
     );
@@ -500,126 +692,450 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            Colors.white.withOpacity(0.95),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0xFF10B981).withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.08),
+          width: 1,
+        ),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 4,
-                height: 20,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF10B981),
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Image Metadata',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildInfoRow('Current Index', '${metadata['current_index'] ?? 'N/A'}'),
-          _buildInfoRow('Total Images', '${metadata['total_images'] ?? 'N/A'}'),
-          _buildInfoRow('Current Filename', metadata['current_filename'] ?? 'N/A'),
-          if (allImages != null && allImages.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Available Images:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...allImages.asMap().entries.map((entry) {
-              final index = entry.key;
-              final imageName = entry.value as String;
-              final isCurrent = index == (metadata['current_index'] ?? -1);
-              
-              return Container(
-                margin: const EdgeInsets.only(bottom: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
-                  color: isCurrent 
-                      ? const Color(0xFF6366F1).withOpacity(0.1)
-                      : Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isCurrent 
-                        ? const Color(0xFF6366F1).withOpacity(0.3)
-                        : Colors.grey[200]!,
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF10B981).withOpacity(0.1),
+                      const Color(0xFF10B981).withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                 ),
-                child: Row(
+                child: const Icon(
+                  Icons.dataset_rounded,
+                  color: Color(0xFF10B981),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      isCurrent ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                      size: 16,
-                      color: isCurrent ? const Color(0xFF6366F1) : Colors.grey[400],
+                    Text(
+                      'Image Metadata',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E293B),
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        imageName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
-                          color: isCurrent ? const Color(0xFF6366F1) : const Color(0xFF64748B),
-                        ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Image collection information',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-              );
-            }).toList(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildModernMetadataRow('Current Index', '${metadata['current_index'] ?? 'N/A'}', Icons.bookmark_rounded),
+          const SizedBox(height: 16),
+          _buildModernMetadataRow('Total Images', '${metadata['total_images'] ?? 'N/A'}', Icons.collections_rounded),
+          const SizedBox(height: 16),
+          _buildModernMetadataRow('Current Filename', metadata['current_filename'] ?? 'N/A', Icons.insert_drive_file_rounded),
+          if (allImages != null && allImages.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFF8FAFC),
+                    const Color(0xFFF1F5F9),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withOpacity(0.08),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF10B981).withOpacity(0.1),
+                              const Color(0xFF10B981).withOpacity(0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.photo_library_rounded,
+                          color: Color(0xFF10B981),
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Available Images',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ...allImages.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final imageName = entry.value as String;
+                    final isCurrent = index == (metadata['current_index'] ?? -1);
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isCurrent 
+                              ? [
+                                  const Color(0xFF10B981).withOpacity(0.15),
+                                  const Color(0xFF10B981).withOpacity(0.08),
+                                ]
+                              : [
+                                  Colors.white.withOpacity(0.8),
+                                  Colors.white.withOpacity(0.6),
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isCurrent 
+                              ? const Color(0xFF10B981).withOpacity(0.3)
+                              : Colors.grey.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isCurrent ? const Color(0xFF10B981) : Colors.transparent,
+                              border: Border.all(
+                                color: isCurrent ? const Color(0xFF10B981) : Colors.grey.shade400,
+                                width: 2,
+                              ),
+                            ),
+                            child: isCurrent
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 14,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              imageName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
+                                color: isCurrent ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                          if (isCurrent)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFF10B981).withOpacity(0.15),
+                                    const Color(0xFF10B981).withOpacity(0.08),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF10B981).withOpacity(0.2),
+                                ),
+                              ),
+                              child: const Text(
+                                'Current',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
           ],
         ],
       ),
     );
   }
-  
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+
+  Widget _buildModernMetadataRow(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF64748B),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF10B981).withOpacity(0.1),
+                  const Color(0xFF10B981).withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF10B981),
+              size: 20,
             ),
           ),
-          Flexible(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernInfoRow(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF8B5CF6).withOpacity(0.1),
+                  const Color(0xFF8B5CF6).withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              textAlign: TextAlign.end,
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF8B5CF6),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernTimingRow(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF06B6D4).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF06B6D4).withOpacity(0.1),
+                  const Color(0xFF06B6D4).withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF06B6D4),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

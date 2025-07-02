@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
-class LoginStyles {  // Decoraciones de contenedores
+class LoginStyles {
+  // Private constructor to prevent instantiation
+  LoginStyles._();
+  
+  // Decoraciones de contenedores
   static const BoxDecoration backgroundDecoration = BoxDecoration(
     gradient: AppStyles.backgroundGradient,
   );
