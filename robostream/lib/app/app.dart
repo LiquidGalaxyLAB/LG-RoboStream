@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:robostream/app/app_router.dart'; // 1. Importar el router
+import 'package:robostream/app/app_router.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
 class App extends StatelessWidget {
@@ -11,7 +11,6 @@ class App extends StatelessWidget {
       title: 'RoboStream',
       theme: AppStyles.theme,
       debugShowCheckedModeBanner: false,
-      // 2. Conectar la configuración del router a nuestra app
       routerConfig: AppRouter.router,
     );
   }

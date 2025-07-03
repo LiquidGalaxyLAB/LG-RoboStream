@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
-/// Widget de campo de texto reutilizable con estilos predefinidos
-/// Solo necesitas pasar el label, controller y configuraciones - todo el estilo está incluido
 class CustomTextField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
@@ -42,7 +40,6 @@ class CustomTextField extends StatefulWidget {
     this.onSubmitted,
   });
 
-  /// Campo para direcciones IP
   const CustomTextField.ip({
     super.key,
     required this.label,
@@ -62,7 +59,6 @@ class CustomTextField extends StatefulWidget {
         keyboardType = TextInputType.url,
         fieldStyle = CustomTextFieldStyle.ip;
 
-  /// Campo para contraseñas
   const CustomTextField.password({
     super.key,
     required this.label,
@@ -82,7 +78,6 @@ class CustomTextField extends StatefulWidget {
         keyboardType = TextInputType.visiblePassword,
         fieldStyle = CustomTextFieldStyle.password;
 
-  /// Campo para nombres de usuario
   const CustomTextField.username({
     super.key,
     required this.label,
@@ -102,7 +97,6 @@ class CustomTextField extends StatefulWidget {
         keyboardType = TextInputType.text,
         fieldStyle = CustomTextFieldStyle.username;
 
-  /// Campo para URLs/Servidores
   const CustomTextField.url({
     super.key,
     required this.label,
@@ -128,7 +122,7 @@ class CustomTextField extends StatefulWidget {
 
 class _CustomTextFieldState extends State<CustomTextField>
     with SingleTickerProviderStateMixin {
-  // Constants for better performance
+
   static const double _focusAnimationBegin = 0.0;
   static const double _focusAnimationEnd = 1.0;
   
@@ -282,7 +276,6 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
   }
 
-  // Métodos de estilo basados en el tipo de campo
   double _getBorderRadius() {
     switch (widget.fieldStyle) {
       case CustomTextFieldStyle.standard:

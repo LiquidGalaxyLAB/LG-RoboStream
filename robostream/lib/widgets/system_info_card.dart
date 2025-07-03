@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
-/// Widget para mostrar información del sistema de manera elegante
 class SystemInfoCard extends StatelessWidget {
   final bool isConnected;
 
@@ -124,7 +123,6 @@ class SystemInfoCard extends StatelessWidget {
     );
   }
 
-  // Estilos
   BoxDecoration get _cardDecoration => BoxDecoration(
     gradient: LinearGradient(
       colors: [
@@ -171,7 +169,6 @@ class SystemInfoCard extends StatelessWidget {
   );
 }
 
-/// Widget interno para las tarjetas de detalle del sistema
 class _SystemDetailCard extends StatelessWidget {
   final String label;
   final String value;

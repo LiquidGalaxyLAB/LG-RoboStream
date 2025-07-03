@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
-/// Widget de tarjeta reutilizable con estilos predefinidos
-/// Solo necesitas pasar el contenido y configuraciones - todo el estilo está incluido
 class CustomCard extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -23,7 +21,7 @@ class CustomCard extends StatefulWidget {
     this.isInteractive = false,
     this.customColor,
   });
-  /// Tarjeta de información con icono y texto
+
   CustomCard.info({
     super.key,
     required IconData icon,
@@ -41,7 +39,7 @@ class CustomCard extends StatefulWidget {
           color: customColor ?? AppStyles.primaryColor,
         ),
         cardStyle = CustomCardStyle.info;
-  /// Tarjeta de estadística con valor numérico
+
   CustomCard.stat({
     super.key,
     required IconData icon,
@@ -60,7 +58,6 @@ class CustomCard extends StatefulWidget {
         ),
         cardStyle = CustomCardStyle.stat,
         customColor = color;
-  /// Tarjeta de configuración con título y descripción
   CustomCard.config({
     super.key,
     required IconData icon,
@@ -78,7 +75,6 @@ class CustomCard extends StatefulWidget {
           color: customColor ?? AppStyles.secondaryColor,
         ),
         cardStyle = CustomCardStyle.config;
-  /// Tarjeta de estado con indicador
   CustomCard.status({
     super.key,
     required IconData icon,
@@ -97,7 +93,7 @@ class CustomCard extends StatefulWidget {
         ),
         cardStyle = CustomCardStyle.status,
         customColor = null;
-  /// Tarjeta simple con solo icono y nombre
+
   CustomCard.simple({
     super.key,
     required IconData icon,
@@ -121,7 +117,6 @@ class CustomCard extends StatefulWidget {
 
 class _CustomCardState extends State<CustomCard>
     with SingleTickerProviderStateMixin {
-  // Constants for better performance
   static const Duration _animationDuration = Duration(milliseconds: 200);
   static const double _pressedScale = 0.98;
   
@@ -226,7 +221,6 @@ class _CustomCardState extends State<CustomCard>
     );
   }
 
-  // Métodos de estilo basados en el tipo de tarjeta
   double _getBorderRadius() {
     switch (widget.cardStyle) {
       case CustomCardStyle.standard:
@@ -374,7 +368,6 @@ class _CustomCardState extends State<CustomCard>
   }
 }
 
-// Widgets internos para contenido específico de tarjetas
 class _InfoCardContent extends StatelessWidget {
   final IconData icon;
   final String title;

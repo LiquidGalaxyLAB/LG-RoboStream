@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
-/// Widget de botón reutilizable con estilos predefinidos
-/// Solo necesitas pasar el texto, icono y callback - todo el estilo está incluido
 class CustomButton extends StatefulWidget {
   final String text;
   final IconData? icon;
@@ -22,7 +20,6 @@ class CustomButton extends StatefulWidget {
     this.isEnabled = true,
   });
 
-  /// Botón estilo Launch/Conectar
   const CustomButton.launch({
     super.key,
     required this.text,
@@ -32,7 +29,6 @@ class CustomButton extends StatefulWidget {
   })  : icon = Icons.rocket_launch,
         buttonStyle = CustomButtonStyle.launch;
 
-  /// Botón de guardar
   const CustomButton.save({
     super.key,
     required this.text,
@@ -42,7 +38,6 @@ class CustomButton extends StatefulWidget {
   })  : icon = Icons.save,
         buttonStyle = CustomButtonStyle.save;
 
-  /// Botón de configuración
   const CustomButton.config({
     super.key,
     required this.text,
@@ -52,7 +47,6 @@ class CustomButton extends StatefulWidget {
   })  : icon = Icons.settings,
         buttonStyle = CustomButtonStyle.config;
 
-  /// Botón de streaming con iconos dinámicos
   const CustomButton.streaming({
     super.key,
     required this.text,
@@ -211,7 +205,6 @@ class _CustomButtonState extends State<CustomButton>
       );
     }  }
 
-  // Métodos de estilo basados en el tipo de botón
   double _getButtonHeight() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:

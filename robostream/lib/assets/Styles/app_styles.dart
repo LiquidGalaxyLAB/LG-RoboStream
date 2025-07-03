@@ -51,6 +51,13 @@ class AppStyles {
     end: Alignment(1.0, 0.0),
   );
 
+  // RoboStream title gradient
+  static const LinearGradient titleGradient = LinearGradient(
+    colors: [primaryColor, secondaryColor, accentColor],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   // Animation curves
   static const Curve primaryCurve = Curves.easeOutCubic;
   static const Curve bouncyCurve = Curves.elasticOut;
@@ -71,83 +78,81 @@ class AppStyles {
         error: errorColor,
       ),
       scaffoldBackgroundColor: backgroundColor,
-      fontFamily: 'Roboto', // Usar la fuente Roboto local
+      fontFamily: 'Roboto',
       
-      // Tema de texto usando solo Regular (400) y Bold (700)
       textTheme: const TextTheme(
         displayLarge: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 40, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -1.0,
           height: 1.1,
         ),
         displayMedium: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 36, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -0.8,
           height: 1.2,
         ),
         displaySmall: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 32, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -0.6,
           height: 1.2,
         ),
         headlineLarge: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 28, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -0.4,
           height: 1.25,
         ),
         headlineMedium: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 24, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -0.2,
           height: 1.3,
         ),
         titleLarge: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 22, 
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: 0.0,
           height: 1.3,
         ),
         titleMedium: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 18, 
-          fontWeight: FontWeight.normal, // Usa Roboto-Regular.ttf
+          fontWeight: FontWeight.normal,
           letterSpacing: 0.1,
           height: 1.4,
         ),
         bodyLarge: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 16, 
-          fontWeight: FontWeight.normal, // Usa Roboto-Regular.ttf
+          fontWeight: FontWeight.normal,
           letterSpacing: 0.2,
           height: 1.5,
         ),
         bodyMedium: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 14, 
-          fontWeight: FontWeight.normal, // Usa Roboto-Regular.ttf
+          fontWeight: FontWeight.normal,
           letterSpacing: 0.3,
           height: 1.5,
         ),
         bodySmall: TextStyle(
           fontFamily: 'Roboto',
           fontSize: 12, 
-          fontWeight: FontWeight.normal, // Usa Roboto-Regular.ttf
+          fontWeight: FontWeight.normal,
           letterSpacing: 0.4,
           height: 1.6,
         ),
       ).apply(bodyColor: const Color(0xFF1E293B), displayColor: const Color(0xFF0F172A)),
 
-      // Temas de componentes usando las fuentes locales
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -157,7 +162,7 @@ class AppStyles {
           fontFamily: 'Roboto',
           color: Color(0xFF0F172A),
           fontSize: 28,
-          fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+          fontWeight: FontWeight.bold,
           letterSpacing: -0.5,
         ),
         iconTheme: IconThemeData(color: primaryColor, size: 28),
@@ -181,7 +186,7 @@ class AppStyles {
           textStyle: const TextStyle(
             fontFamily: 'Roboto',
             fontSize: 16,
-            fontWeight: FontWeight.bold, // Usa Roboto-Bold.ttf
+            fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
           ),
         ),
@@ -206,7 +211,7 @@ class AppStyles {
         labelStyle: const TextStyle(
           fontFamily: 'Roboto',
           fontSize: 16,
-          fontWeight: FontWeight.normal, // Usa Roboto-Regular.ttf
+          fontWeight: FontWeight.normal,
           letterSpacing: 0.2,
         ),
       ),

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/lg_service.dart';
 
 class SensorSelectionDialog extends StatefulWidget {
-  final Function(List<String>) onSelectionConfirmed;
+  final Function(String) onSelectionConfirmed;
 
   const SensorSelectionDialog({
     Key? key,
@@ -26,6 +26,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
       name: 'GPS Position',
       icon: Icons.location_on,
       color: const Color(0xFF10B981),
+      isSelected: true, 
     ),
     SensorOption(
       id: 'IMU Sensors',
@@ -101,50 +102,23 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
   void _toggleSensor(int index) {
     HapticFeedback.selectionClick();
     setState(() {
-      _sensorOptions[index].isSelected = !_sensorOptions[index].isSelected;
+      for (int i = 0; i < _sensorOptions.length; i++) {
+        _sensorOptions[i].isSelected = false;
+      }
+      _sensorOptions[index].isSelected = true;
     });
   }
 
   void _confirmSelection() {
-    final selectedSensors = _sensorOptions
-        .where((sensor) => sensor.isSelected)
-        .map((sensor) => sensor.id)
-        .toList();
-
-    if (selectedSensors.isEmpty) {
-      // Mostrar mensaje si no hay sensores seleccionados
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one sensor'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    final selectedSensor = _sensorOptions
+        .firstWhere((sensor) => sensor.isSelected, orElse: () => _sensorOptions.first);
 
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop();
-    widget.onSelectionConfirmed(selectedSensors);
+    widget.onSelectionConfirmed(selectedSensor.id);
   }
 
-  void _selectAll() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      for (var sensor in _sensorOptions) {
-        sensor.isSelected = true;
-      }
-    });
-  }
 
-  void _deselectAll() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      for (var sensor in _sensorOptions) {
-        sensor.isSelected = false;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +225,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
           ),
           const SizedBox(height: 20),
           const Text(
-            'Select Sensors',
+            'Select a Sensor',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -261,7 +235,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose which sensors to stream to Liquid Galaxy',
+            'Choose one sensor to stream to Liquid Galaxy',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -269,77 +243,12 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickActionButton(
-                  'Select All',
-                  Icons.check_circle_outline,
-                  const Color(0xFF10B981),
-                  _selectAll,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildQuickActionButton(
-                  'Clear All',
-                  Icons.clear,
-                  const Color(0xFFEF4444),
-                  _deselectAll,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionButton(String text, IconData icon, Color color, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-        gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.08),
-            color.withOpacity(0.04),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildModernSensorList() {
     return Container(
@@ -507,42 +416,41 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
   }
 
   Widget _buildModernActionButtons() {
-    final selectedCount = _sensorOptions.where((sensor) => sensor.isSelected).length;
+    final selectedSensor = _sensorOptions.firstWhere((sensor) => sensor.isSelected, orElse: () => _sensorOptions.first);
     
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          if (selectedCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFF10B981),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$selectedCount sensor${selectedCount > 1 ? 's' : ''} selected',
-                    style: const TextStyle(
-                      color: Color(0xFF10B981),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: selectedSensor.color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selectedSensor.color.withOpacity(0.2),
               ),
             ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selectedSensor.icon,
+                  color: selectedSensor.color,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${selectedSensor.name} selected',
+                  style: TextStyle(
+                    color: selectedSensor.color,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
