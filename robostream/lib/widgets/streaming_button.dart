@@ -37,7 +37,6 @@ class _StreamingButtonState extends State<StreamingButton> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(25),
         boxShadow: [
-          // Sombra principal
           BoxShadow(
             color: (widget.isEnabled ? primaryColor : disabledColor)
                 .withOpacity(0.3),
@@ -87,7 +86,6 @@ class _StreamingButtonState extends State<StreamingButton> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Icono con animación
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder: (child, animation) {
@@ -107,7 +105,6 @@ class _StreamingButtonState extends State<StreamingButton> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Texto con animación
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Text(

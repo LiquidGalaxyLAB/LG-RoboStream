@@ -11,7 +11,6 @@ class RGBCameraScreen extends StatefulWidget {
 }
 
 class _RGBCameraScreenState extends State<RGBCameraScreen> {
-  // Constants for better performance
   static const Duration _autoRefreshInterval = Duration(seconds: 5);
   static const Color _primaryColor = Color(0xFF6366F1);
   static const Color _backgroundColor = Color(0xFFF8FAFC);
@@ -23,7 +22,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   Map<String, dynamic>? _imageMetadata;
   String? _imageBase64;
   bool _isLoading = true;
-  bool _useDirectUrl = false; // Fallback para usar URL directa
+  bool _useDirectUrl = false;
   Timer? _refreshTimer;
   String? _lastError;
   
@@ -48,7 +47,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   
   Future<void> _loadCameraData() async {
     try {
-      // Primero intentar obtener datos básicos de la cámara
       final cameraData = await _serverService.getRGBCameraData();
       
       if (cameraData != null && mounted) {
@@ -58,7 +56,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           _lastError = null;
         });
         
-        // Luego intentar obtener datos completos con imagen
         try {
           final imageData = await _serverService.getRGBCameraImageData();
           if (imageData != null && mounted) {
@@ -68,7 +65,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
               _useDirectUrl = false;
             });
             
-            // Verificar si la imagen base64 es válida
             if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
               try {
                 base64Decode(_imageBase64!);
@@ -345,7 +341,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
               ],
             ),
           ),
-          // Mostrar imagen usando base64 o URL directa
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
             decoration: BoxDecoration(
@@ -385,7 +380,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   }
   
   Widget _buildImageWidget() {
-    // Intentar usar imagen base64 primero
     if (!_useDirectUrl && _imageBase64 != null && _imageBase64!.isNotEmpty) {
       try {
         final imageBytes = base64Decode(_imageBase64!);
@@ -401,7 +395,6 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
       }
     }
     
-    // Usar URL directa como fallback
     return _buildImageFromUrl();
   }
   

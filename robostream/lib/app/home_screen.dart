@@ -17,7 +17,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  // Constants for better performance
   static const Duration _animationDuration = Duration(milliseconds: 3000);
   static const Duration _indicatorDuration = Duration(milliseconds: 600);
   static const Duration _indicatorReverseDuration = Duration(milliseconds: 450);
@@ -40,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _imageRefreshKey = 0;
 
   LGService? _lgService;
-  List<String> _selectedSensors = [];
+  String _selectedSensor = '';
   bool _isStreamingToLG = false;
   bool _isLGConnected = false;
   String _lgHost = '192.168.1.100';
@@ -117,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _imageRefreshKey++;
         });
         
-        if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty) {
+        if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty) {
           _sendSelectedSensorsToLG(sensorData);
         }
       }
@@ -184,8 +183,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       barrierDismissible: true,
       builder: (context) => SensorSelectionDialog(
-        onSelectionConfirmed: (selectedSensors) {
-          _selectedSensors = selectedSensors;
+        onSelectionConfirmed: (selectedSensor) {
+          _selectedSensor = selectedSensor;
           _startStreamingToLG();
         },
       ),
@@ -275,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Streaming ${_selectedSensors.length} sensors to Liquid Galaxy'),
+          content: Text('Streaming $_selectedSensor to Liquid Galaxy'),
           backgroundColor: Colors.green,
         ),
       );
@@ -283,15 +282,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _sendSelectedSensorsToLG(SensorData sensorData) async {
-    if (_lgService == null || _selectedSensors.isEmpty) return;
+    if (_lgService == null || _selectedSensor.isEmpty) return;
 
     String serverBaseUrl = _serverService.currentBaseUrl;
     String serverHost = serverBaseUrl.replaceAll('http://', '').replaceAll(':8000', '');
 
-    if (_selectedSensors.length == 1 && _selectedSensors.contains('RGB Camera')) {
+    if (_selectedSensor == 'RGB Camera') {
       await _lgService!.showRGBCameraImage(serverHost);
     } else {
-      await _lgService!.showSensorData(sensorData, _selectedSensors);
+      await _lgService!.showSensorData(sensorData, [_selectedSensor]);
     }
   }
 
@@ -306,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _lgService = null;
     }
     
-    _selectedSensors.clear();
+    _selectedSensor = '';
   }
 
   @override
@@ -840,16 +839,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ]);
     }
 
-    // Calcular el tamaño inicial basado en el contenido
-    double initialSize = 0.5; // Tamaño base
+    double initialSize = 0.5;
     if (detailWidgets.isNotEmpty) {
-      // Si hay datos detallados, expandir más para mostrarlos
       if (detailWidgets.length > 5) {
-        initialSize = 0.75; // Mucho contenido
+        initialSize = 0.75;
       } else if (detailWidgets.length > 2) {
-        initialSize = 0.65; // Contenido moderado
+        initialSize = 0.65;
       } else {
-        initialSize = 0.55; // Poco contenido adicional
+        initialSize = 0.55;
       }
     }
 
@@ -857,25 +854,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      isDismissible: true, // Permite cerrar tocando fuera
-      enableDrag: true, // Permite cerrar arrastrando
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) => GestureDetector(
         onTap: () {
-          // Detecta toques en el área fuera del contenido del modal
           Navigator.of(context).pop();
         },
         child: Container(
           color: Colors.transparent,
           child: GestureDetector(
             onTap: () {
-              // Evita que los toques en el contenido del modal lo cierren
-              // Este GestureDetector intercepta los toques en el contenido
             },
             child: StatefulBuilder(
               builder: (context, setState) => DraggableScrollableSheet(
-                initialChildSize: initialSize, // Tamaño dinámico basado en contenido
-                minChildSize: 0.3, // Mínimo 30% de la pantalla
-                maxChildSize: 0.8, // Máximo 80% de la pantalla como solicitado
+                initialChildSize: initialSize,
+                minChildSize: 0.3, 
+                maxChildSize: 0.8, 
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -907,7 +901,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           child: Column(
             children: [
-              // Handle de arrastre mejorado con indicador visual
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Column(
@@ -937,7 +930,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
               ),
-              // Contenido scrollable
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
@@ -1087,11 +1079,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
-        ), // Cierre del DraggableScrollableSheet
-      ), // Cierre del StatefulBuilder
-      ), // Cierre del segundo GestureDetector (contenido)
-      ), // Cierre del Container
-      ), // Cierre del primer GestureDetector (fuera del modal)
+        ),
+      ),
+      ),
+      ),
+      ),
     );
   }
 
@@ -1636,18 +1628,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      isDismissible: true, // Permite cerrar tocando fuera
-      enableDrag: true, // Permite cerrar arrastrando
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) => GestureDetector(
         onTap: () {
-          // Detecta toques en el área fuera del contenido del modal
           Navigator.of(context).pop();
         },
         child: Container(
           color: Colors.transparent,
           child: GestureDetector(
             onTap: () {
-              // Evita que los toques en el contenido del modal lo cierren
             },
             child: Container(
               padding: const EdgeInsets.all(24),
@@ -1722,10 +1712,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 32),
           ],
         ),
-      ), // Cierre del Container principal
-      ), // Cierre del segundo GestureDetector (contenido)
-      ), // Cierre del Container exterior
-      ), // Cierre del primer GestureDetector (fuera del modal)
+      ),
+      ),
+      ),
+      ),
     );
   }
 
@@ -1926,18 +1916,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        isDismissible: true, // Permite cerrar tocando fuera
-        enableDrag: true, // Permite cerrar arrastrando
+        isDismissible: true, 
+        enableDrag: true,
         builder: (context) => GestureDetector(
           onTap: () {
-            // Detecta toques en el área fuera del contenido del modal
             Navigator.of(context).pop();
           },
           child: Container(
             color: Colors.transparent,
             child: GestureDetector(
               onTap: () {
-                // Evita que los toques en el contenido del modal lo cierren
               },
               child: Container(
                 padding: const EdgeInsets.all(24),
@@ -2006,7 +1994,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: const Color(0xFF6366F1),
                 onTap: () {
                   Navigator.pop(context);
-                  _selectedSensors = ['RGB Camera'];
+                  _selectedSensor = 'RGB Camera';
                   _startStreamingToLG();
                 },
               ),
@@ -2024,10 +2012,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 32),
             ],
           ),
-        ), // Cierre del Container principal
-        ), // Cierre del segundo GestureDetector (contenido)
-        ), // Cierre del Container exterior
-        ), // Cierre del primer GestureDetector (fuera del modal)
+        ), 
+        ),       
+        ),
+        ),
       );
     }
   }

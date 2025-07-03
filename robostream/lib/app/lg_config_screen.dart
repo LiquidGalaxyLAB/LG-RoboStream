@@ -63,7 +63,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
     HapticFeedback.mediumImpact();
     
-    // Simular validación/conexión
     await Future.delayed(const Duration(milliseconds: 800));
     
     widget.onConfigSaved(host, username, password);

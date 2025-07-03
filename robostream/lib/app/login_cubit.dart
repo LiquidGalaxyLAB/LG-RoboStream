@@ -11,7 +11,7 @@ class LoginCubit extends Cubit<LoginState> {
     required String lgUsername,
     required String lgPassword,
   }) async {
-    emit(LoginInProgress()); // Cambiado de LoginLoading a LoginInProgress
+    emit(LoginInProgress());
 
     if (lgIpAddress.isEmpty ||
         lgUsername.isEmpty ||
@@ -21,7 +21,6 @@ class LoginCubit extends Cubit<LoginState> {
     }
 
     try {
-      // Lógica de Conexión
       final lgService = LGService(
         host: lgIpAddress,
         username: lgUsername,
@@ -33,7 +32,6 @@ class LoginCubit extends Cubit<LoginState> {
       if (isConnected) {
         await lgService.showLogoUsingKML();
         
-        // Guardar automáticamente la configuración exitosa en LG Config
         await LGConfigService.saveLGConfig(
           host: lgIpAddress,
           username: lgUsername,

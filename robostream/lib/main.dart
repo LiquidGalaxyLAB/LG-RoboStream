@@ -5,7 +5,6 @@ import 'package:robostream/app/app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Configure system UI for better visual experience
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -15,7 +14,6 @@ void main() async {
     ),
   );
   
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

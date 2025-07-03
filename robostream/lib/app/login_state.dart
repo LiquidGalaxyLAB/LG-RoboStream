@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-// Cambiamos el nombre a LoginState para reflejar su propósito
 abstract class LoginState extends Equatable {
   const LoginState();
   

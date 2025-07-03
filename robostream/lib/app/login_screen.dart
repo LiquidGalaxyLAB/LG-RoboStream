@@ -23,7 +23,6 @@ class LoginScreen extends StatelessWidget {
           child: BlocListener<LoginCubit, LoginState>(
             listener: (context, state) {
               if (state is LoginSuccess) {
-                // Mostrar mensaje de éxito si está disponible
                 if (state.message != null && state.message!.isNotEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -35,7 +34,6 @@ class LoginScreen extends StatelessWidget {
                     ),
                   );
                 }
-                // Navegar después de un breve delay para que se vea el mensaje
                 Future.delayed(const Duration(milliseconds: 800), () {
                   context.go('/');
                 });
@@ -71,8 +69,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgUsernameController = TextEditingController();
   final _lgPasswordController = TextEditingController();
 
-  // Removidas las variables estáticas para guardar configuración - no las necesitamos
-
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late AnimationController _particleController;
@@ -80,7 +76,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<double> _particleAnimation;
 
-  // Focus nodes for better interaction feedback
   final _lgIpFocus = FocusNode();
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
@@ -92,7 +87,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimations();
     _startContinuousAnimations();
-    // Removido: _loadSavedConfiguration(); - No queremos cargar datos guardados
   }
 
   void _initializeAnimations() {
@@ -154,10 +148,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     super.dispose();
   }
   void _onLoginPressed() {
-    // Add haptic feedback
     HapticFeedback.mediumImpact();
-    
-    // La configuración se guardará automáticamente cuando el login sea exitoso
     
     context.read<LoginCubit>().login(
           lgIpAddress: _lgIpController.text,
@@ -172,7 +163,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Fixed animated background elements
         Positioned(
           top: -100,
           right: -100,
@@ -213,10 +203,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             ),
           ),
         ),
-        // Enhanced animated background with floating particles
         ..._buildFloatingParticles(),
         
-        // Main content with enhanced animations
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -229,7 +217,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Enhanced logo without breathing animation
                       GestureDetector(
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.0, end: 1.0),
@@ -251,13 +238,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                         ),
                       ),
                       
-                      // Enhanced title with shimmer effect
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(milliseconds: 800),
                         builder: (context, value, child) {
                           return ShaderMask(
-                            shaderCallback: (bounds) => AppStyles.primaryGradient.createShader(bounds),
+                            shaderCallback: (bounds) => AppStyles.titleGradient.createShader(bounds),
                             child: Text(
                               'RoboStream',
                               style: Theme.of(context).textTheme.displayLarge?.copyWith(
@@ -291,12 +277,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 36),
                       
-                      // Enhanced form fields with better animations
                       ..._buildEnhancedAnimatedFields(),
                       
                       const SizedBox(height: 32),
                       
-                      // Enhanced button with better feedback
                       BlocBuilder<LoginCubit, LoginState>(
                         builder: (context, state) {
                           return _buildEnhancedButton(state);
@@ -313,13 +297,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
-  // Generate floating particles efficiently
   List<Widget> _buildFloatingParticles() {
     return List.generate(6, (index) => _buildFloatingParticle(index));
   }
 
   Widget _buildFloatingParticle(int index) {
-    // Use const values for better performance
     const delays = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625];
     const sizes = [80.0, 60.0, 100.0, 70.0, 90.0, 110.0];
     const positions = [
@@ -336,11 +318,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       builder: (context, child) {
         final animatedValue = (_particleAnimation.value + delays[index]) % 1.0;
         
-        // Pre-calculate values for better performance
         final sinValue = math.sin(animatedValue * 2 * math.pi);
         final cosValue = math.cos(animatedValue * 2 * math.pi);
         
-        // Safe opacity calculation
         const baseOpacity = 0.03;
         final variationOpacity = 0.02 * (0.5 + 0.5 * sinValue);
         final finalOpacity = (baseOpacity + variationOpacity).clamp(0.0, 1.0);

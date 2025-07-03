@@ -23,11 +23,9 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     super.initState();
     _loadConfiguration();
   }  Future<void> _loadConfiguration() async {
-    // Cargar configuración del servidor
     if (!mounted) return;
     
     setState(() {
-      // Usar la URL actual del servicio si está disponible
       _currentUrl = widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
       _urlController.text = _currentUrl;
     });
@@ -43,7 +41,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   Future<void> _testConnection(String url) async {
     if (!mounted) return;
     
-    // Cancel any previous test
     _testService?.dispose();
     
     setState(() {
@@ -52,7 +49,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     });
 
     try {
-      // Crear un servicio temporal para probar la conexión
       _testService = RobotServerService();
       _testService!.updateServerUrl(url);
       
@@ -733,22 +729,18 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       return;
     }
 
-    // Stop current streaming if URL changed
     if (widget.serverService != null && 
         widget.serverService!.currentBaseUrl != newUrl && 
         widget.serverService!.isStreaming) {
       widget.serverService!.stopStreaming();
     }
     
-    // Update server URL
     widget.serverService?.updateServerUrl(newUrl);
     
-    // Start streaming automatically
     if (widget.serverService != null) {
       widget.serverService!.startStreaming();
     }
     
-    // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Row(
@@ -766,7 +758,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       ),
     );
     
-    // Return new URL to update main screen
     Navigator.pop(context, newUrl);
   }
 }

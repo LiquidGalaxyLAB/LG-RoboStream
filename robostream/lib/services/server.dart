@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:robostream/config/server_config.dart';
 
-// Modelos de datos que coinciden con el servidor FastAPI
 class ThreeAxisData {
   final double x;
   final double y;
@@ -122,9 +121,9 @@ class SensorData {
       gps: GPSData.fromJson(json['gps'] ?? {}),
       lidar: json['lidar'] ?? 'Disconnected',
       camera: json['camera'] ?? 'Offline',
-      rgbCamera: json['rgb_camera'] != null 
-        ? RGBCameraData.fromJson(json['rgb_camera'])
-        : null,
+      rgbCamera: json['rgb_camera'] != null
+          ? RGBCameraData.fromJson(json['rgb_camera'])
+          : null,
     );
   }
 }
@@ -179,81 +178,74 @@ class ActuatorData {
 }
 
 class RobotServerService {
-  // Constants for better performance
   static const Duration _timeout = ServerConfig.requestTimeout;
   static const Duration _updateInterval = ServerConfig.updateInterval;
-  
+
   Timer? _timer;
   SensorData? _lastSensorData;
   ActuatorData? _lastActuatorData;
   bool _isConnected = false;
   String _currentBaseUrl = ServerConfig.baseUrl;
-  bool _isStreaming = false; // Estado del streaming
-  
-  // Stream controllers para datos en tiempo real
+  bool _isStreaming = false;
+
   final _sensorController = StreamController<SensorData>.broadcast();
   final _actuatorController = StreamController<ActuatorData>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
-  
-  // Getters para los streams
+
   Stream<SensorData> get sensorStream => _sensorController.stream;
   Stream<ActuatorData> get actuatorStream => _actuatorController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
-  
-  // Getters para datos actuales
+
   SensorData? get currentSensorData => _lastSensorData;
   ActuatorData? get currentActuatorData => _lastActuatorData;
   bool get isConnected => _isConnected;
   String get currentBaseUrl => _currentBaseUrl;
   bool get isStreaming => _isStreaming;
 
-  // Actualizar la URL del servidor
   void updateServerUrl(String newUrl) {
-    // Si estamos cambiando la URL y actualmente hay streaming, detenerlo
     if (_currentBaseUrl != newUrl && _isStreaming) {
       stopStreaming();
     }
-    
+
     _currentBaseUrl = newUrl;
     _updateConnectionStatus(false); // Reset connection status
-  }  // Iniciar las solicitudes periódicas con el intervalo configurado
+  }
+
   void startPeriodicRequests() {
-    stopPeriodicRequests(); // Asegurar que no hay timers duplicados
-    
+    stopPeriodicRequests();
+
     _timer = Timer.periodic(_updateInterval, (timer) {
       if (_isStreaming) {
         _fetchAllData();
       }
     });
-    
-    // Hacer la primera solicitud inmediatamente si está streaming
+
     if (_isStreaming) {
       _fetchAllData();
     }
   }
 
-  // Detener las solicitudes periódicas
   void stopPeriodicRequests() {
     _timer?.cancel();
     _timer = null;
-  }  // Iniciar el streaming de datos
+  }
+
   void startStreaming() {
     if (!_isStreaming) {
       _isStreaming = true;
       _updateConnectionStatus(false); // Reset connection status
-      startPeriodicRequests(); // Iniciar el temporizador
+      startPeriodicRequests();
     }
   }
-  // Detener el streaming de datos
+
   void stopStreaming() {
     if (_isStreaming) {
       _isStreaming = false;
-      stopPeriodicRequests(); // Detener el temporizador
+      stopPeriodicRequests();
       _updateConnectionStatus(false);
     }
   }
 
-  // Alternar el estado del streaming
   void toggleStreaming() {
     if (_isStreaming) {
       stopStreaming();
@@ -262,12 +254,14 @@ class RobotServerService {
     }
   }
 
-  // Obtener datos de sensores
   Future<SensorData?> getSensorData() async {
-    try {      final response = await http.get(
-        Uri.parse('$_currentBaseUrl/sensors'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_currentBaseUrl/sensors'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -276,7 +270,8 @@ class RobotServerService {
         _updateConnectionStatus(true);
         return sensorData;
       } else {
-        _updateConnectionStatus(false);        return null;
+        _updateConnectionStatus(false);
+        return null;
       }
     } catch (e) {
       _updateConnectionStatus(false);
@@ -284,32 +279,36 @@ class RobotServerService {
     }
   }
 
-  // Obtener datos de actuadores
   Future<ActuatorData?> getActuatorData() async {
-    try {      final response = await http.get(
-        Uri.parse('$_currentBaseUrl/actuators'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_currentBaseUrl/actuators'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         final actuatorData = ActuatorData.fromJson(jsonData);
         _lastActuatorData = actuatorData;
         return actuatorData;
-      } else {        return null;
+      } else {
+        return null;
       }
     } catch (e) {
       return null;
     }
   }
 
-  // Obtener datos específicos de la cámara RGB
   Future<RGBCameraData?> getRGBCameraData() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_currentBaseUrl/rgb-camera'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+      final response = await http
+          .get(
+            Uri.parse('$_currentBaseUrl/rgb-camera'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
@@ -322,13 +321,14 @@ class RobotServerService {
     }
   }
 
-  // Obtener datos completos de la cámara RGB con metadatos
   Future<Map<String, dynamic>?> getRGBCameraImageData() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_currentBaseUrl/rgb-camera/image-data'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+      final response = await http
+          .get(
+            Uri.parse('$_currentBaseUrl/rgb-camera/image-data'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -340,17 +340,18 @@ class RobotServerService {
     }
   }
 
-  // Obtener URL de la imagen actual de la cámara RGB
   String getRGBCameraImageUrl() {
     return '$_currentBaseUrl/rgb-camera/image';
   }
 
-  // Verificar conexión con el servidor
   Future<bool> checkConnection() async {
-    try {      final response = await http.get(
-        Uri.parse('$_currentBaseUrl/'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(_timeout);
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$_currentBaseUrl/'),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(_timeout);
 
       final isConnected = response.statusCode == 200;
       _updateConnectionStatus(isConnected);
@@ -361,10 +362,8 @@ class RobotServerService {
     }
   }
 
-  // Obtener todos los datos de una vez
   Future<void> _fetchAllData() async {
     try {
-      // Obtener datos de sensores y actuadores en paralelo
       final results = await Future.wait([
         getSensorData(),
         getActuatorData(),
@@ -373,18 +372,17 @@ class RobotServerService {
       final sensorData = results[0] as SensorData?;
       final actuatorData = results[1] as ActuatorData?;
 
-      // Enviar datos a los streams si están disponibles
       if (sensorData != null) {
         _sensorController.add(sensorData);
       }
       if (actuatorData != null) {
-        _actuatorController.add(actuatorData);      }
+        _actuatorController.add(actuatorData);
+      }
     } catch (e) {
       // Error handling without print
     }
   }
 
-  // Actualizar estado de conexión
   void _updateConnectionStatus(bool connected) {
     if (_isConnected != connected) {
       _isConnected = connected;
@@ -392,7 +390,6 @@ class RobotServerService {
     }
   }
 
-  // Limpiar recursos
   void dispose() {
     stopPeriodicRequests();
     _sensorController.close();
