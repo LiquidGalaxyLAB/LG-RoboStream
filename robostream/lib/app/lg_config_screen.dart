@@ -9,12 +9,12 @@ class LGConfigScreen extends StatefulWidget {
   final Function(String host, String username, String password) onConfigSaved;
 
   const LGConfigScreen({
-    Key? key,
+    super.key,
     required this.currentHost,
     required this.currentUsername,
     required this.currentPassword,
     required this.onConfigSaved,
-  }) : super(key: key);
+  });
 
   @override
   State<LGConfigScreen> createState() => _LGConfigScreenState();
@@ -42,7 +42,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     super.dispose();
   }
 
-  void _saveConfiguration() async {
+  void _saveConfiguration() {
     final host = _hostController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
@@ -63,13 +63,39 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
     HapticFeedback.mediumImpact();
     
-    await Future.delayed(const Duration(milliseconds: 800));
-    
     widget.onConfigSaved(host, username, password);
     
-    if (mounted) {
-      Navigator.pop(context, true);
-    }
+    Navigator.pop(context, true);
+  }
+
+  BoxDecoration _buildCardDecoration(Color accentColor) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(24),
+      gradient: LinearGradient(
+        colors: [
+          Colors.white,
+          Colors.white.withOpacity(0.95),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: accentColor.withOpacity(0.08),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+      border: Border.all(
+        color: accentColor.withOpacity(0.08),
+        width: 1,
+      ),
+    );
   }
 
   @override
@@ -95,8 +121,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      _buildInfoCard(),
-                      const SizedBox(height: 20),
                       _buildConfigForm(),
                     ],
                   ),
@@ -204,119 +228,9 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     );
   }
 
-  Widget _buildInfoCard() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF10B981).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF10B981).withOpacity(0.1),
-                    const Color(0xFF10B981).withOpacity(0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: const Icon(
-                Icons.info_outline_rounded,
-                color: Color(0xFF10B981),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Liquid Galaxy Setup',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Configure connection details to display sensor data on the Liquid Galaxy system',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildConfigForm() {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
+      decoration: _buildCardDecoration(const Color(0xFF6366F1)),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -417,66 +331,45 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: _isLoading
-                ? LinearGradient(
-                    colors: [Colors.grey.shade300, Colors.grey.shade400],
-                  )
-                : const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-            boxShadow: _isLoading
-                ? null
-                : [
-                    BoxShadow(
-                      color: const Color(0xFF10B981).withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: _isLoading ? null : _saveConfiguration,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isLoading)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.save_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isLoading ? 'Saving...' : 'Save Configuration',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _saveConfiguration,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
+              elevation: _isLoading ? 0 : 4,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                else
+                  const Icon(
+                    Icons.save_rounded,
+                    size: 20,
+                  ),
+                const SizedBox(width: 8),
+                Text(
+                  _isLoading ? 'Saving...' : 'Save Configuration',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

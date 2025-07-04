@@ -2,20 +2,16 @@ import 'package:flutter/material.dart';
 
 class TelemetryCardStyles {
   // Animation durations
-  static const Duration pulseDuration = Duration(milliseconds: 1500);
   static const Duration scaleDuration = Duration(milliseconds: 200);
   static const Duration hoverDuration = Duration(milliseconds: 300);
   
   // Animation curves
   static const Curve scaleOutCurve = Curves.easeOutCubic;
-  static const Curve pulseInOutCurve = Curves.easeInOut;
   
   // Scale factors
   static const double pressedScale = 0.95;
   static const double hoveredScale = 1.02;
   static const double normalScale = 1.0;
-  static const double pulseBeginScale = 1.0;
-  static const double pulseEndScale = 1.05;
   
   // Border radius
   static const double containerBorderRadius = 24;

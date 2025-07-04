@@ -6,6 +6,15 @@ import 'server.dart';
 import 'kml_builder.dart';
 import 'kml_sender.dart';
 import 'image_generator.dart';
+import 'lg_config_service.dart';
+
+// Login result class to handle login responses
+class LoginResult {
+  final bool success;
+  final String message;
+  
+  const LoginResult({required this.success, required this.message});
+}
 
 class SensorOption {
   final String id;
@@ -38,6 +47,57 @@ class LGService {
   })  : _host = host,
         _username = username,
         _password = password;
+
+  /// Performs login with validation and connection test
+  static Future<LoginResult> login({
+    required String lgIpAddress,
+    required String lgUsername,
+    required String lgPassword,
+  }) async {
+    if (lgIpAddress.isEmpty ||
+        lgUsername.isEmpty ||
+        lgPassword.isEmpty) {
+      return const LoginResult(
+        success: false,
+        message: 'Por favor, rellena todos los campos.'
+      );
+    }
+
+    try {
+      final lgService = LGService(
+        host: lgIpAddress,
+        username: lgUsername,
+        password: lgPassword,
+      );
+
+      final bool isConnected = await lgService.connect();
+
+      if (isConnected) {
+        await lgService.showLogoUsingKML();
+        
+        await LGConfigService.saveLGConfig(
+          host: lgIpAddress,
+          username: lgUsername,
+          password: lgPassword,
+        );
+        
+        return const LoginResult(
+          success: true,
+          message: 'Conectado exitosamente. Configuración guardada automáticamente.'
+        );
+      } else {
+        return const LoginResult(
+          success: false,
+          message: 'No se pudo conectar a Liquid Galaxy. Verifica los datos.'
+        );
+      }
+    } catch (e) {
+      return LoginResult(
+        success: false,
+        message: 'Error de conexión: ${e.toString()}'
+      );
+    }
+  }
 
   Future<bool> connect() async {
     try {

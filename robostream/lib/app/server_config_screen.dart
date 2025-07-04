@@ -12,8 +12,17 @@ class ServerConfigScreen extends StatefulWidget {
 }
 
 class _ServerConfigScreenState extends State<ServerConfigScreen> {
+  // Constants for repeated colors and styles
+  static const Color _primaryColor = Color(0xFF6366F1);
+  static const Color _secondaryColor = Color(0xFF8B5CF6);
+  static const Color _textPrimaryColor = Color(0xFF1E293B);
+  static const Color _textSecondaryColor = Color(0xFF64748B);
+  static const Color _successColor = Color(0xFF10B981);
+  static const Color _errorColor = Color(0xFFEF4444);
+  static const Color _backgroundLight = Color(0xFFF8FAFC);
+  static const Color _backgroundDark = Color(0xFFF1F5F9);
+
   final TextEditingController _urlController = TextEditingController();
-  String _currentUrl = ServerConfig.baseUrl;
   bool _isTestingConnection = false;
   String? _connectionStatus;
   RobotServerService? _testService;
@@ -22,18 +31,20 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   void initState() {
     super.initState();
     _loadConfiguration();
-  }  Future<void> _loadConfiguration() async {
+  }
+
+  Future<void> _loadConfiguration() async {
     if (!mounted) return;
     
+    final currentUrl = widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
     setState(() {
-      _currentUrl = widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
-      _urlController.text = _currentUrl;
+      _urlController.text = currentUrl;
     });
   }
 
   @override
   void dispose() {
-    _testService?.dispose();
+    _disposeTestService();
     _urlController.dispose();
     super.dispose();
   }
@@ -41,7 +52,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   Future<void> _testConnection(String url) async {
     if (!mounted) return;
     
-    _testService?.dispose();
+    _disposeTestService();
     
     setState(() {
       _isTestingConnection = true;
@@ -54,49 +65,71 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       
       final isConnected = await _testService!.checkConnection();
       
-      if (!mounted) {
-        _testService?.dispose();
-        _testService = null;
-        return;
-      }
+      if (!mounted) return;
       
       setState(() {
         _connectionStatus = isConnected ? 'Connected successfully!' : 'Connection failed';
         _isTestingConnection = false;
       });
-      
-      _testService?.dispose();
-      _testService = null;
     } catch (e) {
-      if (!mounted) {
-        _testService?.dispose();
-        _testService = null;
-        return;
-      }
+      if (!mounted) return;
       
       setState(() {
         _connectionStatus = 'Error: ${e.toString()}';
         _isTestingConnection = false;
       });
-      
-      _testService?.dispose();
-      _testService = null;
+    } finally {
+      _disposeTestService();
     }
   }
+
+  void _disposeTestService() {
+    _testService?.dispose();
+    _testService = null;
+  }
+
+  // Helper methods for common UI patterns
+  LinearGradient get _primaryGradient => const LinearGradient(
+    colors: [_primaryColor, _secondaryColor],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  LinearGradient get _backgroundGradient => const LinearGradient(
+    colors: [_backgroundLight, _backgroundDark],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  BoxDecoration _cardDecoration() => BoxDecoration(
+    borderRadius: BorderRadius.circular(24),
+    gradient: LinearGradient(
+      colors: [Colors.white, Colors.white.withOpacity(0.95)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: _primaryColor.withOpacity(0.08),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: Colors.black.withOpacity(0.04),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+    ],
+    border: Border.all(
+      color: _primaryColor.withOpacity(0.08),
+      width: 1,
+    ),
+  );
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFFF8FAFC),
-              const Color(0xFFF1F5F9),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: BoxDecoration(gradient: _backgroundGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -134,13 +167,13 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
               ],
               border: Border.all(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
+                color: _primaryColor.withOpacity(0.1),
                 width: 1,
               ),
             ),
@@ -151,7 +184,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                 onTap: () => Navigator.pop(context),
                 child: const Icon(
                   Icons.arrow_back_ios_new,
-                  color: Color(0xFF6366F1),
+                  color: _primaryColor,
                   size: 20,
                 ),
               ),
@@ -167,7 +200,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
+                    color: _textPrimaryColor,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -188,14 +221,10 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
             height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: _primaryGradient,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.3),
+                  color: _primaryColor.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -214,33 +243,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
   Widget _buildServerConfigCard() {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
+      decoration: _cardDecoration(),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -255,8 +258,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                     borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF6366F1).withOpacity(0.1),
-                        const Color(0xFF6366F1).withOpacity(0.05),
+                        _primaryColor.withOpacity(0.1),
+                        _primaryColor.withOpacity(0.05),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -264,7 +267,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                   ),
                   child: const Icon(
                     Icons.settings_ethernet_rounded,
-                    color: Color(0xFF6366F1),
+                    color: _primaryColor,
                     size: 24,
                   ),
                 ),
@@ -278,7 +281,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
+                          color: _textPrimaryColor,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -286,7 +289,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                         'Configure the robot server endpoint',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: _textSecondaryColor,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -326,14 +329,14 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                   contentPadding: const EdgeInsets.all(16),
                   prefixIcon: const Icon(
                     Icons.link_rounded,
-                    color: Color(0xFF6366F1),
+                    color: _primaryColor,
                     size: 20,
                   ),
                 ),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF1E293B),
+                  color: _textPrimaryColor,
                 ),
               ),
             ),
@@ -358,16 +361,12 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
             ? LinearGradient(
                 colors: [Colors.grey.shade300, Colors.grey.shade400],
               )
-            : const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+            : _primaryGradient,
         boxShadow: _isTestingConnection
             ? null
             : [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.3),
+                  color: _primaryColor.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -419,7 +418,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
   Widget _buildConnectionStatus() {
     final isSuccess = _connectionStatus!.contains('successfully');
-    final color = isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final color = isSuccess ? _successColor : _errorColor;
     
     return Container(
       padding: const EdgeInsets.all(16),
@@ -456,33 +455,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
   Widget _buildAdvancedSettingsCard() {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
+      decoration: _cardDecoration(),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -497,8 +470,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                     borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF8B5CF6).withOpacity(0.1),
-                        const Color(0xFF8B5CF6).withOpacity(0.05),
+                        _secondaryColor.withOpacity(0.1),
+                        _secondaryColor.withOpacity(0.05),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -506,7 +479,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                   ),
                   child: const Icon(
                     Icons.tune_rounded,
-                    color: Color(0xFF8B5CF6),
+                    color: _secondaryColor,
                     size: 24,
                   ),
                 ),
@@ -520,7 +493,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
+                          color: _textPrimaryColor,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -528,7 +501,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                         'Common server configurations',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: _textSecondaryColor,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -564,8 +537,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     
     return GestureDetector(
       onTap: () {
-        if (!mounted) return;
-        
         setState(() {
           _urlController.text = url;
           _connectionStatus = null;
@@ -577,11 +548,11 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: isSelected
-              ? const Color(0xFF6366F1).withOpacity(0.1)
+              ? _primaryColor.withOpacity(0.1)
               : Colors.grey.shade50,
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF6366F1).withOpacity(0.3)
+                ? _primaryColor.withOpacity(0.3)
                 : Colors.grey.shade200,
             width: 1.5,
           ),
@@ -594,7 +565,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: isSelected
-                    ? const Color(0xFF6366F1)
+                    ? _primaryColor
                     : Colors.grey.shade300,
               ),
               child: Icon(
@@ -614,8 +585,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: isSelected
-                          ? const Color(0xFF6366F1)
-                          : const Color(0xFF1E293B),
+                          ? _primaryColor
+                          : _textPrimaryColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -633,7 +604,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
             if (isSelected)
               const Icon(
                 Icons.check_circle_rounded,
-                color: Color(0xFF6366F1),
+                color: _primaryColor,
                 size: 24,
               ),
           ],
@@ -660,14 +631,10 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: _primaryGradient,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.3),
+                color: _primaryColor.withOpacity(0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -719,7 +686,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               Expanded(child: Text('Please enter a valid URL')),
             ],
           ),
-          backgroundColor: const Color(0xFFEF4444),
+          backgroundColor: _errorColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -750,7 +717,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
             Expanded(child: Text('Configuration saved successfully')),
           ],
         ),
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: _successColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),

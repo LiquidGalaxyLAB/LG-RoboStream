@@ -20,49 +20,22 @@ class TelemetryCard extends StatefulWidget {
   State<TelemetryCard> createState() => _TelemetryCardState();
 }
 
-class _TelemetryCardState extends State<TelemetryCard>
-    with TickerProviderStateMixin {
+class _TelemetryCardState extends State<TelemetryCard> {
   bool _isPressed = false;
   bool _isHovered = false;
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      duration: TelemetryCardStyles.pulseDuration,
-      vsync: this,
-    );
-    _pulseAnimation = Tween<double>(
-      begin: TelemetryCardStyles.pulseBeginScale, 
-      end: TelemetryCardStyles.pulseEndScale
-    ).animate(
-      CurvedAnimation(parent: _pulseController, curve: TelemetryCardStyles.pulseInOutCurve),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
 
   void _onTapDown(TapDownDetails details) {
     setState(() => _isPressed = true);
-    _pulseController.forward();
   }
 
   void _onTapUp(TapUpDetails details) {
     setState(() => _isPressed = false);
-    _pulseController.reverse();
     HapticFeedback.lightImpact();
     widget.onTap();
   }
 
   void _onTapCancel() {
     setState(() => _isPressed = false);
-    _pulseController.reverse();
   }
 
   void _onHover(bool hover) {
@@ -74,43 +47,33 @@ class _TelemetryCardState extends State<TelemetryCard>
     return MouseRegion(
       onEnter: (_) => _onHover(true),
       onExit: (_) => _onHover(false),
-      child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _isPressed 
-                ? TelemetryCardStyles.pressedScale 
-                : (_isHovered 
-                    ? TelemetryCardStyles.hoveredScale 
-                    : TelemetryCardStyles.normalScale),
-            child: child,
-          );
-        },
+      child: Transform.scale(
+        scale: _isPressed 
+            ? TelemetryCardStyles.pressedScale 
+            : (_isHovered 
+                ? TelemetryCardStyles.hoveredScale 
+                : TelemetryCardStyles.normalScale),
         child: _buildCardContent(),
       ),
     );
   }
 
   Widget _buildCardContent() {
-    return AnimatedContainer(
-      duration: TelemetryCardStyles.scaleDuration,
-      curve: TelemetryCardStyles.scaleOutCurve,
-      child: GestureDetector(
-        onTapDown: _onTapDown,
-        onTapUp: _onTapUp,
-        onTapCancel: _onTapCancel,
-        child: Container(
-          decoration: TelemetryCardStyles.getContainerDecoration(widget.color, _isHovered),
-          padding: TelemetryCardStyles.containerPadding,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildAnimatedIcon(),
-              const SizedBox(height: TelemetryCardStyles.iconTextSpacing),
-              _buildLabel(),
-            ],
-          ),
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: Container(
+        decoration: TelemetryCardStyles.getContainerDecoration(widget.color, _isHovered),
+        padding: TelemetryCardStyles.containerPadding,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildAnimatedIcon(),
+            const SizedBox(height: TelemetryCardStyles.iconTextSpacing),
+            _buildLabel(),
+          ],
         ),
       ),
     );

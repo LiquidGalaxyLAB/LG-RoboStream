@@ -48,7 +48,7 @@ The goal is to bridge the gap between remote robot monitoring and intuitive, col
   * Login and connection setup screens
   * Secure SSH connection management (LGService)
   * Interactive telemetry dashboards with animated cards
-  * State management via BLoC pattern (LoginCubit, LoginState)
+  * Direct service-based login functionality integrated into LGService
 * **Standalone Mode**
 
   * Operate without actual Liquid Galaxy hardware using simulated data

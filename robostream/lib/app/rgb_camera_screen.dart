@@ -56,34 +56,8 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           _lastError = null;
         });
         
-        try {
-          final imageData = await _serverService.getRGBCameraImageData();
-          if (imageData != null && mounted) {
-            setState(() {
-              _imageMetadata = imageData;
-              _imageBase64 = imageData['image_data'];
-              _useDirectUrl = false;
-            });
-            
-            if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
-              try {
-                base64Decode(_imageBase64!);
-              } catch (e) {
-                setState(() {
-                  _useDirectUrl = true;
-                  _imageBase64 = null;
-                });
-              }
-            }
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _useDirectUrl = true;
-              _lastError = 'Error loading image data: $e';
-            });
-          }
-        }
+        // Intentar cargar metadata de imagen
+        await _loadImageMetadata();
       } else {
         if (mounted) {
           setState(() {
@@ -99,6 +73,36 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           _lastError = 'Connection error: $e';
         });
       }
+    }
+  }
+
+  Future<void> _loadImageMetadata() async {
+    try {
+      final imageData = await _serverService.getRGBCameraImageData();
+      if (imageData != null && mounted) {
+        setState(() {
+          _imageMetadata = imageData;
+          _imageBase64 = imageData['image_data'];
+          _useDirectUrl = !_isValidBase64(_imageBase64);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _useDirectUrl = true;
+          _lastError = 'Error loading image data: $e';
+        });
+      }
+    }
+  }
+
+  bool _isValidBase64(String? base64String) {
+    if (base64String == null || base64String.isEmpty) return false;
+    try {
+      base64Decode(base64String);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
   
@@ -381,24 +385,25 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   
   Widget _buildImageWidget() {
     if (!_useDirectUrl && _imageBase64 != null && _imageBase64!.isNotEmpty) {
-      try {
-        final imageBytes = base64Decode(_imageBase64!);
-        return Image.memory(
-          imageBytes,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildImageFromUrl();
-          },
-        );
-      } catch (e) {
-        return _buildImageFromUrl();
-      }
+      return _buildBase64Image();
     }
-    
-    return _buildImageFromUrl();
+    return _buildNetworkImage();
   }
-  
-  Widget _buildImageFromUrl() {
+
+  Widget _buildBase64Image() {
+    try {
+      final imageBytes = base64Decode(_imageBase64!);
+      return Image.memory(
+        imageBytes,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildNetworkImage(),
+      );
+    } catch (e) {
+      return _buildNetworkImage();
+    }
+  }
+
+  Widget _buildNetworkImage() {
     final imageUrl = _serverService.getRGBCameraImageUrl();
     
     return Image.network(
@@ -406,173 +411,90 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
       fit: BoxFit.cover,
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return Container(
-          color: Colors.grey[100],
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Loading image...',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+        return _buildLoadingWidget(loadingProgress);
       },
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.grey[100],
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.image_not_supported,
-                  size: 48,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Image not available',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
-                ),
-                if (_lastError != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _lastError!,
-                    style: TextStyle(
-                      color: Colors.red[400],
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+      errorBuilder: (context, error, stackTrace) => _buildErrorWidget(),
       headers: {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
       },
     );
   }
-  
-  Widget _buildCameraInfo() {
+
+  Widget _buildLoadingWidget(ImageChunkEvent loadingProgress) {
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
+      color: Colors.grey[100],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Loading image...',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF8B5CF6).withOpacity(0.08),
-          width: 1,
         ),
       ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF8B5CF6).withOpacity(0.1),
-                      const Color(0xFF8B5CF6).withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.info_outline_rounded,
-                  color: Color(0xFF8B5CF6),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Camera Information',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Detailed camera specifications',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Container(
+      color: Colors.grey[100],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.image_not_supported, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            const Text(
+              'Image not available',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+            if (_lastError != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _lastError!,
+                style: TextStyle(color: Colors.red[400], fontSize: 12),
+                textAlign: TextAlign.center,
               ),
             ],
-          ),
-          const SizedBox(height: 24),
-          _buildModernInfoRow('Camera ID', _cameraData?.cameraId ?? 'Unknown', Icons.videocam_rounded),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildCameraInfo() {
+    const Color themeColor = Color(0xFF8B5CF6);
+    
+    return _buildThemeContainer(
+      themeColor,
+      'Camera Information',
+      'Detailed camera specifications',
+      Icons.info_outline_rounded,
+      Column(
+        children: [
+          _buildModernInfoRow('Camera ID', _cameraData?.cameraId ?? 'Unknown', Icons.videocam_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Resolution', _cameraData?.resolution ?? 'Unknown', Icons.high_quality_rounded),
+          _buildModernInfoRow('Resolution', _cameraData?.resolution ?? 'Unknown', Icons.high_quality_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Frame Rate', '${_cameraData?.fps ?? 0} FPS', Icons.speed_rounded),
+          _buildModernInfoRow('Frame Rate', '${_cameraData?.fps ?? 0} FPS', Icons.speed_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Status', _cameraData?.status ?? 'Unknown', Icons.power_settings_new_rounded),
+          _buildModernInfoRow('Status', _cameraData?.status ?? 'Unknown', Icons.power_settings_new_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Current Image', _cameraData?.currentImage ?? 'None', Icons.image_rounded),
+          _buildModernInfoRow('Current Image', _cameraData?.currentImage ?? 'None', Icons.image_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Images Available', '${_cameraData?.imagesAvailable ?? 0}', Icons.photo_library_rounded),
+          _buildModernInfoRow('Images Available', '${_cameraData?.imagesAvailable ?? 0}', Icons.photo_library_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernInfoRow('Rotation Interval', '${_cameraData?.rotationInterval ?? 0}s', Icons.rotate_right_rounded),
+          _buildModernInfoRow('Rotation Interval', '${_cameraData?.rotationInterval ?? 0}s', Icons.rotate_right_rounded, themeColor),
         ],
       ),
     );
@@ -582,95 +504,20 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     final timing = _imageMetadata?['timing'] as Map<String, dynamic>?;
     if (timing == null) return const SizedBox.shrink();
     
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF06B6D4).withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF06B6D4).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    const Color themeColor = Color(0xFF06B6D4);
+    
+    return _buildThemeContainer(
+      themeColor,
+      'Timing Information',
+      'Rotation timing and intervals',
+      Icons.access_time_rounded,
+      Column(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF06B6D4).withOpacity(0.1),
-                      const Color(0xFF06B6D4).withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: const Icon(
-                  Icons.access_time_rounded,
-                  color: Color(0xFF06B6D4),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Timing Information',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Rotation timing and intervals',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildModernTimingRow('Time Since Last Rotation', '${timing['time_since_last_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.history_rounded),
+          _buildModernInfoRow('Time Since Last Rotation', '${timing['time_since_last_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.history_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernTimingRow('Time Until Next Rotation', '${timing['time_until_next_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.schedule_rounded),
+          _buildModernInfoRow('Time Until Next Rotation', '${timing['time_until_next_rotation']?.toStringAsFixed(1) ?? 'N/A'}s', Icons.schedule_rounded, themeColor),
           const SizedBox(height: 16),
-          _buildModernTimingRow('Rotation Interval', '${timing['rotation_interval_seconds']?.toStringAsFixed(0) ?? 'N/A'}s', Icons.sync_rounded),
+          _buildModernInfoRow('Rotation Interval', '${timing['rotation_interval_seconds']?.toStringAsFixed(0) ?? 'N/A'}s', Icons.sync_rounded, themeColor),
         ],
       ),
     );
@@ -681,7 +528,266 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     if (metadata == null) return const SizedBox.shrink();
     
     final allImages = metadata['all_images'] as List<dynamic>?;
+    const Color themeColor = Color(0xFF10B981);
     
+    return _buildThemeContainer(
+      themeColor,
+      'Image Metadata',
+      'Image collection information',
+      Icons.dataset_rounded,
+      Column(
+        children: [
+          _buildModernInfoRow('Current Index', '${metadata['current_index'] ?? 'N/A'}', Icons.bookmark_rounded, themeColor),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Total Images', '${metadata['total_images'] ?? 'N/A'}', Icons.collections_rounded, themeColor),
+          const SizedBox(height: 16),
+          _buildModernInfoRow('Current Filename', metadata['current_filename'] ?? 'N/A', Icons.insert_drive_file_rounded, themeColor),
+          if (allImages != null && allImages.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildImagesList(allImages, metadata, themeColor),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagesList(List<dynamic> allImages, Map<String, dynamic> metadata, Color themeColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF8FAFC),
+            const Color(0xFFF1F5F9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: themeColor.withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [
+                      themeColor.withOpacity(0.1),
+                      themeColor.withOpacity(0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Icon(
+                  Icons.photo_library_rounded,
+                  color: themeColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Available Images',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...allImages.asMap().entries.map((entry) {
+            final index = entry.key;
+            final imageName = entry.value as String;
+            final isCurrent = index == (metadata['current_index'] ?? -1);
+            
+            return _buildImageItem(imageName, isCurrent, themeColor);
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageItem(String imageName, bool isCurrent, Color themeColor) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isCurrent 
+              ? [
+                  themeColor.withOpacity(0.15),
+                  themeColor.withOpacity(0.08),
+                ]
+              : [
+                  Colors.white.withOpacity(0.8),
+                  Colors.white.withOpacity(0.6),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCurrent 
+              ? themeColor.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isCurrent ? themeColor : Colors.transparent,
+              border: Border.all(
+                color: isCurrent ? themeColor : Colors.grey.shade400,
+                width: 2,
+              ),
+            ),
+            child: isCurrent
+                ? const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 14,
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              imageName,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
+                color: isCurrent ? themeColor : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+          if (isCurrent)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    themeColor.withOpacity(0.15),
+                    themeColor.withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: themeColor.withOpacity(0.2),
+                ),
+              ),
+              child: Text(
+                'Current',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: themeColor,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Método unificado para crear filas de información modernas
+  Widget _buildModernInfoRow(String label, String value, IconData icon, Color themeColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _buildCardDecoration(themeColor),
+      child: Row(
+        children: [
+          _buildIconContainer(icon, themeColor),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Método para crear decoración de tarjeta reutilizable
+  BoxDecoration _buildCardDecoration(Color themeColor) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          const Color(0xFFF8FAFC),
+          const Color(0xFFF1F5F9),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: themeColor.withOpacity(0.08),
+        width: 1,
+      ),
+    );
+  }
+
+  // Método para crear contenedor de icono reutilizable
+  Widget _buildIconContainer(IconData icon, Color themeColor) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            themeColor.withOpacity(0.1),
+            themeColor.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: themeColor,
+        size: 20,
+      ),
+    );
+  }
+
+  // Método para crear contenedor principal con tema
+  Widget _buildThemeContainer(Color themeColor, String title, String subtitle, IconData headerIcon, Widget child) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -696,7 +802,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withOpacity(0.1),
+            color: themeColor.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -707,7 +813,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
           ),
         ],
         border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.08),
+          color: themeColor.withOpacity(0.08),
           width: 1,
         ),
       ),
@@ -724,37 +830,37 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
                   borderRadius: BorderRadius.circular(16),
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF10B981).withOpacity(0.1),
-                      const Color(0xFF10B981).withOpacity(0.05),
+                      themeColor.withOpacity(0.1),
+                      themeColor.withOpacity(0.05),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
-                child: const Icon(
-                  Icons.dataset_rounded,
-                  color: Color(0xFF10B981),
+                child: Icon(
+                  headerIcon,
+                  color: themeColor,
                   size: 24,
                 ),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Image Metadata',
-                      style: TextStyle(
+                      title,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF1E293B),
                         letterSpacing: -0.3,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Image collection information',
-                      style: TextStyle(
+                      subtitle,
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF64748B),
                         fontWeight: FontWeight.w400,
@@ -766,371 +872,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
             ],
           ),
           const SizedBox(height: 24),
-          _buildModernMetadataRow('Current Index', '${metadata['current_index'] ?? 'N/A'}', Icons.bookmark_rounded),
-          const SizedBox(height: 16),
-          _buildModernMetadataRow('Total Images', '${metadata['total_images'] ?? 'N/A'}', Icons.collections_rounded),
-          const SizedBox(height: 16),
-          _buildModernMetadataRow('Current Filename', metadata['current_filename'] ?? 'N/A', Icons.insert_drive_file_rounded),
-          if (allImages != null && allImages.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFF8FAFC),
-                    const Color(0xFFF1F5F9),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.08),
-                  width: 1,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF10B981).withOpacity(0.1),
-                              const Color(0xFF10B981).withOpacity(0.05),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.photo_library_rounded,
-                          color: Color(0xFF10B981),
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Available Images',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ...allImages.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final imageName = entry.value as String;
-                    final isCurrent = index == (metadata['current_index'] ?? -1);
-                    
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isCurrent 
-                              ? [
-                                  const Color(0xFF10B981).withOpacity(0.15),
-                                  const Color(0xFF10B981).withOpacity(0.08),
-                                ]
-                              : [
-                                  Colors.white.withOpacity(0.8),
-                                  Colors.white.withOpacity(0.6),
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isCurrent 
-                              ? const Color(0xFF10B981).withOpacity(0.3)
-                              : Colors.grey.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isCurrent ? const Color(0xFF10B981) : Colors.transparent,
-                              border: Border.all(
-                                color: isCurrent ? const Color(0xFF10B981) : Colors.grey.shade400,
-                                width: 2,
-                              ),
-                            ),
-                            child: isCurrent
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 14,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              imageName,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
-                                color: isCurrent ? const Color(0xFF10B981) : const Color(0xFF64748B),
-                              ),
-                            ),
-                          ),
-                          if (isCurrent)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    const Color(0xFF10B981).withOpacity(0.15),
-                                    const Color(0xFF10B981).withOpacity(0.08),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFF10B981).withOpacity(0.2),
-                                ),
-                              ),
-                              child: const Text(
-                                'Current',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF10B981),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernMetadataRow(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF8FAFC),
-            const Color(0xFFF1F5F9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF10B981).withOpacity(0.1),
-                  const Color(0xFF10B981).withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF10B981),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernInfoRow(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF8FAFC),
-            const Color(0xFFF1F5F9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF8B5CF6).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF8B5CF6).withOpacity(0.1),
-                  const Color(0xFF8B5CF6).withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF8B5CF6),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernTimingRow(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF8FAFC),
-            const Color(0xFFF1F5F9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF06B6D4).withOpacity(0.08),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF06B6D4).withOpacity(0.1),
-                  const Color(0xFF06B6D4).withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF06B6D4),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child,
         ],
       ),
     );

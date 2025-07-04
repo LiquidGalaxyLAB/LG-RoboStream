@@ -1,10 +1,7 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:robostream/app/login_cubit.dart';
-import 'package:robostream/app/login_state.dart';
+import 'package:robostream/services/lg_service.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
@@ -13,45 +10,12 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => LoginCubit(),
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: AppStyles.backgroundGradient,
-          ),
-          child: BlocListener<LoginCubit, LoginState>(
-            listener: (context, state) {
-              if (state is LoginSuccess) {
-                if (state.message != null && state.message!.isNotEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.message!),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-                Future.delayed(const Duration(milliseconds: 800), () {
-                  context.go('/');
-                });
-              }
-              if (state is LoginFailure) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: AppStyles.errorColor,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-              }
-            },
-            child: const _LoginView(),
-          ),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppStyles.backgroundGradient,
         ),
+        child: const _LoginView(),
       ),
     );
   }
@@ -68,25 +32,32 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgIpController = TextEditingController();
   final _lgUsernameController = TextEditingController();
   final _lgPasswordController = TextEditingController();
+  
+  bool _isLoading = false;
 
   late AnimationController _slideController;
   late AnimationController _fadeController;
-  late AnimationController _particleController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _particleAnimation;
 
   final _lgIpFocus = FocusNode();
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
 
-
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    _startContinuousAnimations();
+    _setupTextFieldListeners();
+  }
+
+  void _setupTextFieldListeners() {
+    // Listeners for real-time UI updates
+    _lgIpController.addListener(() => setState(() {}));
+    _lgUsernameController.addListener(() => setState(() {}));
+    _lgPasswordController.addListener(() => setState(() {}));
   }
 
   void _initializeAnimations() {
@@ -96,10 +67,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _particleController = AnimationController(
-      duration: const Duration(milliseconds: 8000),
       vsync: this,
     );
     
@@ -119,21 +86,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       curve: AppStyles.smoothCurve,
     ));
 
-    _particleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _particleController,
-      curve: Curves.linear,
-    ));
-
     _fadeController.forward();
     _slideController.forward();
   }
 
-  void _startContinuousAnimations() {
-    _particleController.repeat();
-  }
   @override
   void dispose() {
     _lgIpController.dispose();
@@ -141,23 +97,60 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _lgPasswordController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
-    _particleController.dispose();
     _lgIpFocus.dispose();
     _lgUsernameFocus.dispose();
     _lgPasswordFocus.dispose();
     super.dispose();
   }
-  void _onLoginPressed() {
+  void _onLoginPressed() async {
     HapticFeedback.mediumImpact();
     
-    context.read<LoginCubit>().login(
-          lgIpAddress: _lgIpController.text,
-          lgUsername: _lgUsernameController.text,
-          lgPassword: _lgPasswordController.text,
-        );
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final result = await LGService.login(
+        lgIpAddress: _lgIpController.text,
+        lgUsername: _lgUsernameController.text,
+        lgPassword: _lgPasswordController.text,
+      );
+      
+      if (mounted) {
+        if (result.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) {
+              context.go('/');
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: AppStyles.errorColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +196,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             ),
           ),
         ),
-        ..._buildFloatingParticles(),
         
         SafeArea(
           child: Center(
@@ -217,31 +209,30 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      GestureDetector(
-                        child: TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: const Duration(milliseconds: 1400),
-                          curve: AppStyles.bouncyCurve,
-                          builder: (context, value, child) {
-                            return Transform.scale(
-                              scale: value,
-                              child: Container(
-                                width: 150,
-                                height: 150,
-                                child: Image.asset(
-                                  'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
-                                  fit: BoxFit.contain,
-                                ),
+                      // Logo with scale animation
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 1400),
+                        curve: AppStyles.bouncyCurve,
+                        builder: (context, value, child) {
+                          return Transform.scale(
+                            scale: value,
+                            child: SizedBox(
+                              width: 150,
+                              height: 150,
+                              child: Image.asset(
+                                'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
+                                fit: BoxFit.contain,
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                      
+                      // App title with gradient
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(milliseconds: 800),
-                        builder: (context, value, child) {
+                        builder: (context, value, _) {
                           return ShaderMask(
                             shaderCallback: (bounds) => AppStyles.titleGradient.createShader(bounds),
                             child: Text(
@@ -256,11 +247,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                         },
                       ),
                       const SizedBox(height: 8),
-                      
+                      // Subtitle with fade animation
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(milliseconds: 1000),
-                        builder: (context, value, child) {
+                        builder: (context, value, _) {
                           return Opacity(
                             opacity: value,
                             child: Text(
@@ -281,11 +272,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       
                       const SizedBox(height: 32),
                       
-                      BlocBuilder<LoginCubit, LoginState>(
-                        builder: (context, state) {
-                          return _buildEnhancedButton(state);
-                        },
-                      ),
+                      _buildEnhancedButton(),
                     ],
                   ),
                 ),
@@ -297,58 +284,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
-  List<Widget> _buildFloatingParticles() {
-    return List.generate(6, (index) => _buildFloatingParticle(index));
-  }
-
-  Widget _buildFloatingParticle(int index) {
-    const delays = [0.0, 0.125, 0.25, 0.375, 0.5, 0.625];
-    const sizes = [80.0, 60.0, 100.0, 70.0, 90.0, 110.0];
-    const positions = [
-      Offset(-50, 100),
-      Offset(300, 50),
-      Offset(50, 600),
-      Offset(250, 500),
-      Offset(100, 300),
-      Offset(200, 200),
-    ];
-
-    return AnimatedBuilder(
-      animation: _particleAnimation,
-      builder: (context, child) {
-        final animatedValue = (_particleAnimation.value + delays[index]) % 1.0;
-        
-        final sinValue = math.sin(animatedValue * 2 * math.pi);
-        final cosValue = math.cos(animatedValue * 2 * math.pi);
-        
-        const baseOpacity = 0.03;
-        final variationOpacity = 0.02 * (0.5 + 0.5 * sinValue);
-        final finalOpacity = (baseOpacity + variationOpacity).clamp(0.0, 1.0);
-        
-        return Positioned(
-          left: positions[index].dx + (20 * sinValue),
-          top: positions[index].dy + (15 * cosValue),
-          child: Opacity(
-            opacity: finalOpacity,
-            child: Container(
-              width: sizes[index],
-              height: sizes[index],
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppStyles.primaryColor.withOpacity(0.06),
-                    AppStyles.secondaryColor.withOpacity(0.03),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
   List<Widget> _buildEnhancedAnimatedFields() {
     final fields = [
       _buildEnhancedTextField(
@@ -357,20 +292,24 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         label: 'LG IP Address',
         icon: Icons.lan,
         nextFocus: _lgUsernameFocus,
+        hintText: 'e.g., 192.168.1.100',
       ),
       _buildEnhancedTextField(
         controller: _lgUsernameController,
         focusNode: _lgUsernameFocus,
-        label: 'LG Username',
-        icon: Icons.person_outline,
+        label: 'Username',
+        icon: Icons.person_outline_rounded,
         nextFocus: _lgPasswordFocus,
+        hintText: 'Enter your username',
       ),
       _buildEnhancedTextField(
         controller: _lgPasswordController,
         focusNode: _lgPasswordFocus,
-        label: 'LG Password',
-        icon: Icons.lock_outline,
-        obscureText: true,
+        label: 'Password',
+        icon: Icons.lock_outline_rounded,
+        obscureText: !_isPasswordVisible,
+        hintText: 'Enter your password',
+        isPasswordField: true,
       ),
     ];
 
@@ -379,17 +318,14 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         .entries
         .map((entry) => TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 700 + (entry.key * 150)),
-              curve: AppStyles.bouncyCurve,
-              builder: (context, value, child) {
+              duration: Duration(milliseconds: 600 + (entry.key * 100)),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) {
                 return Transform.translate(
-                  offset: Offset(0, 30 * (1 - value)),
+                  offset: Offset(0, 20 * (1 - value)),
                   child: Opacity(
-                    opacity: value.clamp(0.0, 1.0),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 18),
-                      child: entry.value,
-                    ),
+                    opacity: value,
+                    child: entry.value,
                   ),
                 );
               },
@@ -405,76 +341,242 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     bool obscureText = false,
     FocusNode? nextFocus,
     String? hintText,
+    bool isPasswordField = false,
   }) {
     return AnimatedBuilder(
       animation: focusNode,
       builder: (context, child) {
         final isFocused = focusNode.hasFocus;
+        final hasContent = controller.text.isNotEmpty;
+        final isActive = isFocused || hasContent;
         
-        return AnimatedContainer(
-          duration: AppStyles.mediumDuration,
-          curve: AppStyles.primaryCurve,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: isFocused ? AppStyles.elevatedShadow : AppStyles.cardShadow,
-          ),
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            obscureText: obscureText,
-            textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
-            onSubmitted: (_) {
-              if (nextFocus != null) {
-                nextFocus.requestFocus();
-              } else {
-                _onLoginPressed();
-              }
-            },
-            onTap: () => HapticFeedback.selectionClick(),
-            decoration: InputDecoration(
-              labelText: label,
-              hintText: hintText,
-              prefixIcon: AnimatedContainer(
-                duration: AppStyles.mediumDuration,
-                margin: const EdgeInsets.all(14),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: isFocused ? AppStyles.primaryGradient : AppStyles.accentGradient,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: isFocused ? [
-                    BoxShadow(
-                      color: AppStyles.primaryColor.withOpacity(0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // External floating label with animation
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+                height: isActive ? 24 : 0,
+                padding: EdgeInsets.only(
+                  left: 20,
+                  bottom: isActive ? 6 : 0,
+                ),
+                child: AnimatedOpacity(
+                  opacity: isActive ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isFocused 
+                          ? AppStyles.primaryColor
+                          : Colors.grey[600],
+                      letterSpacing: 0.8,
                     ),
-                  ] : [],
-                ),
-                child: Icon(
-                  icon, 
-                  color: Colors.white, 
-                  size: 22,
+                  ),
                 ),
               ),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20),
-                borderSide: BorderSide.none,
+              
+              // Modern input field
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: isFocused 
+                          ? AppStyles.primaryColor.withOpacity(0.08)
+                          : Colors.black.withOpacity(0.02),
+                      blurRadius: isFocused ? 16 : 4,
+                      offset: Offset(0, isFocused ? 6 : 2),
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  obscureText: obscureText,
+                  textInputAction: nextFocus != null 
+                      ? TextInputAction.next 
+                      : TextInputAction.done,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[800],
+                    letterSpacing: 0.3,
+                    height: 1.4,
+                  ),
+                  onSubmitted: (_) {
+                    if (nextFocus != null) {
+                      nextFocus.requestFocus();
+                    } else {
+                      _onLoginPressed();
+                    }
+                  },
+                  onTap: () => HapticFeedback.selectionClick(),
+                  decoration: InputDecoration(
+                    // Use labelText when NOT active, hintText when active
+                    labelText: !isActive ? label : null,
+                    hintText: isActive ? (hintText ?? 'Enter your ${label.toLowerCase()}') : null,
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.2,
+                    ),
+                    labelStyle: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: isFocused 
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppStyles.primaryColor,
+                                  AppStyles.secondaryColor,
+                                ],
+                              )
+                            : LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.grey[100]!,
+                                  Colors.grey[200]!,
+                                ],
+                              ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: isFocused ? [
+                          BoxShadow(
+                            color: AppStyles.primaryColor.withOpacity(0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ] : [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: AnimatedScale(
+                        scale: isFocused ? 1.1 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          icon,
+                          color: isFocused ? Colors.white : Colors.grey[600],
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    suffixIcon: _buildSuffixIcon(isPasswordField, hasContent, isFocused),
+                    filled: true,
+                    fillColor: isFocused 
+                        ? Colors.white
+                        : Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(
+                        color: Colors.grey.withOpacity(0.15),
+                        width: 1.5,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(
+                        color: hasContent 
+                            ? Colors.grey.withOpacity(0.3)
+                            : Colors.grey.withOpacity(0.15),
+                        width: 1.5,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(
+                        color: AppStyles.primaryColor,
+                        width: 2.5,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 18,
+                    ),
+                  ),
+                ),
               ),
-              labelStyle: LoginStyles.getTextFieldLabelStyle(isFocused),
-            ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildEnhancedButton(LoginState state) {
+  Widget? _buildSuffixIcon(bool isPasswordField, bool hasContent, bool isFocused) {
+    if (isPasswordField) {
+      return AnimatedOpacity(
+        opacity: hasContent ? 1.0 : 0.6,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                _isPasswordVisible 
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                key: ValueKey(_isPasswordVisible),
+                color: isFocused 
+                    ? AppStyles.primaryColor 
+                    : Colors.grey[500],
+                size: 22,
+              ),
+            ),
+            onPressed: () {
+              setState(() {
+                _isPasswordVisible = !_isPasswordVisible;
+              });
+              HapticFeedback.lightImpact();
+            },
+            splashRadius: 20,
+          ),
+        ),
+      );
+    } else if (hasContent) {
+      return AnimatedOpacity(
+        opacity: 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          margin: const EdgeInsets.only(right: 16),
+          child: Icon(
+            Icons.check_circle,
+            color: AppStyles.successColor,
+            size: 22,
+          ),
+        ),
+      );
+    }
+    return null;
+  }
+
+  Widget _buildEnhancedButton() {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
       curve: AppStyles.bouncyCurve,
-      builder: (context, value, child) {
+      builder: (context, value, _) {
         return Transform.scale(
           scale: value,
           child: AnimatedContainer(
@@ -484,7 +586,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               gradient: AppStyles.primaryGradient,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: state is LoginInProgress 
+              boxShadow: _isLoading 
                   ? AppStyles.cardShadow 
                   : AppStyles.floatingShadow,
             ),
@@ -492,7 +594,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: state is LoginInProgress ? null : () {
+                onTap: _isLoading ? null : () {
                   HapticFeedback.mediumImpact();
                   _onLoginPressed();
                 },
@@ -500,7 +602,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 highlightColor: Colors.white.withOpacity(0.1),
                 child: Container(
                   alignment: Alignment.center,
-                  child: state is LoginInProgress
+                  child: _isLoading
                       ? const SizedBox(
                           width: 28,
                           height: 28,

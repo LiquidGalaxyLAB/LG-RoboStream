@@ -30,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
-  bool _isStreaming = false;
   bool _lastHadEnoughHeight = true;
   
   final RobotServerService _serverService = RobotServerService();
@@ -129,7 +128,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       }
     });
-
   }
 
   void _initializeAnimations() {
@@ -428,36 +426,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ],
         titlePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         centerTitle: true,
-        title: _buildHeaderTitle(),        background: AnimatedBuilder(
+        title: _buildHeaderTitle(),
+        background: AnimatedBuilder(
           animation: _parallaxAnimation,
           builder: (context, child) {
             return Stack(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
                 ...List.generate(8, (index) => _buildModernBackgroundParticle(index)),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        Colors.transparent,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
               ],
             );
           },
@@ -792,14 +767,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ]);
     } else if (label == 'LG Streaming') {
       detailWidgets.addAll([
-        _buildDetailRow('Status', _isStreaming ? 'Streaming Active' : 'Not Streaming'),
+        _buildDetailRow('Status', _isStreamingToLG ? 'Streaming Active' : 'Not Streaming'),
         _buildDetailRow('Connection', _isConnected ? 'Robot Connected' : 'Robot Offline'),
-        _buildDetailRow('Data Rate', _isStreaming ? '10 Hz' : 'N/A'),
-        _buildDetailRow('Last Sync', _isStreaming ? 'Live' : 'N/A'),
-        if (_isStreaming) ...[
+        _buildDetailRow('Data Rate', _isStreamingToLG ? '10 Hz' : 'N/A'),
+        _buildDetailRow('Last Sync', _isStreamingToLG ? 'Live' : 'N/A'),
+        if (_isStreamingToLG) ...[
           const SizedBox(height: 8),
           _buildDetailRow('GPS Data', _sensorData?.gps != null ? 'Transmitting' : 'No Data'),
-          _buildDetailRow('Camera Feed', _sensorData?.camera == 'Streaming' ? 'Transmitting' : 'No Feed'),
+          _buildDetailRow('Camera Feed', _sensorData?.rgbCamera?.status == 'Active' ? 'Transmitting' : 'No Feed'),
           _buildDetailRow('Sensor Data', _sensorData?.imu != null ? 'Transmitting' : 'No Data'),
         ],
       ]);
