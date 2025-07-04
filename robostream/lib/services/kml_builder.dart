@@ -13,11 +13,11 @@ class KMLBuilder {
     <ScreenOverlay>
       <name>RoboStreamLogo</name>
       <Icon>
-        <href>http://$_lgHost:81/robostream_logo.png</href>
+        <href>http://$_lgHost:81/robostream_complete_logo.png</href>
       </Icon>
       <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
       <screenXY x="0.02" y="0.98" xunits="fraction" yunits="fraction"/>
-      <size x="150" y="150" xunits="pixels" yunits="pixels"/>
+      <size x="554" y="550" xunits="pixels" yunits="pixels"/>
     </ScreenOverlay>
   </Document>
 </kml>''';
@@ -35,7 +35,7 @@ class KMLBuilder {
       </Icon>
       <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
       <screenXY x="0.98" y="0.98" xunits="fraction" yunits="fraction"/>
-      <size x="200" y="150" xunits="pixels" yunits="pixels"/>
+      <size x="400" y="300" xunits="pixels" yunits="pixels"/>
     </ScreenOverlay>
   </Document>
 </kml>''';
