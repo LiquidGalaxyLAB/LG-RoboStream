@@ -3,10 +3,16 @@ import 'package:robostream/assets/styles/app_styles.dart';
 
 class SystemInfoCard extends StatelessWidget {
   final bool isConnected;
+  final String rosVersion;
+  final String operatingSystem;
+  final String buildVersion;
 
   const SystemInfoCard({
     super.key,
     required this.isConnected,
+    this.rosVersion = 'ROS2 Humble',
+    this.operatingSystem = 'Ubuntu 22.04',
+    this.buildVersion = 'v1.2.3',
   });
 
   @override
@@ -14,7 +20,7 @@ class SystemInfoCard extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutBack,
+      curve: Curves.elasticOut,
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
@@ -81,7 +87,7 @@ class SystemInfoCard extends StatelessWidget {
             Expanded(
               child: _SystemDetailCard(
                 label: 'ROS Version',
-                value: 'ROS2 Humble',
+                value: rosVersion,
                 icon: Icons.settings_outlined,
                 color: AppStyles.primaryColor,
               ),
@@ -90,7 +96,7 @@ class SystemInfoCard extends StatelessWidget {
             Expanded(
               child: _SystemDetailCard(
                 label: 'OS',
-                value: 'Ubuntu 22.04',
+                value: operatingSystem,
                 icon: Icons.computer_outlined,
                 color: AppStyles.secondaryColor,
               ),
@@ -103,7 +109,7 @@ class SystemInfoCard extends StatelessWidget {
             Expanded(
               child: _SystemDetailCard(
                 label: 'Build',
-                value: 'v1.2.3',
+                value: buildVersion,
                 icon: Icons.build_outlined,
                 color: AppStyles.accentColor,
               ),
@@ -198,11 +204,9 @@ class _SystemDetailCard extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: _labelTextStyle,
-                ),
+              Text(
+                label,
+                style: _labelTextStyle,
               ),
             ],
           ),

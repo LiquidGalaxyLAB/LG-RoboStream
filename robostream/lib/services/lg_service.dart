@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'server.dart';
 import 'kml_builder.dart';
@@ -14,22 +13,6 @@ class LoginResult {
   final String message;
   
   const LoginResult({required this.success, required this.message});
-}
-
-class SensorOption {
-  final String id;
-  final String name;
-  final IconData icon;
-  final Color color;
-  bool isSelected;
-
-  SensorOption({
-    required this.id,
-    required this.name,
-    required this.icon,
-    required this.color,
-    this.isSelected = false,
-  });
 }
 
 class LGService {
@@ -108,6 +91,8 @@ class LGService {
         onPasswordRequest: () => _password,
       );
       
+      if (_client == null) return false;
+      
       await _client!.run('echo "Connection successful"');
       
       _kmlBuilder = KMLBuilder(lgHost: _host);
@@ -156,7 +141,7 @@ class LGService {
   }
 
   Future<bool> showLogoUsingKML() async {
-    if (_kmlBuilder == null || _kmlSender == null) return false;
+    if (_kmlBuilder == null || _kmlSender == null || _client == null) return false;
     
     bool logoSent = await sendFile('lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png', '/var/www/html/robostream_logo.png');
     if (!logoSent) return false;
@@ -166,14 +151,14 @@ class LGService {
   }
 
   Future<bool> showRGBCameraImage(String serverHost) async {
-    if (_kmlBuilder == null || _kmlSender == null) return false;
+    if (_kmlBuilder == null || _kmlSender == null || _client == null) return false;
     
     String cameraKML = _kmlBuilder!.buildCameraKML(serverHost);
     return await _kmlSender!.sendKMLToSlave(cameraKML, 2);
   }
 
   Future<bool> showSensorData(SensorData sensorData, List<String> selectedSensors) async {
-    if (_kmlBuilder == null || _kmlSender == null || selectedSensors.isEmpty) return false;
+    if (_kmlBuilder == null || _kmlSender == null || _client == null || selectedSensors.isEmpty) return false;
     
     List<String> sensorOverlays = [];
     bool allImagesUploaded = true;
@@ -235,12 +220,8 @@ ${sensorOverlays.join('\n')}
     return allImagesUploaded && kmlSent;
   }
 
-  Future<bool> showSingleSensorData(SensorData sensorData, String selectedSensor) async {
-    return await showSensorData(sensorData, [selectedSensor]);
-  }
-
   Future<bool> hideSensorData() async {
-    if (_kmlSender == null) return false;
+    if (_kmlSender == null || _client == null) return false;
     return await _kmlSender!.clearSlave(2);
   }
 

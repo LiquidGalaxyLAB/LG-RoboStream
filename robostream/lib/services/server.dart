@@ -211,18 +211,15 @@ class RobotServerService {
     _updateConnectionStatus(false); // Reset connection status
   }
 
-  void startPeriodicRequests() {
+  void _startPeriodicRequests() {
     stopPeriodicRequests();
 
     _timer = Timer.periodic(_updateInterval, (timer) {
-      if (_isStreaming) {
-        _fetchAllData();
-      }
+      _fetchAllData();
     });
 
-    if (_isStreaming) {
-      _fetchAllData();
-    }
+    // Fetch data immediately
+    _fetchAllData();
   }
 
   void stopPeriodicRequests() {
@@ -234,7 +231,7 @@ class RobotServerService {
     if (!_isStreaming) {
       _isStreaming = true;
       _updateConnectionStatus(false); // Reset connection status
-      startPeriodicRequests();
+      _startPeriodicRequests();
     }
   }
 
@@ -246,96 +243,65 @@ class RobotServerService {
     }
   }
 
-  void toggleStreaming() {
-    if (_isStreaming) {
-      stopStreaming();
-    } else {
-      startStreaming();
+  void toggleStreaming() => _isStreaming ? stopStreaming() : startStreaming();
+
+  Future<http.Response?> _makeRequest(String endpoint) async {
+    try {
+      return await http
+          .get(Uri.parse('$_currentBaseUrl$endpoint'))
+          .timeout(_timeout);
+    } catch (e) {
+      return null;
     }
   }
 
   Future<SensorData?> getSensorData() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('$_currentBaseUrl/sensors'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        final sensorData = SensorData.fromJson(jsonData);
-        _lastSensorData = sensorData;
-        _updateConnectionStatus(true);
-        return sensorData;
-      } else {
-        _updateConnectionStatus(false);
-        return null;
-      }
-    } catch (e) {
+    final response = await _makeRequest('/sensors');
+    
+    if (response?.statusCode == 200) {
+      final jsonData = json.decode(response!.body);
+      final sensorData = SensorData.fromJson(jsonData);
+      _lastSensorData = sensorData;
+      _updateConnectionStatus(true);
+      return sensorData;
+    } else {
       _updateConnectionStatus(false);
       return null;
     }
   }
 
   Future<ActuatorData?> getActuatorData() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('$_currentBaseUrl/actuators'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        final actuatorData = ActuatorData.fromJson(jsonData);
-        _lastActuatorData = actuatorData;
-        return actuatorData;
-      } else {
-        return null;
-      }
-    } catch (e) {
+    final response = await _makeRequest('/actuators');
+    
+    if (response?.statusCode == 200) {
+      final jsonData = json.decode(response!.body);
+      final actuatorData = ActuatorData.fromJson(jsonData);
+      _lastActuatorData = actuatorData;
+      _updateConnectionStatus(true);
+      return actuatorData;
+    } else {
+      _updateConnectionStatus(false);
       return null;
     }
   }
 
   Future<RGBCameraData?> getRGBCameraData() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('$_currentBaseUrl/rgb-camera'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
-        return RGBCameraData.fromJson(jsonData);
-      } else {
-        return null;
-      }
-    } catch (e) {
+    final response = await _makeRequest('/rgb-camera');
+    
+    if (response?.statusCode == 200) {
+      final jsonData = json.decode(response!.body);
+      return RGBCameraData.fromJson(jsonData);
+    } else {
       return null;
     }
   }
 
   Future<Map<String, dynamic>?> getRGBCameraImageData() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('$_currentBaseUrl/rgb-camera/image-data'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(_timeout);
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        return null;
-      }
-    } catch (e) {
+    final response = await _makeRequest('/rgb-camera/image-data');
+    
+    if (response?.statusCode == 200) {
+      return json.decode(response!.body);
+    } else {
       return null;
     }
   }
@@ -345,21 +311,11 @@ class RobotServerService {
   }
 
   Future<bool> checkConnection() async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse('$_currentBaseUrl/'),
-            headers: {'Content-Type': 'application/json'},
-          )
-          .timeout(_timeout);
-
-      final isConnected = response.statusCode == 200;
-      _updateConnectionStatus(isConnected);
-      return isConnected;
-    } catch (e) {
-      _updateConnectionStatus(false);
-      return false;
-    }
+    final response = await _makeRequest('/');
+    
+    final isConnected = response?.statusCode == 200;
+    _updateConnectionStatus(isConnected);
+    return isConnected;
   }
 
   Future<void> _fetchAllData() async {
@@ -372,12 +328,8 @@ class RobotServerService {
       final sensorData = results[0] as SensorData?;
       final actuatorData = results[1] as ActuatorData?;
 
-      if (sensorData != null) {
-        _sensorController.add(sensorData);
-      }
-      if (actuatorData != null) {
-        _actuatorController.add(actuatorData);
-      }
+      if (sensorData != null) _sensorController.add(sensorData);
+      if (actuatorData != null) _actuatorController.add(actuatorData);
     } catch (e) {
       // Error handling without print
     }

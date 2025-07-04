@@ -29,31 +29,5 @@ class LGConfigService {
     };
   }
 
-  /// Obtiene el host guardado
-  static Future<String> getLGHost() async {
-    final config = await getLGConfig();
-    return config['host'] ?? _defaultHost;
-  }
 
-  /// Obtiene el username guardado
-  static Future<String> getLGUsername() async {
-    final config = await getLGConfig();
-    return config['username'] ?? _defaultUsername;
-  }
-
-  /// Obtiene el password guardado
-  static Future<String> getLGPassword() async {
-    final config = await getLGConfig();
-    return config['password'] ?? _defaultPassword;
-  }
-
-  /// Verifica si existe configuración guardada
-  static Future<bool> hasLGConfig() async {
-    return _lgConfig != null;
-  }
-
-  /// Limpia toda la configuración guardada
-  static Future<void> clearLGConfig() async {
-    _lgConfig = null;
-  }
 }

@@ -63,40 +63,9 @@ class CustomButton extends StatefulWidget {
 
 class _CustomButtonState extends State<CustomButton>
     with SingleTickerProviderStateMixin {
-  // Constants for better performance
+  // Animation constants
   static const Duration _animationDuration = Duration(milliseconds: 100);
   static const double _pressedScale = 0.95;
-  static const double _iconSpacing = 12.0;
-  
-  // Button height constants
-  static const double _primaryHeight = 64.0;
-  static const double _streamingHeight = 48.0;
-  static const double _secondaryHeight = 56.0;
-  
-  // Border radius constants
-  static const double _primaryRadius = 20.0;
-  static const double _streamingRadius = 32.0;
-  static const double _secondaryRadius = 16.0;
-  
-  // Icon size constants
-  static const double _primaryIconSize = 24.0;
-  static const double _streamingIconSize = 28.0;
-  static const double _secondaryIconSize = 20.0;
-  
-  // Text style constants
-  static const TextStyle _primaryTextStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 0.5,
-  );
-  
-  static const TextStyle _secondaryTextStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.3,
-  );
   
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -134,7 +103,9 @@ class _CustomButtonState extends State<CustomButton>
 
   void _onTapCancel() {
     _animationController.reverse();
-  }  @override
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isInteractive = widget.isEnabled && !widget.isLoading && widget.onPressed != null;
     
@@ -158,13 +129,14 @@ class _CustomButtonState extends State<CustomButton>
           onTapDown: isInteractive ? _onTapDown : null,
           onTapUp: isInteractive ? _onTapUp : null,
           onTapCancel: isInteractive ? _onTapCancel : null,
-          splashColor: _getSplashColor(),
-          highlightColor: _getHighlightColor(),
+          splashColor: Colors.white.withOpacity(0.25),
+          highlightColor: Colors.white.withOpacity(0.1),
           child: Container(
             alignment: Alignment.center,
             child: widget.isLoading
                 ? _buildLoadingWidget()
-                : _buildButtonContent(),          ),
+                : _buildButtonContent(),
+          ),
         ),
       ),
     );
@@ -191,7 +163,7 @@ class _CustomButtonState extends State<CustomButton>
             color: _getTextColor(),
             size: _getIconSize(),
           ),
-          SizedBox(width: _getIconSpacing()),
+          SizedBox(width: 12.0),
           Text(
             widget.text,
             style: _getTextStyle(),
@@ -203,18 +175,19 @@ class _CustomButtonState extends State<CustomButton>
         widget.text,
         style: _getTextStyle(),
       );
-    }  }
+    }
+  }
 
   double _getButtonHeight() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return _primaryHeight;
+        return 64.0;
       case CustomButtonStyle.streaming:
-        return _streamingHeight;
+        return 48.0;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return _secondaryHeight;
+        return 56.0;
     }
   }
   
@@ -222,12 +195,12 @@ class _CustomButtonState extends State<CustomButton>
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return _primaryRadius;
+        return 20.0;
       case CustomButtonStyle.streaming:
-        return _streamingRadius;
+        return 32.0;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return _secondaryRadius;
+        return 16.0;
     }
   }
 
@@ -238,7 +211,9 @@ class _CustomButtonState extends State<CustomButton>
         borderRadius: BorderRadius.circular(_getBorderRadius()),
         boxShadow: AppStyles.cardShadow,
       );
-    }    switch (widget.buttonStyle) {
+    }
+
+    switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
         return BoxDecoration(
@@ -282,39 +257,38 @@ class _CustomButtonState extends State<CustomButton>
   Color _getTextColor() {
     return widget.isEnabled ? Colors.white : Colors.grey[600]!;
   }
-
-  Color _getSplashColor() {
-    return Colors.white.withOpacity(0.25);
-  }
-
-  Color _getHighlightColor() {
-    return Colors.white.withOpacity(0.1);
-  }
   double _getIconSize() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
-        return _primaryIconSize;
+        return 24.0;
       case CustomButtonStyle.streaming:
-        return _streamingIconSize;
+        return 28.0;
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return _secondaryIconSize;
+        return 20.0;
     }
   }
 
-  double _getIconSpacing() {
-    return _iconSpacing;
-  }
   TextStyle _getTextStyle() {
     switch (widget.buttonStyle) {
       case CustomButtonStyle.primary:
       case CustomButtonStyle.launch:
       case CustomButtonStyle.streaming:
-        return _primaryTextStyle;
+        return const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        );
       case CustomButtonStyle.save:
       case CustomButtonStyle.config:
-        return _secondaryTextStyle;
+        return const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.3,
+        );
     }
   }
 }

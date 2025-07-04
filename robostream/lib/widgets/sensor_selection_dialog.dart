@@ -1,6 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/lg_service.dart';
+
+class SensorOption {
+  final String id;
+  final String name;
+  final IconData icon;
+  final Color color;
+  bool isSelected;
+
+  SensorOption({
+    required this.id,
+    required this.name,
+    required this.icon,
+    required this.color,
+    this.isSelected = false,
+  });
+}
 
 class SensorSelectionDialog extends StatefulWidget {
   final Function(String) onSelectionConfirmed;

@@ -120,35 +120,16 @@ class CustomTextField extends StatefulWidget {
   State<CustomTextField> createState() => _CustomTextFieldState();
 }
 
-class _CustomTextFieldState extends State<CustomTextField>
-    with SingleTickerProviderStateMixin {
-
-  static const double _focusAnimationBegin = 0.0;
-  static const double _focusAnimationEnd = 1.0;
+class _CustomTextFieldState extends State<CustomTextField> {
   
   late FocusNode _focusNode;
   bool _obscureText = false;
-  late AnimationController _animationController;
-  late Animation<double> _focusAnimation;
 
   @override
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _obscureText = widget.obscureText;
-    
-    _animationController = AnimationController(
-      duration: AppStyles.mediumDuration,
-      vsync: this,
-    );
-    
-    _focusAnimation = Tween<double>(
-      begin: _focusAnimationBegin,
-      end: _focusAnimationEnd,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: AppStyles.primaryCurve,
-    ));
     
     _focusNode.addListener(_onFocusChange);
   }
@@ -158,16 +139,11 @@ class _CustomTextFieldState extends State<CustomTextField>
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
-    _animationController.dispose();
     super.dispose();
   }
 
   void _onFocusChange() {
-    if (_focusNode.hasFocus) {
-      _animationController.forward();
-    } else {
-      _animationController.reverse();
-    }
+    setState(() {});
   }
 
   void _toggleObscureText() {
@@ -178,15 +154,12 @@ class _CustomTextFieldState extends State<CustomTextField>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _focusAnimation,
-      builder: (context, child) {
-        final isFocused = _focusNode.hasFocus;
-        
-        return AnimatedContainer(
-          duration: AppStyles.mediumDuration,
-          decoration: _getContainerDecoration(isFocused),
-          child: TextField(
+    final isFocused = _focusNode.hasFocus;
+    
+    return AnimatedContainer(
+      duration: AppStyles.mediumDuration,
+      decoration: _getContainerDecoration(isFocused),
+      child: TextField(
             controller: widget.controller,
             focusNode: _focusNode,
             obscureText: _obscureText,
@@ -199,12 +172,9 @@ class _CustomTextFieldState extends State<CustomTextField>
             },
             onChanged: widget.onChanged,
             onEditingComplete: widget.onEditingComplete,
-            onSubmitted: widget.onSubmitted,
-            style: _getTextStyle(),
-            decoration: _getInputDecoration(isFocused),
-          ),
-        );
-      },
+            onSubmitted: widget.onSubmitted,        style: _textStyle,
+        decoration: _getInputDecoration(isFocused),
+      ),
     );
   }
 
@@ -224,17 +194,16 @@ class _CustomTextFieldState extends State<CustomTextField>
       prefixIcon: _buildPrefixIcon(isFocused),
       suffixIcon: _buildSuffixIcon(),
       filled: true,
-      fillColor: _getFillColor(),
+      fillColor: _fillColor,
       border: _getBorder(),
-      enabledBorder: _getBorder(),
       focusedBorder: _getFocusedBorder(),
       errorBorder: _getErrorBorder(),
       focusedErrorBorder: _getErrorBorder(),
       labelStyle: _getLabelStyle(isFocused),
-      hintStyle: _getHintStyle(),
-      helperStyle: _getHelperStyle(),
-      errorStyle: _getErrorStyle(),
-      contentPadding: _getContentPadding(),
+      hintStyle: _hintStyle,
+      helperStyle: _helperStyle,
+      errorStyle: _errorStyle,
+      contentPadding: _contentPadding,
     );
   }
 
@@ -246,7 +215,7 @@ class _CustomTextFieldState extends State<CustomTextField>
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        gradient: isFocused ? _getPrefixGradient() : _getInactivePrefixGradient(),
+        gradient: isFocused ? _getPrefixGradient() : _inactivePrefixGradient,
         borderRadius: BorderRadius.circular(10),
         boxShadow: isFocused ? [
           BoxShadow(
@@ -287,9 +256,7 @@ class _CustomTextFieldState extends State<CustomTextField>
     }
   }
 
-  Color _getFillColor() {
-    return widget.isEnabled ? Colors.white : Colors.grey[100]!;
-  }
+  Color get _fillColor => widget.isEnabled ? Colors.white : Colors.grey[100]!;
 
   OutlineInputBorder _getBorder() {
     return OutlineInputBorder(
@@ -318,13 +285,11 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
   }
 
-  TextStyle _getTextStyle() {
-    return const TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-      color: Colors.black87,
-    );
-  }
+  TextStyle get _textStyle => const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: Colors.black87,
+      );
 
   TextStyle _getLabelStyle(bool isFocused) {
     return TextStyle(
@@ -334,35 +299,28 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
   }
 
-  TextStyle _getHintStyle() {
-    return TextStyle(
-      fontSize: 14,
-      color: Colors.grey[500],
-    );
-  }
+  TextStyle get _hintStyle => TextStyle(
+        fontSize: 14,
+        color: Colors.grey[500],
+      );
 
-  TextStyle _getHelperStyle() {
-    return TextStyle(
-      fontSize: 12,
-      color: Colors.grey[600],
-    );
-  }
+  TextStyle get _helperStyle => TextStyle(
+        fontSize: 12,
+        color: Colors.grey[600],
+      );
 
-  TextStyle _getErrorStyle() {
-    return const TextStyle(
-      fontSize: 12,
-      color: AppStyles.errorColor,
-      fontWeight: FontWeight.w500,
-    );
-  }
+  TextStyle get _errorStyle => const TextStyle(
+        fontSize: 12,
+        color: AppStyles.errorColor,
+        fontWeight: FontWeight.w500,
+      );
 
-  EdgeInsets _getContentPadding() {
-    return const EdgeInsets.symmetric(horizontal: 16, vertical: 20);
-  }
+  EdgeInsets get _contentPadding => const EdgeInsets.symmetric(horizontal: 16, vertical: 20);
 
   Color _getPrefixColor() {
     switch (widget.fieldStyle) {
       case CustomTextFieldStyle.standard:
+      case CustomTextFieldStyle.url:
         return AppStyles.primaryColor;
       case CustomTextFieldStyle.ip:
         return AppStyles.accentColor;
@@ -370,8 +328,6 @@ class _CustomTextFieldState extends State<CustomTextField>
         return AppStyles.warningColor;
       case CustomTextFieldStyle.username:
         return AppStyles.secondaryColor;
-      case CustomTextFieldStyle.url:
-        return AppStyles.primaryColor;
     }
   }
 
@@ -384,13 +340,11 @@ class _CustomTextFieldState extends State<CustomTextField>
     );
   }
 
-  LinearGradient _getInactivePrefixGradient() {
-    return LinearGradient(
-      colors: [Colors.grey[400]!, Colors.grey[500]!],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
+  LinearGradient get _inactivePrefixGradient => const LinearGradient(
+        colors: [Color(0xFFBDBDBD), Color(0xFF9E9E9E)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 }
 
 enum CustomTextFieldStyle {
