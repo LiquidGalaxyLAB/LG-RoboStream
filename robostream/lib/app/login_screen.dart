@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:robostream/services/lg_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
+import 'package:robostream/services/server.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -30,10 +32,18 @@ class _LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
+  // Server connection state
+  final _serverIpController = TextEditingController();
+  final _serverIpFocus = FocusNode();
+  bool _isConnectingToServer = false;
+  bool _isServerConnected = false;
+  RobotServerService? _serverService;
+  
+  // LG connection state
   final _lgIpController = TextEditingController();
   final _lgUsernameController = TextEditingController();
   final _lgPasswordController = TextEditingController();
-  final _totalScreensController = TextEditingController(); // Remove default value
+  final _totalScreensController = TextEditingController();
   
   bool _isLoading = false;
 
@@ -69,6 +79,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   void _setupTextFieldListeners() {
     // Listeners for real-time UI updates
+    _serverIpController.addListener(() => setState(() {}));
     _lgIpController.addListener(() => setState(() {}));
     _lgUsernameController.addListener(() => setState(() {}));
     _lgPasswordController.addListener(() => setState(() {}));
@@ -107,6 +118,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _serverIpController.dispose();
+    _serverIpFocus.dispose();
+    _serverService?.dispose();
     _lgIpController.dispose();
     _lgUsernameController.dispose();
     _lgPasswordController.dispose();
@@ -119,6 +133,83 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _totalScreensFocus.dispose();
     super.dispose();
   }
+  void _onConnectToServer() async {
+    HapticFeedback.mediumImpact();
+    
+    if (_serverIpController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter the server IP address'),
+          backgroundColor: AppStyles.errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isConnectingToServer = true;
+    });
+
+    try {
+      // Save server IP to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('server_ip', _serverIpController.text.trim());
+      
+      // Create server service with entered IP
+      final serverUrl = 'http://${_serverIpController.text.trim()}:8000';
+      _serverService = RobotServerService();
+      _serverService!.updateServerUrl(serverUrl);
+      
+      // Test connection
+      final isConnected = await _serverService!.checkConnection();
+      
+      if (mounted) {
+        if (isConnected) {
+          setState(() {
+            _isServerConnected = true;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Server connected successfully! Please configure Liquid Galaxy.'),
+              backgroundColor: AppStyles.primaryColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Unable to connect to server. Please check the IP address.'),
+              backgroundColor: AppStyles.errorColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connection error: ${e.toString()}'),
+            backgroundColor: AppStyles.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnectingToServer = false;
+        });
+      }
+    }
+  }
+
   void _onLoginPressed() async {
     HapticFeedback.mediumImpact();
     
@@ -398,7 +489,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                           return Opacity(
                             opacity: value,
                             child: Text(
-                              'Connect to your robot and start streaming',
+                              _isServerConnected
+                                  ? 'Configure Liquid Galaxy connection'
+                                  : 'Connect to your robot server to begin',
                               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 color: Colors.grey[600],
                                 fontSize: 15,
@@ -411,11 +504,46 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 36),
                       
-                      ..._buildEnhancedAnimatedFields(),
-                      
-                      const SizedBox(height: 32),
-                      
-                      _buildEnhancedButton(),
+                      // Show different content based on server connection state
+                      if (!_isServerConnected) ...[
+                        ..._buildServerConnectionFields(),
+                        const SizedBox(height: 32),
+                        _buildConnectButton(),
+                      ] else ...[
+                        // Server connection info
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppStyles.primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppStyles.primaryColor.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.cloud_done,
+                                color: AppStyles.primaryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Connected to: ${_serverIpController.text}:8000',
+                                  style: TextStyle(
+                                    color: AppStyles.primaryColor,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        ..._buildEnhancedAnimatedFields(),
+                        const SizedBox(height: 32),
+                        _buildEnhancedButton(),
+                      ],
                     ],
                   ),
                 ),
@@ -424,6 +552,96 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           ),
         ),
       ],
+    );
+  }
+
+  List<Widget> _buildServerConnectionFields() {
+    return [
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, _) {
+          return Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: Opacity(
+              opacity: value,
+              child: _buildEnhancedTextField(
+                controller: _serverIpController,
+                focusNode: _serverIpFocus,
+                label: 'Server IP Address',
+                icon: Icons.dns_rounded,
+                hintText: '192.168.1.100',
+                keyboardType: TextInputType.url,
+              ),
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  Widget _buildConnectButton() {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: AppStyles.bouncyCurve,
+      builder: (context, value, _) {
+        return Transform.scale(
+          scale: value,
+          child: AnimatedContainer(
+            duration: AppStyles.mediumDuration,
+            width: double.infinity,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: AppStyles.primaryGradient,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: _isConnectingToServer 
+                  ? AppStyles.cardShadow 
+                  : AppStyles.floatingShadow,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: _isConnectingToServer ? null : () {
+                  HapticFeedback.mediumImpact();
+                  _onConnectToServer();
+                },
+                splashColor: Colors.white.withOpacity(0.25),
+                highlightColor: Colors.white.withOpacity(0.1),
+                child: Container(
+                  alignment: Alignment.center,
+                  child: _isConnectingToServer
+                      ? const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.wifi_find_rounded,
+                              color: Colors.white,
+                              size: LoginStyles.buttonIconSize,
+                            ),
+                            SizedBox(width: LoginStyles.buttonIconSpacing),
+                            Text(
+                              'Connect to Server',
+                              style: LoginStyles.buttonTextStyle,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -762,7 +980,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             ),
                             SizedBox(width: LoginStyles.buttonIconSpacing),
                             Text(
-                              'Connect',
+                              'Connect to Liquid Galaxy',
                               style: LoginStyles.buttonTextStyle,
                             ),
                           ],
