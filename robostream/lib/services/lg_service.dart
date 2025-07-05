@@ -1,12 +1,16 @@
 import 'server.dart';
 import 'lg_config_service.dart';
-import 'lg_login_result.dart';
 import 'lg_connection_manager.dart';
 import 'lg_file_manager.dart';
 import 'image_generator.dart';
 
-// Export LoginResult for external use
-export 'lg_login_result.dart';
+// Login result class to handle login responses
+class LoginResult {
+  final bool success;
+  final String message;
+  
+  const LoginResult({required this.success, required this.message});
+}
 
 /// Main service class that orchestrates Liquid Galaxy operations
 class LGService {
