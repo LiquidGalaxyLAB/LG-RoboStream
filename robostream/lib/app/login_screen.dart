@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:robostream/services/lg_service.dart';
+import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
@@ -32,6 +33,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgIpController = TextEditingController();
   final _lgUsernameController = TextEditingController();
   final _lgPasswordController = TextEditingController();
+  final _totalScreensController = TextEditingController(); // Remove default value
   
   bool _isLoading = false;
 
@@ -43,6 +45,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   final _lgIpFocus = FocusNode();
   final _lgUsernameFocus = FocusNode();
   final _lgPasswordFocus = FocusNode();
+  final _totalScreensFocus = FocusNode();
 
   bool _isPasswordVisible = false;
 
@@ -51,6 +54,17 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimations();
     _setupTextFieldListeners();
+    _loadSavedConfig();
+  }
+
+  Future<void> _loadSavedConfig() async {
+    final config = await LGConfigService.getLGConfig();
+    setState(() {
+      _lgIpController.text = config['host'] ?? '';
+      _lgUsernameController.text = config['username'] ?? '';
+      _lgPasswordController.text = config['password'] ?? '';
+      _totalScreensController.text = config['totalScreens'] ?? '';
+    });
   }
 
   void _setupTextFieldListeners() {
@@ -58,6 +72,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _lgIpController.addListener(() => setState(() {}));
     _lgUsernameController.addListener(() => setState(() {}));
     _lgPasswordController.addListener(() => setState(() {}));
+    _totalScreensController.addListener(() => setState(() {}));
   }
 
   void _initializeAnimations() {
@@ -95,11 +110,13 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _lgIpController.dispose();
     _lgUsernameController.dispose();
     _lgPasswordController.dispose();
+    _totalScreensController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
     _lgIpFocus.dispose();
     _lgUsernameFocus.dispose();
     _lgPasswordFocus.dispose();
+    _totalScreensFocus.dispose();
     super.dispose();
   }
   void _onLoginPressed() async {
@@ -110,24 +127,67 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     });
     
     try {
+      // Check for missing fields
+      List<String> missingFields = [];
+      
+      if (_lgIpController.text.isEmpty) {
+        missingFields.add('LG IP Address');
+      }
+      if (_lgUsernameController.text.isEmpty) {
+        missingFields.add('LG Username');
+      }
+      if (_lgPasswordController.text.isEmpty) {
+        missingFields.add('LG Password');
+      }
+      if (_totalScreensController.text.isEmpty) {
+        missingFields.add('Total Screens');
+      }
+      
+      if (missingFields.isNotEmpty) {
+        String errorMessage;
+        if (missingFields.length == 4) {
+          errorMessage = 'Please fill in all required fields';
+        } else if (missingFields.length == 1) {
+          errorMessage = 'Please enter the ${missingFields.first}';
+        } else {
+          errorMessage = 'Please enter the following fields: ${missingFields.join(', ')}';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppStyles.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      }
+      
+      final totalScreens = int.tryParse(_totalScreensController.text);
+      if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Number of screens must be a positive odd number (e.g.: 3, 5, 7)'),
+            backgroundColor: AppStyles.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      }
+      
       final result = await LGService.login(
         lgIpAddress: _lgIpController.text,
         lgUsername: _lgUsernameController.text,
         lgPassword: _lgPasswordController.text,
+        totalScreens: totalScreens,
       );
       
       if (mounted) {
         if (result.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.message),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          Future.delayed(const Duration(milliseconds: 800), () {
+          _showSuccessAnimation();
+          Future.delayed(const Duration(milliseconds: 1200), () {
             if (mounted) {
               context.go('/');
             }
@@ -150,6 +210,89 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         });
       }
     }
+  }
+
+  void _showSuccessAnimation() {
+    HapticFeedback.lightImpact();
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.3),
+      builder: (BuildContext context) {
+        return Center(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF14b981).withOpacity(0.3),
+                        blurRadius: 30,
+                        spreadRadius: 8,
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF14b981).withOpacity(0.1),
+                        blurRadius: 60,
+                        spreadRadius: 15,
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFF14b981),
+                          const Color(0xFF10a674),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Center(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutBack,
+                        onEnd: () => HapticFeedback.selectionClick(),
+                        builder: (context, tickValue, child) {
+                          return Transform.scale(
+                            scale: tickValue,
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 70,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    // Auto-close the dialog
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 
   @override
@@ -297,19 +440,28 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       _buildEnhancedTextField(
         controller: _lgUsernameController,
         focusNode: _lgUsernameFocus,
-        label: 'Username',
+        label: 'LG Username',
         icon: Icons.person_outline_rounded,
         nextFocus: _lgPasswordFocus,
-        hintText: 'Enter your username',
+        hintText: 'Enter your main LG username',
       ),
       _buildEnhancedTextField(
         controller: _lgPasswordController,
         focusNode: _lgPasswordFocus,
-        label: 'Password',
+        label: 'LG Password',
         icon: Icons.lock_outline_rounded,
         obscureText: !_isPasswordVisible,
-        hintText: 'Enter your password',
+        nextFocus: _totalScreensFocus,
+        hintText: 'Enter your main LG password',
         isPasswordField: true,
+      ),
+      _buildEnhancedTextField(
+        controller: _totalScreensController,
+        focusNode: _totalScreensFocus,
+        label: 'Total Screens',
+        icon: Icons.monitor,
+        hintText: '3, 5, 7, etc.',
+        keyboardType: TextInputType.number,
       ),
     ];
 
@@ -342,6 +494,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     FocusNode? nextFocus,
     String? hintText,
     bool isPasswordField = false,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return AnimatedBuilder(
       animation: focusNode,
@@ -401,6 +554,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   controller: controller,
                   focusNode: focusNode,
                   obscureText: obscureText,
+                  keyboardType: keyboardType,
                   textInputAction: nextFocus != null 
                       ? TextInputAction.next 
                       : TextInputAction.done,
@@ -551,19 +705,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               HapticFeedback.lightImpact();
             },
             splashRadius: 20,
-          ),
-        ),
-      );
-    } else if (hasContent) {
-      return AnimatedOpacity(
-        opacity: 1.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          margin: const EdgeInsets.only(right: 16),
-          child: Icon(
-            Icons.check_circle,
-            color: AppStyles.successColor,
-            size: 22,
           ),
         ),
       );

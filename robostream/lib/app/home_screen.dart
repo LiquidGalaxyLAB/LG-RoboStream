@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _lgHost = '192.168.1.100';
   String _lgUsername = 'lg';
   String _lgPassword = 'lg';
+  int _lgTotalScreens = 3;
 
   @override
   void initState() {
@@ -59,11 +60,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _loadLGConfigFromLogin() async {
     try {
       final config = await LGConfigService.getLGConfig();
+      final totalScreens = await LGConfigService.getTotalScreens();
       if (mounted) {
         setState(() {
           _lgHost = config['host'] ?? '192.168.1.100';
           _lgUsername = config['username'] ?? 'lg';
           _lgPassword = config['password'] ?? 'lg';
+          _lgTotalScreens = totalScreens;
         });
         
         _checkLGConnection();
@@ -78,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         host: _lgHost,
         username: _lgUsername,
         password: _lgPassword,
+        totalScreens: _lgTotalScreens,
       );
       
       bool connected = await testLGService.connect();
@@ -197,17 +201,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           currentHost: _lgHost,
           currentUsername: _lgUsername,
           currentPassword: _lgPassword,
-          onConfigSaved: (host, username, password) async {
+          currentTotalScreens: _lgTotalScreens,
+          onConfigSaved: (host, username, password, totalScreens) async {
             setState(() {
               _lgHost = host;
               _lgUsername = username;
               _lgPassword = password;
+              _lgTotalScreens = totalScreens;
             });
             
             await LGConfigService.saveLGConfig(
               host: host,
               username: username,
               password: password,
+              totalScreens: totalScreens,
             );
             
             _checkLGConnection();
@@ -236,6 +243,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       host: _lgHost,
       username: _lgUsername,
       password: _lgPassword,
+      totalScreens: _lgTotalScreens,
     );
     
     bool connected = await _lgService!.connect();

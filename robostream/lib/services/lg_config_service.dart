@@ -1,33 +1,39 @@
 class LGConfigService {
-  // Almacenamiento en memoria para la configuración
+  // In-memory storage for configuration
   static Map<String, String>? _lgConfig;
   
-  // Valores por defecto
-  static const String _defaultHost = '192.168.1.100';
-  static const String _defaultUsername = 'lg';
-  static const String _defaultPassword = 'lg';
+  // Default value for screens
+  static const String _defaultTotalScreens = '3';
 
-  /// Guarda la configuración de Liquid Galaxy en memoria
+  /// Saves Liquid Galaxy configuration in memory
   static Future<void> saveLGConfig({
     required String host,
     required String username,
     required String password,
+    int totalScreens = 3,
   }) async {
     _lgConfig = {
       'host': host,
       'username': username,
       'password': password,
+      'totalScreens': totalScreens.toString(),
     };
   }
 
-  /// Obtiene toda la configuración de LG
+  /// Gets all LG configuration
   static Future<Map<String, String>> getLGConfig() async {
     return _lgConfig ?? {
-      'host': _defaultHost,
-      'username': _defaultUsername,
-      'password': _defaultPassword,
+      'host': '',
+      'username': '',
+      'password': '',
+      'totalScreens': '',
     };
   }
 
+  /// Gets the total number of screens
+  static Future<int> getTotalScreens() async {
+    final config = await getLGConfig();
+    return int.tryParse(config['totalScreens'] ?? _defaultTotalScreens) ?? 3;
+  }
 
 }

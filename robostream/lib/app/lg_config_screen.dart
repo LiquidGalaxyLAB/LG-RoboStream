@@ -6,13 +6,15 @@ class LGConfigScreen extends StatefulWidget {
   final String currentHost;
   final String currentUsername;
   final String currentPassword;
-  final Function(String host, String username, String password) onConfigSaved;
+  final int currentTotalScreens;
+  final Function(String host, String username, String password, int totalScreens) onConfigSaved;
 
   const LGConfigScreen({
     super.key,
     required this.currentHost,
     required this.currentUsername,
     required this.currentPassword,
+    required this.currentTotalScreens,
     required this.onConfigSaved,
   });
 
@@ -24,6 +26,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   late TextEditingController _hostController;
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
+  late TextEditingController _totalScreensController;
   bool _isLoading = false;
 
   @override
@@ -32,6 +35,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     _hostController = TextEditingController(text: widget.currentHost);
     _usernameController = TextEditingController(text: widget.currentUsername);
     _passwordController = TextEditingController(text: widget.currentPassword);
+    _totalScreensController = TextEditingController(text: widget.currentTotalScreens.toString());
   }
 
   @override
@@ -39,6 +43,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     _hostController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _totalScreensController.dispose();
     super.dispose();
   }
 
@@ -46,11 +51,23 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     final host = _hostController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
+    final totalScreensText = _totalScreensController.text.trim();
 
-    if (host.isEmpty || username.isEmpty || password.isEmpty) {
+    if (host.isEmpty || username.isEmpty || password.isEmpty || totalScreensText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final totalScreens = int.tryParse(totalScreensText);
+    if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Total screens must be an odd positive number (e.g., 3, 5, 7)'),
           backgroundColor: Colors.red,
         ),
       );
@@ -63,7 +80,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
     HapticFeedback.mediumImpact();
     
-    widget.onConfigSaved(host, username, password);
+    widget.onConfigSaved(host, username, password, totalScreens);
     
     Navigator.pop(context, true);
   }
@@ -310,6 +327,15 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
               hintText: 'Password',
               icon: Icons.lock,
               obscureText: true,
+            ),
+            const SizedBox(height: 20),
+            
+            CustomTextField(
+              label: 'Total Screens',
+              controller: _totalScreensController,
+              hintText: 'Odd number: 3, 5, 7, etc.',
+              icon: Icons.monitor,
+              keyboardType: TextInputType.number,
             ),
           ],
         ),

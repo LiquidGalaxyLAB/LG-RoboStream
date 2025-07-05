@@ -6,6 +6,7 @@ import 'kml_builder.dart';
 import 'kml_sender.dart';
 import 'image_generator.dart';
 import 'lg_config_service.dart';
+import 'slave_calculator.dart';
 
 // Login result class to handle login responses
 class LoginResult {
@@ -19,30 +20,36 @@ class LGService {
   final String _host;
   final String _username;
   final String _password;
+  final int _totalScreens;
   SSHClient? _client;
   KMLBuilder? _kmlBuilder;
   KMLSender? _kmlSender;
+  SlaveCalculator? _slaveCalculator;
 
   LGService({
     required String host,
     required String username,
     required String password,
+    required int totalScreens,
   })  : _host = host,
         _username = username,
-        _password = password;
+        _password = password,
+        _totalScreens = totalScreens;
 
   /// Performs login with validation and connection test
   static Future<LoginResult> login({
     required String lgIpAddress,
     required String lgUsername,
     required String lgPassword,
+    required int totalScreens,
   }) async {
     if (lgIpAddress.isEmpty ||
         lgUsername.isEmpty ||
-        lgPassword.isEmpty) {
+        lgPassword.isEmpty ||
+        totalScreens <= 0) {
       return const LoginResult(
         success: false,
-        message: 'Por favor, rellena todos los campos.'
+        message: 'Please fill in all fields correctly.'
       );
     }
 
@@ -51,6 +58,7 @@ class LGService {
         host: lgIpAddress,
         username: lgUsername,
         password: lgPassword,
+        totalScreens: totalScreens,
       );
 
       final bool isConnected = await lgService.connect();
@@ -62,22 +70,23 @@ class LGService {
           host: lgIpAddress,
           username: lgUsername,
           password: lgPassword,
+          totalScreens: totalScreens,
         );
         
         return const LoginResult(
           success: true,
-          message: 'Conectado exitosamente. Configuración guardada automáticamente.'
+          message: 'Connected successfully. Configuration saved automatically.'
         );
       } else {
         return const LoginResult(
           success: false,
-          message: 'No se pudo conectar a Liquid Galaxy. Verifica los datos.'
+          message: 'Could not connect to Liquid Galaxy. Verify the connection details.'
         );
       }
     } catch (e) {
       return LoginResult(
         success: false,
-        message: 'Error de conexión: ${e.toString()}'
+        message: 'Connection error: ${e.toString()}'
       );
     }
   }
@@ -95,8 +104,9 @@ class LGService {
       
       await _client!.run('echo "Connection successful"');
       
+      _slaveCalculator = SlaveCalculator(totalScreens: _totalScreens);
       _kmlBuilder = KMLBuilder(lgHost: _host);
-      _kmlSender = KMLSender(client: _client!);
+      _kmlSender = KMLSender(client: _client!, slaveCalculator: _slaveCalculator!);
       
       return true;
     } catch (e) {
@@ -147,14 +157,14 @@ class LGService {
     if (!logoSent) return false;
     
     String logoKML = _kmlBuilder!.buildLogoKML();
-    return await _kmlSender!.sendKMLToSlave(logoKML, 3);
+    return await _kmlSender!.sendKMLToLeftmostScreen(logoKML);
   }
 
   Future<bool> showRGBCameraImage(String serverHost) async {
     if (_kmlBuilder == null || _kmlSender == null || _client == null) return false;
     
     String cameraKML = _kmlBuilder!.buildCameraKML(serverHost);
-    return await _kmlSender!.sendKMLToSlave(cameraKML, 2);
+    return await _kmlSender!.sendKMLToRightmostScreen(cameraKML);
   }
 
   Future<bool> showSensorData(SensorData sensorData, List<String> selectedSensors) async {
@@ -187,7 +197,7 @@ class LGService {
       Uint8List imageBytes = await ImageGenerator.generateSensorImage(sensorInfo);
       
       String imageName = sensorInfo['imageName'] as String;
-      bool imageSent = await _kmlSender!.sendImagePNG(imageBytes, imageName);
+      bool imageSent = await _kmlSender!.sendImageToRightmostScreen(imageBytes, imageName);
       if (!imageSent) {
         allImagesUploaded = false;
         continue;
@@ -215,14 +225,14 @@ ${sensorOverlays.join('\n')}
   </Document>
 </kml>''';
     
-    bool kmlSent = await _kmlSender!.sendKMLToSlave(combinedKML, 2);
+    bool kmlSent = await _kmlSender!.sendKMLToRightmostScreen(combinedKML);
     
     return allImagesUploaded && kmlSent;
   }
 
   Future<bool> hideSensorData() async {
     if (_kmlSender == null || _client == null) return false;
-    return await _kmlSender!.clearSlave(2);
+    return await _kmlSender!.clearSlave(_kmlSender!.rightmostScreen);
   }
 
   void disconnect() {
