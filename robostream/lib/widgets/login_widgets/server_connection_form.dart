@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ServerConnectionForm extends StatefulWidget {
   final Function(String) onConnectionSuccess;
@@ -29,7 +29,7 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
   void initState() {
     super.initState();
     _serverIpController.addListener(() => setState(() {}));
-    // Removed _loadSavedServerIp() to prevent auto-filling
+    // No auto-fill - solo el valor dinámico que introduce el usuario
   }
 
   @override
@@ -53,11 +53,10 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
     });
 
     try {
-      // Save server IP to shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('server_ip', _serverIpController.text.trim());
+      // Guardar la IP del servidor usando el servicio centralizado
+      await ServerConfigManager.instance.saveServerIp(_serverIpController.text.trim());
       
-      // Create server service with entered IP
+      // Crear el servicio del servidor con la IP introducida
       final serverUrl = 'http://${_serverIpController.text.trim()}:8000';
       _serverService = RobotServerService();
       _serverService!.updateServerUrl(serverUrl);

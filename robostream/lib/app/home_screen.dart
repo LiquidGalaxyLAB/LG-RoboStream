@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/widgets/widgets.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/services/lg_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
@@ -96,10 +97,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _loadServerConfig() async {
     try {
-      // Por ahora usar la configuración por defecto
-      // En el futuro se puede implementar SharedPreferences para guardar la URL
+      // Cargar configuración del servidor desde el servicio centralizado
+      final serverUrl = await ServerConfigManager.instance.getServerUrl();
+      if (serverUrl != null) {
+        _serverService.updateServerUrl(serverUrl);
+      }
     } catch (e) {
-      // Handle error silently
+      // Manejar error silenciosamente
+      print('Error loading server config: $e');
     }
   }
 

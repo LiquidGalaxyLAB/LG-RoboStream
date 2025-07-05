@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:robostream/config/server_config.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/services/server_config_manager.dart';
 
 class ServerConfigScreen extends StatefulWidget {
   final RobotServerService? serverService;
@@ -36,7 +37,10 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   Future<void> _loadConfiguration() async {
     if (!mounted) return;
     
-    final currentUrl = widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
+    // Primero intentar cargar desde el servicio centralizado
+    final savedUrl = await ServerConfigManager.instance.getServerUrl();
+    final currentUrl = savedUrl ?? widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
+    
     setState(() {
       _urlController.text = currentUrl;
     });
