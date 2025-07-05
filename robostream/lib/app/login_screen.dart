@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:robostream/services/lg_service.dart';
-import 'package:robostream/services/lg_config_service.dart';
-import 'package:robostream/services/server.dart';
-import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:robostream/widgets/login_widgets/login_widgets.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -33,57 +29,19 @@ class _LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   // Server connection state
-  final _serverIpController = TextEditingController();
-  final _serverIpFocus = FocusNode();
-  bool _isConnectingToServer = false;
   bool _isServerConnected = false;
-  RobotServerService? _serverService;
+  String _serverIp = '';
   
-  // LG connection state
-  final _lgIpController = TextEditingController();
-  final _lgUsernameController = TextEditingController();
-  final _lgPasswordController = TextEditingController();
-  final _totalScreensController = TextEditingController();
-  
-  bool _isLoading = false;
-
+  // Animation controllers
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
 
-  final _lgIpFocus = FocusNode();
-  final _lgUsernameFocus = FocusNode();
-  final _lgPasswordFocus = FocusNode();
-  final _totalScreensFocus = FocusNode();
-
-  bool _isPasswordVisible = false;
-
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    _setupTextFieldListeners();
-    _loadSavedConfig();
-  }
-
-  Future<void> _loadSavedConfig() async {
-    final config = await LGConfigService.getLGConfig();
-    setState(() {
-      _lgIpController.text = config['host'] ?? '';
-      _lgUsernameController.text = config['username'] ?? '';
-      _lgPasswordController.text = config['password'] ?? '';
-      _totalScreensController.text = config['totalScreens'] ?? '';
-    });
-  }
-
-  void _setupTextFieldListeners() {
-    // Listeners for real-time UI updates
-    _serverIpController.addListener(() => setState(() {}));
-    _lgIpController.addListener(() => setState(() {}));
-    _lgUsernameController.addListener(() => setState(() {}));
-    _lgPasswordController.addListener(() => setState(() {}));
-    _totalScreensController.addListener(() => setState(() {}));
   }
 
   void _initializeAnimations() {
@@ -118,189 +76,44 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _serverIpController.dispose();
-    _serverIpFocus.dispose();
-    _serverService?.dispose();
-    _lgIpController.dispose();
-    _lgUsernameController.dispose();
-    _lgPasswordController.dispose();
-    _totalScreensController.dispose();
     _slideController.dispose();
     _fadeController.dispose();
-    _lgIpFocus.dispose();
-    _lgUsernameFocus.dispose();
-    _lgPasswordFocus.dispose();
-    _totalScreensFocus.dispose();
     super.dispose();
   }
-  void _onConnectToServer() async {
-    HapticFeedback.mediumImpact();
-    
-    if (_serverIpController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter the server IP address'),
-          backgroundColor: AppStyles.errorColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
 
-    setState(() {
-      _isConnectingToServer = true;
+  void _onLoginSuccess() {
+    _showSuccessAnimation();
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        context.go('/');
+      }
     });
-
-    try {
-      // Save server IP to shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('server_ip', _serverIpController.text.trim());
-      
-      // Create server service with entered IP
-      final serverUrl = 'http://${_serverIpController.text.trim()}:8000';
-      _serverService = RobotServerService();
-      _serverService!.updateServerUrl(serverUrl);
-      
-      // Test connection
-      final isConnected = await _serverService!.checkConnection();
-      
-      if (mounted) {
-        if (isConnected) {
-          setState(() {
-            _isServerConnected = true;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Server connected successfully! Please configure Liquid Galaxy.'),
-              backgroundColor: AppStyles.primaryColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Unable to connect to server. Please check the IP address.'),
-              backgroundColor: AppStyles.errorColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Connection error: ${e.toString()}'),
-            backgroundColor: AppStyles.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isConnectingToServer = false;
-        });
-      }
-    }
   }
 
-  void _onLoginPressed() async {
-    HapticFeedback.mediumImpact();
-    
-    setState(() {
-      _isLoading = true;
-    });
-    
-    try {
-      // Check for missing fields
-      List<String> missingFields = [];
-      
-      if (_lgIpController.text.isEmpty) {
-        missingFields.add('LG IP Address');
-      }
-      if (_lgUsernameController.text.isEmpty) {
-        missingFields.add('LG Username');
-      }
-      if (_lgPasswordController.text.isEmpty) {
-        missingFields.add('LG Password');
-      }
-      if (_totalScreensController.text.isEmpty) {
-        missingFields.add('Total Screens');
-      }
-      
-      if (missingFields.isNotEmpty) {
-        String errorMessage;
-        if (missingFields.length == 4) {
-          errorMessage = 'Please fill in all required fields';
-        } else if (missingFields.length == 1) {
-          errorMessage = 'Please enter the ${missingFields.first}';
-        } else {
-          errorMessage = 'Please enter the following fields: ${missingFields.join(', ')}';
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: AppStyles.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        return;
-      }
-      
-      final totalScreens = int.tryParse(_totalScreensController.text);
-      if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Number of screens must be a positive odd number (e.g.: 3, 5, 7)'),
-            backgroundColor: AppStyles.errorColor,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        return;
-      }
-      
-      final result = await LGService.login(
-        lgIpAddress: _lgIpController.text,
-        lgUsername: _lgUsernameController.text,
-        lgPassword: _lgPasswordController.text,
-        totalScreens: totalScreens,
-      );
-      
-      if (mounted) {
-        if (result.success) {
-          _showSuccessAnimation();
-          Future.delayed(const Duration(milliseconds: 1200), () {
-            if (mounted) {
-              context.go('/');
-            }
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.message),
-              backgroundColor: AppStyles.errorColor,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+  void _onError(String message) {
+    _showErrorMessage(message);
+  }
+
+  void _showSuccessMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppStyles.primaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppStyles.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   void _showSuccessAnimation() {
@@ -504,46 +317,24 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 36),
                       
-                      // Show different content based on server connection state
-                      if (!_isServerConnected) ...[
-                        ..._buildServerConnectionFields(),
-                        const SizedBox(height: 32),
-                        _buildConnectButton(),
-                      ] else ...[
-                        // Server connection info
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppStyles.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppStyles.primaryColor.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.cloud_done,
-                                color: AppStyles.primaryColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Connected to: ${_serverIpController.text}:8000',
-                                  style: TextStyle(
-                                    color: AppStyles.primaryColor,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                      // Show different forms based on server connection state
+                      if (!_isServerConnected) 
+                        ServerConnectionForm(
+                          onConnectionSuccess: (serverIp) {
+                            setState(() {
+                              _isServerConnected = true;
+                              _serverIp = serverIp;
+                            });
+                            _showSuccessMessage('Server connected successfully! Please configure Liquid Galaxy.');
+                          },
+                          onError: _onError,
+                        )
+                      else 
+                        LiquidGalaxyLoginForm(
+                          serverIp: _serverIp,
+                          onLoginSuccess: _onLoginSuccess,
+                          onError: _onError,
                         ),
-                        const SizedBox(height: 24),
-                        ..._buildEnhancedAnimatedFields(),
-                        const SizedBox(height: 32),
-                        _buildEnhancedButton(),
-                      ],
                     ],
                   ),
                 ),
@@ -555,442 +346,4 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
-  List<Widget> _buildServerConnectionFields() {
-    return [
-      TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeOutCubic,
-        builder: (context, value, _) {
-          return Transform.translate(
-            offset: Offset(0, 20 * (1 - value)),
-            child: Opacity(
-              opacity: value,
-              child: _buildEnhancedTextField(
-                controller: _serverIpController,
-                focusNode: _serverIpFocus,
-                label: 'Server IP Address',
-                icon: Icons.dns_rounded,
-                hintText: '192.168.1.100',
-                keyboardType: TextInputType.url,
-              ),
-            ),
-          );
-        },
-      ),
-    ];
-  }
-
-  Widget _buildConnectButton() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: AppStyles.bouncyCurve,
-      builder: (context, value, _) {
-        return Transform.scale(
-          scale: value,
-          child: AnimatedContainer(
-            duration: AppStyles.mediumDuration,
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppStyles.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: _isConnectingToServer 
-                  ? AppStyles.cardShadow 
-                  : AppStyles.floatingShadow,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: _isConnectingToServer ? null : () {
-                  HapticFeedback.mediumImpact();
-                  _onConnectToServer();
-                },
-                splashColor: Colors.white.withOpacity(0.25),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  alignment: Alignment.center,
-                  child: _isConnectingToServer
-                      ? const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.wifi_find_rounded,
-                              color: Colors.white,
-                              size: LoginStyles.buttonIconSize,
-                            ),
-                            SizedBox(width: LoginStyles.buttonIconSpacing),
-                            Text(
-                              'Connect to Server',
-                              style: LoginStyles.buttonTextStyle,
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  List<Widget> _buildEnhancedAnimatedFields() {
-    final fields = [
-      _buildEnhancedTextField(
-        controller: _lgIpController,
-        focusNode: _lgIpFocus,
-        label: 'LG IP Address',
-        icon: Icons.lan,
-        nextFocus: _lgUsernameFocus,
-        hintText: 'e.g., 192.168.1.100',
-      ),
-      _buildEnhancedTextField(
-        controller: _lgUsernameController,
-        focusNode: _lgUsernameFocus,
-        label: 'LG Username',
-        icon: Icons.person_outline_rounded,
-        nextFocus: _lgPasswordFocus,
-        hintText: 'Enter your main LG username',
-      ),
-      _buildEnhancedTextField(
-        controller: _lgPasswordController,
-        focusNode: _lgPasswordFocus,
-        label: 'LG Password',
-        icon: Icons.lock_outline_rounded,
-        obscureText: !_isPasswordVisible,
-        nextFocus: _totalScreensFocus,
-        hintText: 'Enter your main LG password',
-        isPasswordField: true,
-      ),
-      _buildEnhancedTextField(
-        controller: _totalScreensController,
-        focusNode: _totalScreensFocus,
-        label: 'Total Screens',
-        icon: Icons.monitor,
-        hintText: '3, 5, 7, etc.',
-        keyboardType: TextInputType.number,
-      ),
-    ];
-
-    return fields
-        .asMap()
-        .entries
-        .map((entry) => TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 600 + (entry.key * 100)),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: entry.value,
-                  ),
-                );
-              },
-            ))
-        .toList();
-  }
-
-  Widget _buildEnhancedTextField({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
-    FocusNode? nextFocus,
-    String? hintText,
-    bool isPasswordField = false,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return AnimatedBuilder(
-      animation: focusNode,
-      builder: (context, child) {
-        final isFocused = focusNode.hasFocus;
-        final hasContent = controller.text.isNotEmpty;
-        final isActive = isFocused || hasContent;
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // External floating label with animation
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                height: isActive ? 24 : 0,
-                padding: EdgeInsets.only(
-                  left: 20,
-                  bottom: isActive ? 6 : 0,
-                ),
-                child: AnimatedOpacity(
-                  opacity: isActive ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    label.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isFocused 
-                          ? AppStyles.primaryColor
-                          : Colors.grey[600],
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Modern input field
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: isFocused 
-                          ? AppStyles.primaryColor.withOpacity(0.08)
-                          : Colors.black.withOpacity(0.02),
-                      blurRadius: isFocused ? 16 : 4,
-                      offset: Offset(0, isFocused ? 6 : 2),
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  obscureText: obscureText,
-                  keyboardType: keyboardType,
-                  textInputAction: nextFocus != null 
-                      ? TextInputAction.next 
-                      : TextInputAction.done,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[800],
-                    letterSpacing: 0.3,
-                    height: 1.4,
-                  ),
-                  onSubmitted: (_) {
-                    if (nextFocus != null) {
-                      nextFocus.requestFocus();
-                    } else {
-                      _onLoginPressed();
-                    }
-                  },
-                  onTap: () => HapticFeedback.selectionClick(),
-                  decoration: InputDecoration(
-                    // Use labelText when NOT active, hintText when active
-                    labelText: !isActive ? label : null,
-                    hintText: isActive ? (hintText ?? 'Enter your ${label.toLowerCase()}') : null,
-                    hintStyle: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.2,
-                    ),
-                    labelStyle: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    prefixIcon: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.all(8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: isFocused 
-                            ? LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppStyles.primaryColor,
-                                  AppStyles.secondaryColor,
-                                ],
-                              )
-                            : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.grey[100]!,
-                                  Colors.grey[200]!,
-                                ],
-                              ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: isFocused ? [
-                          BoxShadow(
-                            color: AppStyles.primaryColor.withOpacity(0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ] : [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: AnimatedScale(
-                        scale: isFocused ? 1.1 : 1.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          icon,
-                          color: isFocused ? Colors.white : Colors.grey[600],
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    suffixIcon: _buildSuffixIcon(isPasswordField, hasContent, isFocused),
-                    filled: true,
-                    fillColor: isFocused 
-                        ? Colors.white
-                        : Colors.grey[50],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: Colors.grey.withOpacity(0.15),
-                        width: 1.5,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: hasContent 
-                            ? Colors.grey.withOpacity(0.3)
-                            : Colors.grey.withOpacity(0.15),
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(
-                        color: AppStyles.primaryColor,
-                        width: 2.5,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 18,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget? _buildSuffixIcon(bool isPasswordField, bool hasContent, bool isFocused) {
-    if (isPasswordField) {
-      return AnimatedOpacity(
-        opacity: hasContent ? 1.0 : 0.6,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                _isPasswordVisible 
-                    ? Icons.visibility_off_rounded
-                    : Icons.visibility_rounded,
-                key: ValueKey(_isPasswordVisible),
-                color: isFocused 
-                    ? AppStyles.primaryColor 
-                    : Colors.grey[500],
-                size: 22,
-              ),
-            ),
-            onPressed: () {
-              setState(() {
-                _isPasswordVisible = !_isPasswordVisible;
-              });
-              HapticFeedback.lightImpact();
-            },
-            splashRadius: 20,
-          ),
-        ),
-      );
-    }
-    return null;
-  }
-
-  Widget _buildEnhancedButton() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: AppStyles.bouncyCurve,
-      builder: (context, value, _) {
-        return Transform.scale(
-          scale: value,
-          child: AnimatedContainer(
-            duration: AppStyles.mediumDuration,
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppStyles.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: _isLoading 
-                  ? AppStyles.cardShadow 
-                  : AppStyles.floatingShadow,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: _isLoading ? null : () {
-                  HapticFeedback.mediumImpact();
-                  _onLoginPressed();
-                },
-                splashColor: Colors.white.withOpacity(0.25),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  alignment: Alignment.center,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(
-                              Icons.rocket_launch,
-                              color: Colors.white,
-                              size: LoginStyles.buttonIconSize,
-                            ),
-                            SizedBox(width: LoginStyles.buttonIconSpacing),
-                            Text(
-                              'Connect to Liquid Galaxy',
-                              style: LoginStyles.buttonTextStyle,
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
