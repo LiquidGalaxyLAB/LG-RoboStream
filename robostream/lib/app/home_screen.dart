@@ -43,6 +43,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _lgPassword = 'lg';
   int _lgTotalScreens = 3;
 
+  // Variables para el tracking de cambios en los datos del servidor
+  String? _lastSensorDataHash;
+  String? _lastActuatorDataHash;
+  DateTime? _lastForceUpdateTime;
+
   @override
   void initState() {
     super.initState();
@@ -70,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _serverService.startStreaming();
       }
     } catch (e) {
-      print('Error initializing server connection: $e');
       // Intentar con la configuración por defecto
       if (!_serverService.isStreaming) {
         _serverService.startStreaming();
@@ -82,9 +86,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       // Por ahora usar la configuración por defecto
       // En el futuro se puede implementar SharedPreferences para guardar la URL
-      print('Loading server config - using default URL: ${_serverService.currentBaseUrl}');
     } catch (e) {
-      print('Error loading server config: $e');
+      // Handle error silently
     }
   }
 
@@ -136,10 +139,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _setupServerConnection() {
-    print('Setting up server connection...');
-    
     _serverService.connectionStream.listen((connected) {
-      print('Server connection status changed: $connected');
       if (mounted) {
         setState(() {
           _isConnected = connected;
@@ -154,18 +154,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _imageRefreshKey++;
         });
         
+        // Verificar si los datos del servidor han cambiado durante el streaming
         if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty) {
-          _sendSelectedSensorsToLG(sensorData);
+          _handleServerDataChange(sensorData);
         }
       }
     });
 
     _serverService.actuatorStream.listen((actuatorData) {
-      print('Received actuator data');
       if (mounted) {
         setState(() {
           _actuatorData = actuatorData;
         });
+        
+        // También verificar cambios en los datos del actuador durante el streaming
+        if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
+          _handleActuatorDataChange(actuatorData);
+        }
       }
     });
   }
@@ -283,6 +288,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _isStreamingToLG = true;
     });
     
+    // Resetear los hashes de datos para forzar una actualización inicial
+    _lastSensorDataHash = null;
+    _lastActuatorDataHash = null;
+    _lastForceUpdateTime = null;
+    
     _lgService = LGService(
       host: _lgHost,
       username: _lgUsername,
@@ -294,7 +304,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       connected = await _lgService?.connect() ?? false;
     } catch (e) {
-      print('Error connecting to LG: $e');
       connected = false;
     }
     
@@ -348,11 +357,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (_selectedSensor == 'RGB Camera') {
         await _lgService?.showRGBCameraImage(serverHost);
+      } else if (_selectedSensor == 'All Sensors') {
+        // Enviar todos los sensores disponibles
+        List<String> allSensors = ['GPS Position', 'IMU Sensors', 'Temperature', 'Wheel Motors', 'RGB Camera'];
+        await _lgService?.showSensorData(sensorData, allSensors);
       } else {
         await _lgService?.showSensorData(sensorData, [_selectedSensor]);
       }
     } catch (e) {
-      print('Error sending sensor data to LG: $e');
+      // Handle error silently
     }
   }
 
@@ -361,6 +374,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _isStreamingToLG = false;
     });
     
+    // Resetear los hashes de datos
+    _lastSensorDataHash = null;
+    _lastActuatorDataHash = null;
+    _lastForceUpdateTime = null;
+    
     try {
       if (_lgService != null) {
         await _lgService?.hideSensorData();
@@ -368,10 +386,117 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _lgService = null;
       }
     } catch (e) {
-      print('Error stopping LG streaming: $e');
+      // Handle error silently
     }
     
     _selectedSensor = '';
+  }
+
+  /// Maneja los cambios en los datos del servidor durante el streaming
+  void _handleServerDataChange(SensorData sensorData) async {
+    // Crear un hash de los datos del sensor para detectar cambios
+    String currentDataHash = _generateSensorDataHash(sensorData);
+    
+    // Verificar si ha pasado suficiente tiempo para forzar una actualización (cada 30 segundos)
+    final now = DateTime.now();
+    final shouldForceUpdate = _lastForceUpdateTime == null || 
+        now.difference(_lastForceUpdateTime!).inSeconds > 30;
+    
+    // Verificar si los datos han cambiado realmente o si necesitamos forzar actualización
+    final hasDataChanged = _lastSensorDataHash != currentDataHash;
+    final shouldUpdate = hasDataChanged || shouldForceUpdate;
+    
+    // Verificar si los datos han cambiado realmente o si necesitamos forzar actualización
+    if (shouldUpdate) {
+      // Actualizar el hash y timestamp
+      _lastSensorDataHash = currentDataHash;
+      _lastForceUpdateTime = now;
+      
+      // Regenerar y enviar la imagen automáticamente
+      await _sendSelectedSensorsToLG(sensorData);
+    }
+  }
+  
+  /// Genera un hash único basado en los datos del sensor para detectar cambios
+  String _generateSensorDataHash(SensorData sensorData) {
+    StringBuffer buffer = StringBuffer();
+    
+    // Incluir datos GPS con menos precisión para detectar cambios más fácilmente
+    buffer.write('GPS:${sensorData.gps.latitude.toStringAsFixed(4)}');
+    buffer.write(',${sensorData.gps.longitude.toStringAsFixed(4)}');
+    buffer.write(',${sensorData.gps.altitude.toStringAsFixed(1)}');
+    buffer.write(',${sensorData.gps.speed.toStringAsFixed(1)}');
+    
+    // Incluir datos IMU con menos precisión
+    buffer.write('|IMU:${sensorData.imu.accelerometer.x.toStringAsFixed(2)}');
+    buffer.write(',${sensorData.imu.accelerometer.y.toStringAsFixed(2)}');
+    buffer.write(',${sensorData.imu.accelerometer.z.toStringAsFixed(2)}');
+    buffer.write(',${sensorData.imu.gyroscope.x.toStringAsFixed(2)}');
+    buffer.write(',${sensorData.imu.gyroscope.y.toStringAsFixed(2)}');
+    buffer.write(',${sensorData.imu.gyroscope.z.toStringAsFixed(2)}');
+    
+    // Incluir estado de sensores
+    buffer.write('|STATUS:${sensorData.lidar},${sensorData.camera}');
+    
+    // Incluir datos de la cámara RGB si están disponibles
+    if (sensorData.rgbCamera != null) {
+      buffer.write('|RGB:${sensorData.rgbCamera!.currentImage}');
+      buffer.write(',${sensorData.rgbCamera!.imageTimestamp.toStringAsFixed(0)}');
+    }
+    
+    // Incluir timestamp redondeado a segundos
+    buffer.write('|TS:${sensorData.timestamp.toInt()}');
+    
+    return buffer.toString();
+  }
+
+  /// Maneja los cambios en los datos del actuador durante el streaming
+  void _handleActuatorDataChange(ActuatorData actuatorData) async {
+    // Crear un hash de los datos del actuador para detectar cambios
+    String currentDataHash = _generateActuatorDataHash(actuatorData);
+    
+    // Verificar si los datos han cambiado realmente
+    if (_lastActuatorDataHash != currentDataHash) {
+      // Actualizar el hash
+      _lastActuatorDataHash = currentDataHash;
+      
+      // Regenerar y enviar la imagen automáticamente si el sensor seleccionado incluye datos del actuador
+      if (_selectedSensor == 'Temperature' || _selectedSensor == 'Wheel Motors' || _selectedSensor == 'All Sensors') {
+        await _sendSelectedSensorsToLG(_sensorData!);
+      }
+    }
+  }
+  
+  /// Genera un hash único basado en los datos del actuador para detectar cambios
+  String _generateActuatorDataHash(ActuatorData actuatorData) {
+    StringBuffer buffer = StringBuffer();
+    
+    // Incluir datos de las ruedas
+    buffer.write('FL:${actuatorData.frontLeftWheel.speed}');
+    buffer.write(',${actuatorData.frontLeftWheel.temperature.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.frontLeftWheel.consumption.toStringAsFixed(2)}');
+    buffer.write(',${actuatorData.frontLeftWheel.voltage.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.frontLeftWheel.status}');
+    
+    buffer.write('|FR:${actuatorData.frontRightWheel.speed}');
+    buffer.write(',${actuatorData.frontRightWheel.temperature.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.frontRightWheel.consumption.toStringAsFixed(2)}');
+    buffer.write(',${actuatorData.frontRightWheel.voltage.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.frontRightWheel.status}');
+    
+    buffer.write('|BL:${actuatorData.backLeftWheel.speed}');
+    buffer.write(',${actuatorData.backLeftWheel.temperature.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.backLeftWheel.consumption.toStringAsFixed(2)}');
+    buffer.write(',${actuatorData.backLeftWheel.voltage.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.backLeftWheel.status}');
+    
+    buffer.write('|BR:${actuatorData.backRightWheel.speed}');
+    buffer.write(',${actuatorData.backRightWheel.temperature.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.backRightWheel.consumption.toStringAsFixed(2)}');
+    buffer.write(',${actuatorData.backRightWheel.voltage.toStringAsFixed(1)}');
+    buffer.write(',${actuatorData.backRightWheel.status}');
+    
+    return buffer.toString();
   }
 
   @override
@@ -568,7 +693,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         serverBaseUrl: _serverService.currentBaseUrl,
         imageRefreshKey: _imageRefreshKey,
         onRefreshImage: () {
-          print('Refreshing image - updating refresh key');
           if (mounted) {
             setState(() {
               _imageRefreshKey++;

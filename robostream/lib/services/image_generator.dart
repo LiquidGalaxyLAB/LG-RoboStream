@@ -19,7 +19,9 @@ class ImageGenerator {
     _drawDataItems(canvas, dataList);
     _drawTimestamp(canvas, height);
     
-    return await _finishImage(recorder, width, height);
+    final imageBytes = await _finishImage(recorder, width, height);
+    
+    return imageBytes;
   }
   
   static Future<Uint8List> generateTextImage(String text, {

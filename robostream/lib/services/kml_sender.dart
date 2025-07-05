@@ -54,9 +54,14 @@ class KMLSender {
   /// Sends image to the rightmost screen (for camera data)
   Future<bool> sendImageToRightmostScreen(Uint8List imageBytes, String fileName) async {
     try {
+      // Extraer el tipo de sensor del nombre del archivo para limpiar archivos antiguos
+      final baseName = fileName.split('_').first;
+      await cleanupOldImages('${baseName}_*.png');
+      
       final base64Image = base64Encode(imageBytes);
       final imageCommand = '''echo '$base64Image' | base64 -d > /var/www/html/$fileName''';
       await _client.run(imageCommand);
+      
       return true;
     } catch (e) {
       return false;
@@ -86,5 +91,17 @@ class KMLSender {
     }
     
     return success;
+  }
+
+  /// Limpia archivos de imagen antiguos para evitar acumulación
+  Future<bool> cleanupOldImages(String pattern) async {
+    try {
+      // Eliminar archivos que coincidan con el patrón (ej: gps_data_*.png)
+      final cleanupCommand = '''find /var/www/html/ -name "$pattern" -type f -mmin +5 -delete''';
+      await _client.run(cleanupCommand);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }

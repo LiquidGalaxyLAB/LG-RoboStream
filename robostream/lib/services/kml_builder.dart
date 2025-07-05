@@ -82,15 +82,18 @@ $content
   }
 
   String _getSensorImageName(String sensorType) {
+    // Agregar timestamp para forzar actualización de cache
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
     const sensorImages = {
-      'GPS Position': 'gps_data.png',
-      'IMU Sensors': 'imu_data.png',
-      'LiDAR Status': 'lidar_data.png',
-      'Temperature': 'temperature_data.png',
-      'Wheel Motors': 'motors_data.png',
-      'Server Link': 'server_data.png',
+      'GPS Position': 'gps_data',
+      'IMU Sensors': 'imu_data',
+      'LiDAR Status': 'lidar_data',
+      'Temperature': 'temperature_data',
+      'Wheel Motors': 'motors_data',
+      'Server Link': 'server_data',
     };
-    return sensorImages[sensorType] ?? 'sensor_data.png';
+    final baseName = sensorImages[sensorType] ?? 'sensor_data';
+    return '${baseName}_$timestamp.png';
   }
 
   Map<String, dynamic> buildSensorData(SensorData sensorData, String selectedSensor) {

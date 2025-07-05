@@ -515,7 +515,7 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                             ),
                             SizedBox(width: LoginStyles.buttonIconSpacing),
                             Text(
-                              'Connect to Liquid Galaxy',
+                              'Connect',
                               style: LoginStyles.buttonTextStyle,
                             ),
                           ],
