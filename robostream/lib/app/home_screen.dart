@@ -6,9 +6,11 @@ import 'package:robostream/services/lg_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
+import 'package:robostream/assets/styles/app_styles.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool fromLogin;
+  const HomeScreen({super.key, this.fromLogin = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,9 +24,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   late AnimationController _parallaxController;
   late AnimationController _indicatorsController;
+  late AnimationController _fadeInController;
   
   late Animation<double> _parallaxAnimation;
   late Animation<double> _indicatorsAnimation;
+  late Animation<double> _fadeInAnimation;
   
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
@@ -60,6 +64,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     // Inicializar la conexión del servidor
     _initializeServerConnection();
+    
+    // Iniciar fade-in si viene del login
+    if (widget.fromLogin) {
+      // Iniciar la animación inmediatamente
+      _fadeInController.forward();
+    } else {
+      _fadeInController.value = 1.0;
+    }
   }
 
   void _initializeServerConnection() async {
@@ -198,6 +210,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         reverseCurve: Curves.easeOutBack,
       ),
     );
+
+    // Fade-in animation controller
+    _fadeInController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    
+    _fadeInAnimation = Tween<double>(begin: 0.7, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _fadeInController,
+        curve: Curves.easeOut,
+      ),
+    );
   }
 
   void _startContinuousAnimations() {
@@ -208,6 +233,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _parallaxController.dispose();
     _indicatorsController.dispose();
+    _fadeInController.dispose();
     _scrollController.dispose();
     _serverService.dispose();
     _lgService?.disconnect();
@@ -503,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final cardsData = _generateCardsData();
 
-    return Scaffold(
+    Widget homeContent = Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -551,6 +577,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
+
+    // Solo aplicar fade-in si viene del login
+    if (widget.fromLogin) {
+      return AnimatedBuilder(
+        animation: _fadeInAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(0, (1 - _fadeInAnimation.value) * 20),
+            child: Opacity(
+              opacity: _fadeInAnimation.value,
+              child: homeContent,
+            ),
+          );
+        },
+      );
+    } else {
+      return homeContent;
+    }
   }
 
   List<Map<String, dynamic>> _generateCardsData() {
