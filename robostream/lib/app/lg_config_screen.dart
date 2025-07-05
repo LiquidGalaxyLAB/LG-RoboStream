@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/widgets.dart';
+import '../services/lg_connection_manager.dart';
+import '../services/lg_service.dart';
 
 class LGConfigScreen extends StatefulWidget {
   final String currentHost;
@@ -27,7 +29,8 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
   late TextEditingController _totalScreensController;
-  bool _isLoading = false;
+  bool _isSaving = false;
+  bool _isClearing = false;
 
   @override
   void initState() {
@@ -47,7 +50,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     super.dispose();
   }
 
-  void _saveConfiguration() {
+  void _saveConfiguration() async {
     final host = _hostController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
@@ -75,14 +78,128 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     }
 
     setState(() {
-      _isLoading = true;
+      _isSaving = true;
     });
 
-    HapticFeedback.mediumImpact();
-    
-    widget.onConfigSaved(host, username, password, totalScreens);
-    
-    Navigator.pop(context, true);
+    try {
+      HapticFeedback.mediumImpact();
+      
+      // Save configuration
+      widget.onConfigSaved(host, username, password, totalScreens);
+      
+      // Show logo on LG after saving configuration
+      final lgService = LGService(
+        host: host,
+        username: username,
+        password: password,
+        totalScreens: totalScreens,
+      );
+      
+      final connected = await lgService.connect();
+      if (connected) {
+        await lgService.showLogoUsingKML();
+        lgService.disconnect();
+      }
+      
+      Navigator.pop(context, true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving configuration: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
+  void _clearAllKML() async {
+    final host = _hostController.text.trim();
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    final totalScreensText = _totalScreensController.text.trim();
+
+    if (host.isEmpty || username.isEmpty || password.isEmpty || totalScreensText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all connection fields first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final totalScreens = int.tryParse(totalScreensText);
+    if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Total screens must be an odd positive number (e.g., 3, 5, 7)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isClearing = true;
+    });
+
+    try {
+      final connectionManager = LGConnectionManager(
+        host: host,
+        username: username,
+        password: password,
+        totalScreens: totalScreens,
+      );
+
+      final connected = await connectionManager.connect();
+      if (!connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to connect to Liquid Galaxy'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isClearing = false;
+        });
+        return;
+      }
+
+      final success = await connectionManager.kmlSender?.clearAllSlaves() ?? false;
+      connectionManager.disconnect();
+
+      if (success) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All KML files cleared successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to clear some KML files'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error clearing KML files: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isClearing = false;
+      });
+    }
   }
 
   BoxDecoration _buildCardDecoration(Color accentColor) {
@@ -357,47 +474,97 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _saveConfiguration,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: _isLoading ? 0 : 4,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_isLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                else
-                  const Icon(
-                    Icons.save_rounded,
-                    size: 20,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Clear ALL KML Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isClearing ? null : _clearAllKML,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                const SizedBox(width: 8),
-                Text(
-                  _isLoading ? 'Saving...' : 'Save Configuration',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  elevation: _isClearing ? 0 : 4,
                 ),
-              ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isClearing)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    else
+                      const Icon(
+                        Icons.clear_all_rounded,
+                        size: 20,
+                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isClearing ? 'Clearing...' : 'Clear ALL KML',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            // Save Configuration Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _saveConfiguration,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: _isSaving ? 0 : 4,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isSaving)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    else
+                      const Icon(
+                        Icons.save_rounded,
+                        size: 20,
+                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isSaving ? 'Saving...' : 'Save Configuration',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

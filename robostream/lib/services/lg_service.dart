@@ -1,40 +1,32 @@
-import 'dart:typed_data';
-import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/services.dart';
 import 'server.dart';
-import 'kml_builder.dart';
-import 'kml_sender.dart';
-import 'image_generator.dart';
 import 'lg_config_service.dart';
-import 'slave_calculator.dart';
+import 'lg_login_result.dart';
+import 'lg_connection_manager.dart';
+import 'lg_file_manager.dart';
+import 'image_generator.dart';
 
-// Login result class to handle login responses
-class LoginResult {
-  final bool success;
-  final String message;
-  
-  const LoginResult({required this.success, required this.message});
-}
+// Export LoginResult for external use
+export 'lg_login_result.dart';
 
+/// Main service class that orchestrates Liquid Galaxy operations
 class LGService {
-  final String _host;
-  final String _username;
-  final String _password;
-  final int _totalScreens;
-  SSHClient? _client;
-  KMLBuilder? _kmlBuilder;
-  KMLSender? _kmlSender;
-  SlaveCalculator? _slaveCalculator;
+  final LGConnectionManager _connectionManager;
+  LGFileManager? _fileManager;
 
   LGService({
     required String host,
     required String username,
     required String password,
     required int totalScreens,
-  })  : _host = host,
-        _username = username,
-        _password = password,
-        _totalScreens = totalScreens;
+  }) : _connectionManager = LGConnectionManager(
+          host: host,
+          username: username,
+          password: password,
+          totalScreens: totalScreens,
+        );
+
+  /// Getters for accessing managers
+  bool get isConnected => _connectionManager.isConnected;
 
   /// Performs login with validation and connection test
   static Future<LoginResult> login({
@@ -91,154 +83,139 @@ class LGService {
     }
   }
 
+  /// Establishes connection and initializes managers
   Future<bool> connect() async {
-    try {
-      final socket = await SSHSocket.connect(_host, 22);
-      _client = SSHClient(
-        socket,
-        username: _username,
-        onPasswordRequest: () => _password,
-      );
-      
-      if (_client == null) return false;
-      
-      await _client!.run('echo "Connection successful"');
-      
-      _slaveCalculator = SlaveCalculator(totalScreens: _totalScreens);
-      _kmlBuilder = KMLBuilder(lgHost: _host);
-      _kmlSender = KMLSender(client: _client!, slaveCalculator: _slaveCalculator!);
-      
-      return true;
-    } catch (e) {
-      _client?.close();
-      _client = null;
-      _kmlBuilder = null;
-      _kmlSender = null;
-      return false;
-    }
-  }
-
-  Future<bool> sendFile(String localAssetPath, String remotePath) async {
-    if (_client == null) return false;
+    final bool connected = await _connectionManager.connect();
     
-    try {
-      final ByteData data = await rootBundle.load(localAssetPath);
-      final Uint8List bytes = data.buffer.asUint8List();
-      
-      final sftp = await _client!.sftp();
-      final file = await sftp.open(remotePath, mode: SftpFileOpenMode.create | SftpFileOpenMode.write);
-      await file.writeBytes(bytes);
-      await file.close();
-      sftp.close();
-      
-      return true;
-    } catch (e) {
-      return false;
+    if (connected && _connectionManager.client != null) {
+      _fileManager = LGFileManager(client: _connectionManager.client!);
     }
+    
+    return connected;
   }
 
-  Future<bool> sendLGCommand(String command) async {
-    if (_client == null) {
-      return false;
-    }
-
-    try {
-      await _client!.run(command);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
+  /// Shows the RoboStream logo using KMLBuilder and KMLSender
   Future<bool> showLogoUsingKML() async {
-    if (_kmlBuilder == null || _kmlSender == null || _client == null) return false;
+    if (!isConnected) return false;
     
-    bool logoSent = await sendFile('lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png', '/var/www/html/robostream_logo.png');
+    // Send logo file first
+    bool logoSent = await _fileManager!.sendFile(
+      'lib/assets/Images/ROBOSTREAM_FINAL_LOGO.png',
+      '/var/www/html/robostream_logo.png'
+    );
     if (!logoSent) return false;
     
-    String logoKML = _kmlBuilder!.buildLogoKML();
-    return await _kmlSender!.sendKMLToLeftmostScreen(logoKML);
+    // Generate and send KML
+    String logoKML = _connectionManager.kmlBuilder!.buildLogoKML();
+    return await _connectionManager.kmlSender!.sendKMLToLeftmostScreen(logoKML);
   }
 
+  /// Shows RGB camera image using KMLBuilder and KMLSender
   Future<bool> showRGBCameraImage(String serverHost) async {
-    if (_kmlBuilder == null || _kmlSender == null || _client == null) return false;
+    if (!isConnected) return false;
     
-    String cameraKML = _kmlBuilder!.buildCameraKML(serverHost);
-    return await _kmlSender!.sendKMLToRightmostScreen(cameraKML);
+    String cameraKML = _connectionManager.kmlBuilder!.buildCameraKML(serverHost);
+    return await _connectionManager.kmlSender!.sendKMLToRightmostScreen(cameraKML);
   }
 
+  /// Shows sensor data overlays using existing services
   Future<bool> showSensorData(SensorData sensorData, List<String> selectedSensors) async {
-    if (_kmlBuilder == null || _kmlSender == null || _client == null || selectedSensors.isEmpty) return false;
+    if (!isConnected || selectedSensors.isEmpty) return false;
     
     List<String> sensorOverlays = [];
     bool allImagesUploaded = true;
     
     for (String selectedSensor in selectedSensors) {
       if (selectedSensor == 'RGB Camera') {
-        String serverHost = _host;
-        int overlayIndex = sensorOverlays.length;
-        double xPosition = 0.98 - (overlayIndex * 0.2);
-        String cameraOverlay = '''
-      <ScreenOverlay>
-        <name>RGBCamera</name>
-        <Icon>
-          <href>http://$serverHost:8000/rgb-camera/image</href>
-        </Icon>
-        <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
-        <screenXY x="$xPosition" y="0.98" xunits="fraction" yunits="fraction"/>
-        <size x="0.15" y="0.12" xunits="fraction" yunits="fraction"/>
-      </ScreenOverlay>''';
+        String cameraOverlay = _buildCameraOverlay(sensorOverlays.length);
         sensorOverlays.add(cameraOverlay);
         continue;
       }
       
-      Map<String, dynamic> sensorInfo = _kmlBuilder!.buildSensorData(sensorData, selectedSensor);
+      // Use KMLBuilder to get sensor info
+      Map<String, dynamic> sensorInfo = _connectionManager.kmlBuilder!.buildSensorData(sensorData, selectedSensor);
       
-      Uint8List imageBytes = await ImageGenerator.generateSensorImage(sensorInfo);
+      // Generate image
+      var imageBytes = await ImageGenerator.generateSensorImage(sensorInfo);
       
       String imageName = sensorInfo['imageName'] as String;
-      bool imageSent = await _kmlSender!.sendImageToRightmostScreen(imageBytes, imageName);
+      bool imageSent = await _connectionManager.kmlSender!.sendImageToRightmostScreen(imageBytes, imageName);
       if (!imageSent) {
         allImagesUploaded = false;
         continue;
       }
       
-      int overlayIndex = sensorOverlays.length;
-      double xPosition = 0.98 - (overlayIndex * 0.2);
-      String sensorOverlay = '''
+      String sensorOverlay = _buildSensorOverlay(selectedSensor, imageName, sensorOverlays.length);
+      sensorOverlays.add(sensorOverlay);
+    }
+    
+    String combinedKML = _buildCombinedKML(sensorOverlays);
+    bool kmlSent = await _connectionManager.kmlSender!.sendKMLToRightmostScreen(combinedKML);
+    
+    return allImagesUploaded && kmlSent;
+  }
+
+  /// Hides sensor data using KMLSender
+  Future<bool> hideSensorData() async {
+    if (!isConnected) return false;
+    return await _connectionManager.kmlSender!.clearSlave(_connectionManager.kmlSender!.rightmostScreen);
+  }
+
+  /// Sends a file to the Liquid Galaxy system
+  Future<bool> sendFile(String localAssetPath, String remotePath) async {
+    if (_fileManager == null) return false;
+    return await _fileManager!.sendFile(localAssetPath, remotePath);
+  }
+
+  /// Sends a command to the Liquid Galaxy system
+  Future<bool> sendLGCommand(String command) async {
+    if (_fileManager == null) return false;
+    return await _fileManager!.sendLGCommand(command);
+  }
+
+  /// Disconnects from the Liquid Galaxy system
+  void disconnect() {
+    _connectionManager.disconnect();
+    _fileManager = null;
+  }
+
+  /// Builds camera overlay KML
+  String _buildCameraOverlay(int overlayIndex) {
+    double xPosition = 0.98 - (overlayIndex * 0.2);
+    return '''
       <ScreenOverlay>
-        <name>$selectedSensor</name>
+        <name>RGBCamera</name>
         <Icon>
-          <href>http://$_host:81/$imageName</href>
+          <href>http://${_connectionManager.host}:8000/rgb-camera/image</href>
+        </Icon>
+        <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
+        <screenXY x="$xPosition" y="0.98" xunits="fraction" yunits="fraction"/>
+        <size x="0.15" y="0.12" xunits="fraction" yunits="fraction"/>
+      </ScreenOverlay>''';
+  }
+
+  /// Builds sensor overlay KML
+  String _buildSensorOverlay(String sensorName, String imageName, int overlayIndex) {
+    double xPosition = 0.98 - (overlayIndex * 0.2);
+    return '''
+      <ScreenOverlay>
+        <name>$sensorName</name>
+        <Icon>
+          <href>http://${_connectionManager.host}:81/$imageName</href>
         </Icon>
         <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
         <screenXY x="$xPosition" y="0.98" xunits="fraction" yunits="fraction"/>
       </ScreenOverlay>''';
-      sensorOverlays.add(sensorOverlay);
-    }
-    
-    String combinedKML = '''<?xml version="1.0" encoding="UTF-8"?>
+  }
+
+  /// Builds combined KML document
+  String _buildCombinedKML(List<String> sensorOverlays) {
+    return '''<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>MultiSensorData</name>
 ${sensorOverlays.join('\n')}
   </Document>
 </kml>''';
-    
-    bool kmlSent = await _kmlSender!.sendKMLToRightmostScreen(combinedKML);
-    
-    return allImagesUploaded && kmlSent;
-  }
-
-  Future<bool> hideSensorData() async {
-    if (_kmlSender == null || _client == null) return false;
-    return await _kmlSender!.clearSlave(_kmlSender!.rightmostScreen);
-  }
-
-  void disconnect() {
-    _client?.close();
-    _client = null;
-    _kmlBuilder = null;
-    _kmlSender = null;
   }
 }

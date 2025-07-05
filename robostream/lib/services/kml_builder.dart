@@ -6,165 +6,154 @@ class KMLBuilder {
   KMLBuilder({required String lgHost}) : _lgHost = lgHost;
 
   String buildLogoKML() {
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>RoboStreamLogo</name>
-    <ScreenOverlay>
-      <name>RoboStreamLogo</name>
-      <Icon>
-        <href>http://$_lgHost:81/robostream_complete_logo.png</href>
-      </Icon>
-      <overlayXY x="0" y="1" xunits="fraction" yunits="fraction"/>
-      <screenXY x="0.02" y="0.98" xunits="fraction" yunits="fraction"/>
-      <size x="554" y="550" xunits="pixels" yunits="pixels"/>
-    </ScreenOverlay>
-  </Document>
-</kml>''';
+    return _buildKMLDocument(
+      'RoboStreamLogo',
+      _buildScreenOverlay(
+        'RoboStreamLogo',
+        'http://$_lgHost:81/robostream_complete_logo.png',
+        overlayXY: '0,1',
+        screenXY: '0.02,0.98',
+        size: '554,550,pixels',
+      ),
+    );
   }
 
   String buildCameraKML(String serverHost) {
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>RoboStreamCameraFeed</name>
-    <ScreenOverlay>
-      <name>RGBCamera</name>
-      <Icon>
-        <href>http://$serverHost:8000/rgb-camera/image</href>
-      </Icon>
-      <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
-      <screenXY x="0.98" y="0.98" xunits="fraction" yunits="fraction"/>
-      <size x="400" y="300" xunits="pixels" yunits="pixels"/>
-    </ScreenOverlay>
-  </Document>
-</kml>''';
+    return _buildKMLDocument(
+      'RoboStreamCameraFeed',
+      _buildScreenOverlay(
+        'RGBCamera',
+        'http://$serverHost:8000/rgb-camera/image',
+        overlayXY: '1,1',
+        screenXY: '0.98,0.98',
+        size: '400,300,pixels',
+      ),
+    );
   }
 
   String buildSensorDataKML(String sensorType) {
     String imageName = _getSensorImageName(sensorType);
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-  <Document>
-    <name>RoboStream $sensorType Data</name>
-    
-    <!-- ScreenOverlay para datos del sensor en pantalla -->
-    <ScreenOverlay>
-      <name>$sensorType Data</name>
-      <Icon>
-        <href>http://$_lgHost:81/$imageName</href>
-      </Icon>
-      <!-- Punto de la imagen que se alinea: (1,1) = esquina superior derecha de la imagen -->
-      <overlayXY x="1" y="1" xunits="fraction" yunits="fraction"/>
-      <!-- Punto de la pantalla: (1,1) = esquina superior derecha de la ventana -->
-      <screenXY x="0.98" y="0.98" xunits="fraction" yunits="fraction"/>
-      <!-- Sin escalado: usa el tamaño real de la imagen -->
-      <size x="0" y="0" xunits="pixels" yunits="pixels"/>
-    </ScreenOverlay>
-    
-  </Document>
-</kml>''';
-  }
-
-  String _getSensorImageName(String sensorType) {
-    switch (sensorType) {
-      case 'GPS Position':
-        return 'gps_data.png';
-      case 'IMU Sensors':
-        return 'imu_data.png';
-      case 'LiDAR Status':
-        return 'lidar_data.png';
-      case 'Temperature':
-        return 'temperature_data.png';
-      case 'Wheel Motors':
-        return 'motors_data.png';
-      case 'Server Link':
-        return 'server_data.png';
-      default:
-        return 'sensor_data.png';
-    }
+    return _buildKMLDocument(
+      'RoboStream $sensorType Data',
+      _buildScreenOverlay(
+        '$sensorType Data',
+        'http://$_lgHost:81/$imageName',
+        overlayXY: '1,1',
+        screenXY: '0.98,0.98',
+        size: '0,0,pixels',
+      ),
+    );
   }
 
   String buildEmptyKML() {
+    return _buildKMLDocument('Empty', '');
+  }
+
+  /// Helper method to build KML document structure
+  String _buildKMLDocument(String name, String content) {
     return '''<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>Empty</name>
+    <name>$name</name>
+$content
   </Document>
 </kml>''';
   }
 
-  Map<String, dynamic> buildSensorData(SensorData sensorData, String selectedSensor) {
-    Map<String, dynamic> sensorInfo = {
-      'title': '',
-      'icon': '',
-      'data': <Map<String, String>>[],
-      'imageName': _getSensorImageName(selectedSensor),
-    };
+  /// Helper method to build ScreenOverlay
+  String _buildScreenOverlay(String name, String href, {
+    required String overlayXY,
+    required String screenXY,
+    required String size,
+  }) {
+    final overlayParts = overlayXY.split(',');
+    final screenParts = screenXY.split(',');
+    final sizeParts = size.split(',');
     
-    switch (selectedSensor) {
-      case 'GPS Position':
-        sensorInfo['title'] = '📍 GPS Position';
-        sensorInfo['data'] = [
+    return '''    <ScreenOverlay>
+      <name>$name</name>
+      <Icon>
+        <href>$href</href>
+      </Icon>
+      <overlayXY x="${overlayParts[0]}" y="${overlayParts[1]}" xunits="fraction" yunits="fraction"/>
+      <screenXY x="${screenParts[0]}" y="${screenParts[1]}" xunits="fraction" yunits="fraction"/>
+      <size x="${sizeParts[0]}" y="${sizeParts[1]}" xunits="${sizeParts[2]}" yunits="${sizeParts[2]}"/>
+    </ScreenOverlay>''';
+  }
+
+  String _getSensorImageName(String sensorType) {
+    const sensorImages = {
+      'GPS Position': 'gps_data.png',
+      'IMU Sensors': 'imu_data.png',
+      'LiDAR Status': 'lidar_data.png',
+      'Temperature': 'temperature_data.png',
+      'Wheel Motors': 'motors_data.png',
+      'Server Link': 'server_data.png',
+    };
+    return sensorImages[sensorType] ?? 'sensor_data.png';
+  }
+
+  Map<String, dynamic> buildSensorData(SensorData sensorData, String selectedSensor) {
+    final sensorConfigs = {
+      'GPS Position': {
+        'title': '📍 GPS Position',
+        'data': [
           {'label': 'Latitude', 'value': '${sensorData.gps.latitude.toStringAsFixed(6)}°'},
           {'label': 'Longitude', 'value': '${sensorData.gps.longitude.toStringAsFixed(6)}°'},
           {'label': 'Altitude', 'value': '${sensorData.gps.altitude.toStringAsFixed(1)} m'},
           {'label': 'Speed', 'value': '${sensorData.gps.speed.toStringAsFixed(2)} m/s'},
-        ];
-        break;
-        
-      case 'IMU Sensors':
-        sensorInfo['title'] = '⚡ IMU Sensors';
-        sensorInfo['data'] = [
+        ],
+      },
+      'IMU Sensors': {
+        'title': '⚡ IMU Sensors',
+        'data': [
           {'label': 'Accel X', 'value': '${sensorData.imu.accelerometer.x.toStringAsFixed(2)} m/s²'},
           {'label': 'Accel Y', 'value': '${sensorData.imu.accelerometer.y.toStringAsFixed(2)} m/s²'},
           {'label': 'Accel Z', 'value': '${sensorData.imu.accelerometer.z.toStringAsFixed(2)} m/s²'},
           {'label': 'Gyro X', 'value': '${sensorData.imu.gyroscope.x.toStringAsFixed(3)} rad/s'},
           {'label': 'Gyro Y', 'value': '${sensorData.imu.gyroscope.y.toStringAsFixed(3)} rad/s'},
           {'label': 'Gyro Z', 'value': '${sensorData.imu.gyroscope.z.toStringAsFixed(3)} rad/s'},
-        ];
-        break;
-        
-      case 'LiDAR Status':
-        sensorInfo['title'] = '🎯 LiDAR Status';
-        sensorInfo['data'] = [
+        ],
+      },
+      'LiDAR Status': {
+        'title': '🎯 LiDAR Status',
+        'data': [
           {'label': 'Status', 'value': sensorData.lidar},
           {'label': 'Last Update', 'value': DateTime.now().toString().substring(11, 19)},
-        ];
-        break;
-        
-      case 'Temperature':
-        sensorInfo['title'] = '🌡️ Motor Temperature';
-        sensorInfo['data'] = [
+        ],
+      },
+      'Temperature': {
+        'title': '🌡️ Motor Temperature',
+        'data': [
           {'label': 'Average Temp', 'value': 'N/A°C'},
           {'label': 'Status', 'value': 'Monitoring'},
-        ];
-        break;
-        
-      case 'Wheel Motors':
-        sensorInfo['title'] = '⚙️ Wheel Motors';
-        sensorInfo['data'] = [
+        ],
+      },
+      'Wheel Motors': {
+        'title': '⚙️ Wheel Motors',
+        'data': [
           {'label': 'Status', 'value': 'Active'},
           {'label': 'Motors', 'value': '4 Connected'},
-        ];
-        break;
-        
-      case 'Server Link':
-        sensorInfo['title'] = '☁️ Server Connection';
-        sensorInfo['data'] = [
+        ],
+      },
+      'Server Link': {
+        'title': '☁️ Server Connection',
+        'data': [
           {'label': 'Status', 'value': 'Connected'},
           {'label': 'Last Update', 'value': DateTime.now().toString().substring(11, 19)},
-        ];
-        break;
-        
-      default:
-        sensorInfo['title'] = '📊 Unknown Sensor';
-        sensorInfo['data'] = [
-          {'label': 'Status', 'value': 'No Data'},
-        ];
-        break;
-    }
-    
-    return sensorInfo;
+        ],
+      },
+    };
+
+    final config = sensorConfigs[selectedSensor] ?? {
+      'title': '📊 Unknown Sensor',
+      'data': [{'label': 'Status', 'value': 'No Data'}],
+    };
+
+    return {
+      'title': config['title'],
+      'data': config['data'],
+      'imageName': _getSensorImageName(selectedSensor),
+    };
   }
 }

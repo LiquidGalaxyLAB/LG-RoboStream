@@ -51,28 +51,6 @@ class KMLSender {
     return await sendKMLToSlave(kmlContent, _slaveCalculator.rightmostScreen);
   }
 
-  /// Sends HTML content to the leftmost screen (for logo)
-  Future<bool> sendHTMLToLeftmostScreen(String htmlContent, String fileName) async {
-    final htmlCommand = '''echo '$htmlContent' > /var/www/html/$fileName''';
-    try {
-      await _client.run(htmlCommand);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Sends HTML content to the rightmost screen (for data and camera)
-  Future<bool> sendHTMLToRightmostScreen(String htmlContent, String fileName) async {
-    final htmlCommand = '''echo '$htmlContent' > /var/www/html/$fileName''';
-    try {
-      await _client.run(htmlCommand);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
   /// Sends image to the rightmost screen (for camera data)
   Future<bool> sendImageToRightmostScreen(Uint8List imageBytes, String fileName) async {
     try {
@@ -85,14 +63,8 @@ class KMLSender {
     }
   }
 
-  /// Gets the leftmost screen number
-  int get leftmostScreen => _slaveCalculator.leftmostScreen;
-
   /// Gets the rightmost screen number
   int get rightmostScreen => _slaveCalculator.rightmostScreen;
-
-  /// Gets all screen numbers
-  List<int> get allScreens => _slaveCalculator.allScreens;
 
   Future<bool> clearSlave(int slaveNumber) async {
     const emptyKML = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -114,16 +86,5 @@ class KMLSender {
     }
     
     return success;
-  }
-
-  Future<bool> sendImagePNG(Uint8List imageBytes, String fileName) async {
-    try {
-      final base64Image = base64Encode(imageBytes);
-      final imageCommand = '''echo '$base64Image' | base64 -d > /var/www/html/$fileName''';
-      await _client.run(imageCommand);
-      return true;
-    } catch (e) {
-      return false;
-    }
   }
 }
