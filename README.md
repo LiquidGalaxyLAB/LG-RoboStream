@@ -22,7 +22,7 @@
 
 ## 🚀 Server Setup
 
-First, initialize the server environment. Navigate to the project directory and run:
+First, initialize the server environment. Navigate to the server directory and run:
 
 ```bash
 docker-compose up -d --build
