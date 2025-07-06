@@ -48,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _lgPassword = 'lg';
   int _lgTotalScreens = 3;
 
-  // Variables para el tracking de cambios en los datos del servidor
   String? _lastSensorDataHash;
   String? _lastActuatorDataHash;
   DateTime? _lastForceUpdateTime;
@@ -60,15 +59,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _startContinuousAnimations();
     _setupServerConnection();
     _loadLGConfigFromLogin();
+    _initializeServerConnection();
     
     _indicatorsController.value = 1.0;
     
-    // Inicializar la conexión del servidor
-    _initializeServerConnection();
-    
-    // Iniciar fade-in si viene del login
     if (widget.fromLogin) {
-      // Iniciar la animación inmediatamente
       _fadeInController.forward();
     } else {
       _fadeInController.value = 1.0;
@@ -77,34 +72,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _initializeServerConnection() async {
     try {
-      // Cargar la configuración del servidor si existe
       await _loadServerConfig();
-      
-      // Iniciar la conexión del servidor
       await _serverService.checkConnection();
-      
-      // Comenzar el streaming de datos si es necesario
-      if (!_serverService.isStreaming) {
-        _serverService.startStreaming();
-      }
     } catch (e) {
-      // Intentar con la configuración por defecto
-      if (!_serverService.isStreaming) {
-        _serverService.startStreaming();
-      }
+      // Handle error gracefully
+    }
+    
+    // Start streaming once regardless of connection status
+    if (!_serverService.isStreaming) {
+      _serverService.startStreaming();
     }
   }
 
   Future<void> _loadServerConfig() async {
-    try {
-      // Cargar configuración del servidor desde el servicio centralizado
-      final serverUrl = await ServerConfigManager.instance.getServerUrl();
-      if (serverUrl != null) {
-        _serverService.updateServerUrl(serverUrl);
-      }
-    } catch (e) {
-      // Manejar error silenciosamente
-      print('Error loading server config: $e');
+    final serverUrl = await ServerConfigManager.instance.getServerUrl();
+    if (serverUrl != null) {
+      _serverService.updateServerUrl(serverUrl);
     }
   }
 
@@ -170,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _sensorData = sensorData;
           _imageRefreshKey++;
         });
-        
         // Verificar si los datos del servidor han cambiado durante el streaming
         if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty) {
           _handleServerDataChange(sensorData);
@@ -183,7 +165,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _actuatorData = actuatorData;
         });
-        
         // También verificar cambios en los datos del actuador durante el streaming
         if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
           _handleActuatorDataChange(actuatorData);
@@ -389,7 +370,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (_selectedSensor == 'RGB Camera') {
         await _lgService?.showRGBCameraImage(serverHost);
       } else if (_selectedSensor == 'All Sensors') {
-        // Enviar todos los sensores disponibles
         List<String> allSensors = ['GPS Position', 'IMU Sensors', 'Temperature', 'Wheel Motors', 'RGB Camera'];
         await _lgService?.showSensorData(sensorData, allSensors);
       } else {
@@ -436,8 +416,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Verificar si los datos han cambiado realmente o si necesitamos forzar actualización
     final hasDataChanged = _lastSensorDataHash != currentDataHash;
     final shouldUpdate = hasDataChanged || shouldForceUpdate;
-    
-    // Verificar si los datos han cambiado realmente o si necesitamos forzar actualización
     if (shouldUpdate) {
       // Actualizar el hash y timestamp
       _lastSensorDataHash = currentDataHash;
@@ -448,37 +426,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
   
-  /// Genera un hash único basado en los datos del sensor para detectar cambios
+  /// Genera un hash simplificado basado en los datos del sensor para detectar cambios
   String _generateSensorDataHash(SensorData sensorData) {
-    StringBuffer buffer = StringBuffer();
-    
-    // Incluir datos GPS con menos precisión para detectar cambios más fácilmente
-    buffer.write('GPS:${sensorData.gps.latitude.toStringAsFixed(4)}');
-    buffer.write(',${sensorData.gps.longitude.toStringAsFixed(4)}');
-    buffer.write(',${sensorData.gps.altitude.toStringAsFixed(1)}');
-    buffer.write(',${sensorData.gps.speed.toStringAsFixed(1)}');
-    
-    // Incluir datos IMU con menos precisión
-    buffer.write('|IMU:${sensorData.imu.accelerometer.x.toStringAsFixed(2)}');
-    buffer.write(',${sensorData.imu.accelerometer.y.toStringAsFixed(2)}');
-    buffer.write(',${sensorData.imu.accelerometer.z.toStringAsFixed(2)}');
-    buffer.write(',${sensorData.imu.gyroscope.x.toStringAsFixed(2)}');
-    buffer.write(',${sensorData.imu.gyroscope.y.toStringAsFixed(2)}');
-    buffer.write(',${sensorData.imu.gyroscope.z.toStringAsFixed(2)}');
-    
-    // Incluir estado de sensores
-    buffer.write('|STATUS:${sensorData.lidar},${sensorData.camera}');
-    
-    // Incluir datos de la cámara RGB si están disponibles
-    if (sensorData.rgbCamera != null) {
-      buffer.write('|RGB:${sensorData.rgbCamera!.currentImage}');
-      buffer.write(',${sensorData.rgbCamera!.imageTimestamp.toStringAsFixed(0)}');
-    }
-    
-    // Incluir timestamp redondeado a segundos
-    buffer.write('|TS:${sensorData.timestamp.toInt()}');
-    
-    return buffer.toString();
+    return '${sensorData.gps.latitude.toStringAsFixed(4)}'
+           '${sensorData.gps.longitude.toStringAsFixed(4)}'
+           '${sensorData.timestamp.toInt()}';
   }
 
   /// Maneja los cambios en los datos del actuador durante el streaming
@@ -498,36 +450,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
   
-  /// Genera un hash único basado en los datos del actuador para detectar cambios
+  /// Genera un hash simplificado basado en los datos del actuador para detectar cambios
   String _generateActuatorDataHash(ActuatorData actuatorData) {
-    StringBuffer buffer = StringBuffer();
-    
-    // Incluir datos de las ruedas
-    buffer.write('FL:${actuatorData.frontLeftWheel.speed}');
-    buffer.write(',${actuatorData.frontLeftWheel.temperature.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.frontLeftWheel.consumption.toStringAsFixed(2)}');
-    buffer.write(',${actuatorData.frontLeftWheel.voltage.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.frontLeftWheel.status}');
-    
-    buffer.write('|FR:${actuatorData.frontRightWheel.speed}');
-    buffer.write(',${actuatorData.frontRightWheel.temperature.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.frontRightWheel.consumption.toStringAsFixed(2)}');
-    buffer.write(',${actuatorData.frontRightWheel.voltage.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.frontRightWheel.status}');
-    
-    buffer.write('|BL:${actuatorData.backLeftWheel.speed}');
-    buffer.write(',${actuatorData.backLeftWheel.temperature.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.backLeftWheel.consumption.toStringAsFixed(2)}');
-    buffer.write(',${actuatorData.backLeftWheel.voltage.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.backLeftWheel.status}');
-    
-    buffer.write('|BR:${actuatorData.backRightWheel.speed}');
-    buffer.write(',${actuatorData.backRightWheel.temperature.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.backRightWheel.consumption.toStringAsFixed(2)}');
-    buffer.write(',${actuatorData.backRightWheel.voltage.toStringAsFixed(1)}');
-    buffer.write(',${actuatorData.backRightWheel.status}');
-    
-    return buffer.toString();
+    return '${actuatorData.frontLeftWheel.speed}'
+           '${actuatorData.frontRightWheel.speed}'
+           '${actuatorData.backLeftWheel.speed}'
+           '${actuatorData.backRightWheel.speed}';
   }
 
   @override
@@ -560,9 +488,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             physics: const BouncingScrollPhysics(),
             slivers: [
               EnhancedAppBar(
-                parallaxController: _parallaxController,
                 parallaxAnimation: _parallaxAnimation,
-                indicatorsController: _indicatorsController,
                 indicatorsAnimation: _indicatorsAnimation,
                 isConnected: _isConnected,
                 isLGConnected: _isLGConnected,

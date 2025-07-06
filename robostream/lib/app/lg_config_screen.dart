@@ -50,32 +50,55 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     super.dispose();
   }
 
-  void _saveConfiguration() async {
+  // Helper method for validation and getting values
+  Map<String, dynamic>? _getValidatedFields() {
     final host = _hostController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
     final totalScreensText = _totalScreensController.text.trim();
 
     if (host.isEmpty || username.isEmpty || password.isEmpty || totalScreensText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+      _showErrorSnackBar('Please fill in all fields');
+      return null;
     }
 
     final totalScreens = int.tryParse(totalScreensText);
     if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Total screens must be an odd positive number (e.g., 3, 5, 7)'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+      _showErrorSnackBar('Total screens must be an odd positive number (e.g., 3, 5, 7)');
+      return null;
     }
+
+    return {
+      'host': host,
+      'username': username,
+      'password': password,
+      'totalScreens': totalScreens,
+    };
+  }
+
+  // Helper method for showing error messages
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  // Helper method for showing success messages
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _saveConfiguration() async {
+    final fields = _getValidatedFields();
+    if (fields == null) return;
 
     setState(() {
       _isSaving = true;
@@ -85,14 +108,19 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
       HapticFeedback.mediumImpact();
       
       // Save configuration
-      widget.onConfigSaved(host, username, password, totalScreens);
+      widget.onConfigSaved(
+        fields['host'], 
+        fields['username'], 
+        fields['password'], 
+        fields['totalScreens']
+      );
       
       // Show logo on LG after saving configuration
       final lgService = LGService(
-        host: host,
-        username: username,
-        password: password,
-        totalScreens: totalScreens,
+        host: fields['host'],
+        username: fields['username'],
+        password: fields['password'],
+        totalScreens: fields['totalScreens'],
       );
       
       final connected = await lgService.connect();
@@ -103,12 +131,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
       
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving configuration: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showErrorSnackBar('Error saving configuration: ${e.toString()}');
     } finally {
       setState(() {
         _isSaving = false;
@@ -117,31 +140,8 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   }
 
   void _clearAllKML() async {
-    final host = _hostController.text.trim();
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text;
-    final totalScreensText = _totalScreensController.text.trim();
-
-    if (host.isEmpty || username.isEmpty || password.isEmpty || totalScreensText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all connection fields first'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final totalScreens = int.tryParse(totalScreensText);
-    if (totalScreens == null || totalScreens <= 0 || totalScreens % 2 == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Total screens must be an odd positive number (e.g., 3, 5, 7)'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    final fields = _getValidatedFields();
+    if (fields == null) return;
 
     setState(() {
       _isClearing = true;
@@ -149,20 +149,15 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
     try {
       final connectionManager = LGConnectionManager(
-        host: host,
-        username: username,
-        password: password,
-        totalScreens: totalScreens,
+        host: fields['host'],
+        username: fields['username'],
+        password: fields['password'],
+        totalScreens: fields['totalScreens'],
       );
 
       final connected = await connectionManager.connect();
       if (!connected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to connect to Liquid Galaxy'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar('Failed to connect to Liquid Galaxy');
         setState(() {
           _isClearing = false;
         });
@@ -174,12 +169,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
       if (success) {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All KML files cleared successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        _showSuccessSnackBar('All KML files cleared successfully');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -189,12 +179,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error clearing KML files: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showErrorSnackBar('Error clearing KML files: ${e.toString()}');
     } finally {
       setState(() {
         _isClearing = false;
@@ -202,49 +187,12 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     }
   }
 
-  BoxDecoration _buildCardDecoration(Color accentColor) {
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(24),
-      gradient: LinearGradient(
-        colors: [
-          Colors.white,
-          Colors.white.withOpacity(0.95),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: accentColor.withOpacity(0.08),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: Colors.black.withOpacity(0.04),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ],
-      border: Border.all(
-        color: accentColor.withOpacity(0.08),
-        width: 1,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFFF8FAFC),
-              const Color(0xFFF1F5F9),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF8FAFC),
         ),
         child: SafeArea(
           child: Column(
@@ -338,11 +286,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
             height: 48,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF10B981), Color(0xFF059669)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: const Color(0xFF10B981),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF10B981).withOpacity(0.3),
@@ -364,7 +308,21 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
   Widget _buildConfigForm() {
     return Container(
-      decoration: _buildCardDecoration(const Color(0xFF6366F1)),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: const Color(0xFF6366F1).withOpacity(0.08),
+          width: 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -377,14 +335,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
                   height: 48,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF6366F1).withOpacity(0.1),
-                        const Color(0xFF6366F1).withOpacity(0.05),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
                   ),
                   child: const Icon(
                     Icons.settings_ethernet_rounded,

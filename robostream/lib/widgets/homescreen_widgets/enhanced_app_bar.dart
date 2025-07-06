@@ -1,10 +1,33 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+// Constantes para optimizar el rendimiento
+const _kParticlePositions = [
+  Offset(50, 30),
+  Offset(250, 80),
+  Offset(150, 40),
+  Offset(300, 60),
+  Offset(100, 120),
+  Offset(200, 100),
+  Offset(70, 90),
+  Offset(320, 100),
+];
+
+const _kParticleSizes = [80.0, 60.0, 90.0, 70.0, 85.0, 75.0, 65.0, 95.0];
+
+const _kParticleColors = [
+  Color(0xFF6366F1),
+  Color(0xFF8B5CF6),
+  Color(0xFF06B6D4),
+  Color(0xFF10B981),
+  Color(0xFFF59E0B),
+  Color(0xFFEF4444),
+  Color(0xFF6366F1),
+  Color(0xFF8B5CF6),
+];
+
 class EnhancedAppBar extends StatelessWidget {
-  final AnimationController parallaxController;
   final Animation<double> parallaxAnimation;
-  final AnimationController indicatorsController;
   final Animation<double> indicatorsAnimation;
   final bool isConnected;
   final bool isLGConnected;
@@ -12,9 +35,7 @@ class EnhancedAppBar extends StatelessWidget {
 
   const EnhancedAppBar({
     super.key,
-    required this.parallaxController,
     required this.parallaxAnimation,
-    required this.indicatorsController,
     required this.indicatorsAnimation,
     required this.isConnected,
     required this.isLGConnected,
@@ -61,28 +82,6 @@ class EnhancedAppBar extends StatelessWidget {
   }
 
   Widget _buildModernBackgroundParticle(int index) {
-    final positions = [
-      const Offset(50, 30),
-      const Offset(250, 80),
-      const Offset(150, 40),
-      const Offset(300, 60),
-      const Offset(100, 120),
-      const Offset(200, 100),
-      const Offset(70, 90),
-      const Offset(320, 100),
-    ];
-    final sizes = [80.0, 60.0, 90.0, 70.0, 85.0, 75.0, 65.0, 95.0];
-    final colors = [
-      const Color(0xFF6366F1),
-      const Color(0xFF8B5CF6),
-      const Color(0xFF06B6D4),
-      const Color(0xFF10B981),
-      const Color(0xFFF59E0B),
-      const Color(0xFFEF4444),
-      const Color(0xFF6366F1),
-      const Color(0xFF8B5CF6),
-    ];
-
     return AnimatedBuilder(
       animation: parallaxAnimation,
       builder: (context, child) {
@@ -94,19 +93,19 @@ class EnhancedAppBar extends StatelessWidget {
         final opacity = (baseOpacity + variation).clamp(0.0, 1.0);
         
         return Positioned(
-          left: positions[index].dx + (20 * sinValue),
-          top: positions[index].dy + (15 * cosValue),
+          left: _kParticlePositions[index].dx + (20 * sinValue),
+          top: _kParticlePositions[index].dy + (15 * cosValue),
           child: Transform.rotate(
             angle: animatedValue * math.pi * 2,
             child: Container(
-              width: sizes[index],
-              height: sizes[index],
+              width: _kParticleSizes[index],
+              height: _kParticleSizes[index],
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    colors[index].withOpacity(opacity),
-                    colors[index].withOpacity(opacity * 0.5),
+                    _kParticleColors[index].withOpacity(opacity),
+                    _kParticleColors[index].withOpacity(opacity * 0.5),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.7, 1.0],
@@ -120,7 +119,7 @@ class EnhancedAppBar extends StatelessWidget {
   }
 }
 
-class HeaderTitle extends StatefulWidget {
+class HeaderTitle extends StatelessWidget {
   final Animation<double> indicatorsAnimation;
   final bool isConnected;
   final bool isLGConnected;
@@ -133,24 +132,17 @@ class HeaderTitle extends StatefulWidget {
   });
 
   @override
-  State<HeaderTitle> createState() => _HeaderTitleState();
-}
-
-class _HeaderTitleState extends State<HeaderTitle> {
-  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         bool hasEnoughHeight = constraints.maxHeight > 70;
         bool hasVeryLimitedHeight = constraints.maxHeight < 50;
         
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
               Flexible(
                 child: ShaderMask(
                   shaderCallback: (bounds) => const LinearGradient(
@@ -178,9 +170,9 @@ class _HeaderTitleState extends State<HeaderTitle> {
               ),
               if (!hasVeryLimitedHeight)
                 AnimatedBuilder(
-                  animation: widget.indicatorsAnimation,
+                  animation: indicatorsAnimation,
                   builder: (context, child) {
-                    double opacity = widget.indicatorsAnimation.value.clamp(0.0, 1.0);
+                    double opacity = indicatorsAnimation.value.clamp(0.0, 1.0);
                     
                     if (opacity < 0.02) {
                       return const SizedBox.shrink();
@@ -204,12 +196,12 @@ class _HeaderTitleState extends State<HeaderTitle> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   ModernConnectionStatus(
-                                    isConnected: widget.isConnected,
+                                    isConnected: isConnected,
                                     label: 'Server',
                                   ),
                                   const SizedBox(width: 20),
                                   ModernConnectionStatus(
-                                    isConnected: widget.isLGConnected,
+                                    isConnected: isLGConnected,
                                     label: 'LG Connection',
                                   ),
                                 ],
@@ -222,10 +214,9 @@ class _HeaderTitleState extends State<HeaderTitle> {
                   },
                 ),
             ],
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
   }
 }
 
@@ -295,10 +286,10 @@ class UnifiedConfigButton extends StatelessWidget {
       height: 52,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
             Colors.white,
-            Colors.white.withOpacity(0.95),
+            Color(0xFFF8F9FA),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -325,23 +316,10 @@ class UnifiedConfigButton extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
           onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF6366F1).withOpacity(0.1),
-                  const Color(0xFF6366F1).withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: const Icon(
-              Icons.tune_rounded,
-              color: Color(0xFF6366F1),
-              size: 22,
-            ),
+          child: const Icon(
+            Icons.tune_rounded,
+            color: Color(0xFF6366F1),
+            size: 22,
           ),
         ),
       ),

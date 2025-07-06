@@ -35,7 +35,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   // Animation controllers
   late AnimationController _slideController;
   late AnimationController _fadeController;
-  late AnimationController _stateTransitionController;
   late AnimationController _screenFadeController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
@@ -53,10 +52,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    _stateTransitionController = AnimationController(
-      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _screenFadeController = AnimationController(
@@ -83,14 +78,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     // Start initial animations
     _fadeController.forward();
     _slideController.forward();
-    _stateTransitionController.forward();
   }
 
   @override
   void dispose() {
     _slideController.dispose();
     _fadeController.dispose();
-    _stateTransitionController.dispose();
     _screenFadeController.dispose();
     super.dispose();
   }
@@ -110,10 +103,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _showErrorMessage(message);
   }
 
-  void _animateStateTransition() {
-    _stateTransitionController.reset();
-    _stateTransitionController.forward();
-  }
+
 
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -146,13 +136,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       barrierColor: Colors.black.withOpacity(0.3),
       builder: (BuildContext context) {
         return Center(
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.elasticOut,
-            builder: (context, value, child) {
+          child: AnimatedBuilder(
+            animation: _screenFadeController,
+            builder: (context, child) {
               return Transform.scale(
-                scale: value,
+                scale: _screenFadeController.value,
                 child: Container(
                   width: 140,
                   height: 140,
@@ -186,14 +174,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       ),
                     ),
                     child: Center(
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOutBack,
-                        onEnd: () => HapticFeedback.selectionClick(),
-                        builder: (context, tickValue, child) {
+                      child: AnimatedBuilder(
+                        animation: _screenFadeController,
+                        builder: (context, child) {
                           return Transform.scale(
-                            scale: tickValue,
+                            scale: _screenFadeController.value,
                             child: const Icon(
                               Icons.check_rounded,
                               color: Colors.white,
@@ -220,6 +205,31 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     });
   }
 
+  // Helper method for simplified decorative circles
+  Widget _buildDecorativeCircle(double size, Color color) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_fadeAnimation, _screenFadeController]),
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value * (1.0 - _screenFadeController.value),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  color.withOpacity(0.08),
+                  color.withOpacity(0.04),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -229,56 +239,16 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           opacity: 1.0 - _screenFadeController.value,
           child: Stack(
             children: [
-              // Background decorative elements with enhanced fade
+              // Simplified background decorative elements
               Positioned(
                 top: -100,
                 right: -100,
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_fadeAnimation, _screenFadeController]),
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _fadeAnimation.value * (1.0 - _screenFadeController.value),
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              AppStyles.primaryColor.withOpacity(0.08),
-                              AppStyles.primaryColor.withOpacity(0.04),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildDecorativeCircle(200, AppStyles.primaryColor),
               ),
               Positioned(
                 bottom: -80,
                 left: -80,
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_fadeAnimation, _screenFadeController]),
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _fadeAnimation.value * (1.0 - _screenFadeController.value),
-                      child: Container(
-                        width: 160,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              AppStyles.secondaryColor.withOpacity(0.08),
-                              AppStyles.secondaryColor.withOpacity(0.04),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildDecorativeCircle(160, AppStyles.secondaryColor),
               ),
               
               SafeArea(
@@ -294,13 +264,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // Logo with scale animation
-                            TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 1400),
-                              curve: AppStyles.bouncyCurve,
-                              builder: (context, value, child) {
+                            AnimatedBuilder(
+                              animation: _fadeAnimation,
+                              builder: (context, child) {
                                 return Transform.scale(
-                                  scale: value,
+                                  scale: _fadeAnimation.value,
                                   child: SizedBox(
                                     width: 150,
                                     height: 150,
@@ -313,12 +281,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                               },
                             ),
                             // App title with gradient
-                            TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 800),
-                              builder: (context, value, _) {
-                                return FadeTransition(
-                                  opacity: AlwaysStoppedAnimation(value),
+                            AnimatedBuilder(
+                              animation: _fadeAnimation,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _fadeAnimation.value,
                                   child: ShaderMask(
                                     shaderCallback: (bounds) => AppStyles.titleGradient.createShader(bounds),
                                     child: Text(
@@ -335,12 +302,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 8),
                             // Subtitle with fade animation
-                            TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 1000),
-                              builder: (context, value, _) {
-                                return FadeTransition(
-                                  opacity: AlwaysStoppedAnimation(value),
+                            AnimatedBuilder(
+                              animation: _fadeAnimation,
+                              builder: (context, child) {
+                                return Opacity(
+                                  opacity: _fadeAnimation.value,
                                   child: Text(
                                     _isServerConnected
                                         ? 'Configure Liquid Galaxy connection'
@@ -379,7 +345,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                   ? ServerConnectionForm(
                                       key: const ValueKey('server-form'),
                                       onConnectionSuccess: (serverIp) {
-                                        _animateStateTransition();
                                         setState(() {
                                           _isServerConnected = true;
                                           _serverIp = serverIp;

@@ -38,7 +38,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
   @override
   void initState() {
     super.initState();
-    _setupTextFieldListeners();
     _loadSavedConfig();
   }
 
@@ -65,13 +64,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
     });
   }
 
-  void _setupTextFieldListeners() {
-    _lgIpController.addListener(() => setState(() {}));
-    _lgUsernameController.addListener(() => setState(() {}));
-    _lgPasswordController.addListener(() => setState(() {}));
-    _totalScreensController.addListener(() => setState(() {}));
-  }
-
   Future<void> _onLoginPressed() async {
     HapticFeedback.mediumImpact();
     
@@ -80,33 +72,12 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
     });
     
     try {
-      // Check for missing fields
-      List<String> missingFields = [];
-      
-      if (_lgIpController.text.isEmpty) {
-        missingFields.add('LG IP Address');
-      }
-      if (_lgUsernameController.text.isEmpty) {
-        missingFields.add('LG Username');
-      }
-      if (_lgPasswordController.text.isEmpty) {
-        missingFields.add('LG Password');
-      }
-      if (_totalScreensController.text.isEmpty) {
-        missingFields.add('Total Screens');
-      }
-      
-      if (missingFields.isNotEmpty) {
-        String errorMessage;
-        if (missingFields.length == 4) {
-          errorMessage = 'Please fill in all required fields';
-        } else if (missingFields.length == 1) {
-          errorMessage = 'Please enter the ${missingFields.first}';
-        } else {
-          errorMessage = 'Please enter the following fields: ${missingFields.join(', ')}';
-        }
-        
-        widget.onError(errorMessage);
+      // Simple validation
+      if (_lgIpController.text.isEmpty ||
+          _lgUsernameController.text.isEmpty ||
+          _lgPasswordController.text.isEmpty ||
+          _totalScreensController.text.isEmpty) {
+        widget.onError('Please fill in all required fields');
         return;
       }
       
@@ -175,7 +146,40 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
         const SizedBox(height: 24),
         
         // LG Form fields
-        ..._buildAnimatedFields(),
+        _buildTextField(
+          controller: _lgIpController,
+          focusNode: _lgIpFocus,
+          label: 'LG IP Address',
+          icon: Icons.lan,
+          nextFocus: _lgUsernameFocus,
+          hintText: 'e.g., 192.168.1.100',
+        ),
+        _buildTextField(
+          controller: _lgUsernameController,
+          focusNode: _lgUsernameFocus,
+          label: 'LG Username',
+          icon: Icons.person_outline_rounded,
+          nextFocus: _lgPasswordFocus,
+          hintText: 'Enter your main LG username',
+        ),
+        _buildTextField(
+          controller: _lgPasswordController,
+          focusNode: _lgPasswordFocus,
+          label: 'LG Password',
+          icon: Icons.lock_outline_rounded,
+          obscureText: !_isPasswordVisible,
+          nextFocus: _totalScreensFocus,
+          hintText: 'Enter your main LG password',
+          isPasswordField: true,
+        ),
+        _buildTextField(
+          controller: _totalScreensController,
+          focusNode: _totalScreensFocus,
+          label: 'Total Screens',
+          icon: Icons.monitor,
+          hintText: '3, 5, 7, etc.',
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 32),
         
         // Login button
@@ -184,65 +188,7 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
     );
   }
 
-  List<Widget> _buildAnimatedFields() {
-    final fields = [
-      _buildEnhancedTextField(
-        controller: _lgIpController,
-        focusNode: _lgIpFocus,
-        label: 'LG IP Address',
-        icon: Icons.lan,
-        nextFocus: _lgUsernameFocus,
-        hintText: 'e.g., 192.168.1.100',
-      ),
-      _buildEnhancedTextField(
-        controller: _lgUsernameController,
-        focusNode: _lgUsernameFocus,
-        label: 'LG Username',
-        icon: Icons.person_outline_rounded,
-        nextFocus: _lgPasswordFocus,
-        hintText: 'Enter your main LG username',
-      ),
-      _buildEnhancedTextField(
-        controller: _lgPasswordController,
-        focusNode: _lgPasswordFocus,
-        label: 'LG Password',
-        icon: Icons.lock_outline_rounded,
-        obscureText: !_isPasswordVisible,
-        nextFocus: _totalScreensFocus,
-        hintText: 'Enter your main LG password',
-        isPasswordField: true,
-      ),
-      _buildEnhancedTextField(
-        controller: _totalScreensController,
-        focusNode: _totalScreensFocus,
-        label: 'Total Screens',
-        icon: Icons.monitor,
-        hintText: '3, 5, 7, etc.',
-        keyboardType: TextInputType.number,
-      ),
-    ];
-
-    return fields
-        .asMap()
-        .entries
-        .map((entry) => TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: Duration(milliseconds: 600 + (entry.key * 100)),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: entry.value,
-                  ),
-                );
-              },
-            ))
-        .toList();
-  }
-
-  Widget _buildEnhancedTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required FocusNode focusNode,
     required String label,
@@ -265,10 +211,9 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // External floating label with animation
+              // External floating label
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
                 height: isActive ? 24 : 0,
                 padding: EdgeInsets.only(
                   left: 20,
@@ -291,19 +236,17 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                 ),
               ),
               
-              // Modern input field
+              // Input field
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
                       color: isFocused 
                           ? AppStyles.primaryColor.withOpacity(0.08)
                           : Colors.black.withOpacity(0.02),
-                      blurRadius: isFocused ? 16 : 4,
-                      offset: Offset(0, isFocused ? 6 : 2),
-                      spreadRadius: 0,
+                      blurRadius: isFocused ? 12 : 4,
+                      offset: Offset(0, isFocused ? 4 : 2),
                     ),
                   ],
                 ),
@@ -320,7 +263,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[800],
                     letterSpacing: 0.3,
-                    height: 1.4,
                   ),
                   onSubmitted: (_) {
                     if (nextFocus != null) {
@@ -336,75 +278,66 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                     hintStyle: TextStyle(
                       color: Colors.grey[400],
                       fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.2,
                     ),
                     labelStyle: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
-                    prefixIcon: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                    prefixIcon: Container(
                       margin: const EdgeInsets.all(8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         gradient: isFocused 
                             ? LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                                 colors: [
                                   AppStyles.primaryColor,
                                   AppStyles.secondaryColor,
                                 ],
                               )
                             : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                                 colors: [
                                   Colors.grey[100]!,
                                   Colors.grey[200]!,
                                 ],
                               ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: isFocused ? [
-                          BoxShadow(
-                            color: AppStyles.primaryColor.withOpacity(0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ] : [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: AnimatedScale(
-                        scale: isFocused ? 1.1 : 1.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          icon,
-                          color: isFocused ? Colors.white : Colors.grey[600],
-                          size: 20,
-                        ),
+                      child: Icon(
+                        icon,
+                        color: isFocused ? Colors.white : Colors.grey[600],
+                        size: 20,
                       ),
                     ),
-                    suffixIcon: _buildSuffixIcon(isPasswordField, hasContent, isFocused),
+                    suffixIcon: isPasswordField
+                        ? IconButton(
+                            icon: Icon(
+                              _isPasswordVisible 
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded,
+                              color: isFocused 
+                                  ? AppStyles.primaryColor 
+                                  : Colors.grey[500],
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                              HapticFeedback.lightImpact();
+                            },
+                          )
+                        : null,
                     filled: true,
-                    fillColor: isFocused 
-                        ? Colors.white
-                        : Colors.grey[50],
+                    fillColor: isFocused ? Colors.white : Colors.grey[50],
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       borderSide: BorderSide(
                         color: Colors.grey.withOpacity(0.15),
                         width: 1.5,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       borderSide: BorderSide(
                         color: hasContent 
                             ? Colors.grey.withOpacity(0.3)
@@ -413,10 +346,10 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       borderSide: BorderSide(
                         color: AppStyles.primaryColor,
-                        width: 2.5,
+                        width: 2.0,
                       ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
@@ -433,99 +366,59 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
     );
   }
 
-  Widget? _buildSuffixIcon(bool isPasswordField, bool hasContent, bool isFocused) {
-    if (isPasswordField) {
-      return AnimatedOpacity(
-        opacity: hasContent ? 1.0 : 0.6,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                _isPasswordVisible 
-                    ? Icons.visibility_off_rounded
-                    : Icons.visibility_rounded,
-                key: ValueKey(_isPasswordVisible),
-                color: isFocused 
-                    ? AppStyles.primaryColor 
-                    : Colors.grey[500],
-                size: 22,
-              ),
-            ),
-            onPressed: () {
-              setState(() {
-                _isPasswordVisible = !_isPasswordVisible;
-              });
-              HapticFeedback.lightImpact();
-            },
-            splashRadius: 20,
+  Widget _buildLoginButton() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: double.infinity,
+      height: 64,
+      decoration: BoxDecoration(
+        gradient: AppStyles.primaryGradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: _isLoading 
+            ? AppStyles.cardShadow 
+            : [
+                BoxShadow(
+                  color: AppStyles.primaryColor.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: _isLoading ? null : _onLoginPressed,
+          splashColor: Colors.white.withOpacity(0.2),
+          child: Container(
+            alignment: Alignment.center,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.rocket_launch,
+                        color: Colors.white,
+                        size: LoginStyles.buttonIconSize,
+                      ),
+                      SizedBox(width: LoginStyles.buttonIconSpacing),
+                      Text(
+                        'Connect',
+                        style: LoginStyles.buttonTextStyle,
+                      ),
+                    ],
+                  ),
           ),
         ),
-      );
-    }
-    return null;
-  }
-
-  Widget _buildLoginButton() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: AppStyles.bouncyCurve,
-      builder: (context, value, _) {
-        return Transform.scale(
-          scale: value,
-          child: AnimatedContainer(
-            duration: AppStyles.mediumDuration,
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppStyles.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: _isLoading 
-                  ? AppStyles.cardShadow 
-                  : AppStyles.floatingShadow,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: _isLoading ? null : _onLoginPressed,
-                splashColor: Colors.white.withOpacity(0.25),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  alignment: Alignment.center,
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.rocket_launch,
-                              color: Colors.white,
-                              size: LoginStyles.buttonIconSize,
-                            ),
-                            SizedBox(width: LoginStyles.buttonIconSpacing),
-                            Text(
-                              'Connect',
-                              style: LoginStyles.buttonTextStyle,
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 }

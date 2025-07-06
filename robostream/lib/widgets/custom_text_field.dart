@@ -16,7 +16,6 @@ class CustomTextField extends StatefulWidget {
   final VoidCallback? onTap;
   final ValueChanged<String>? onChanged;
   final VoidCallback? onEditingComplete;
-  final CustomTextFieldStyle fieldStyle;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
 
@@ -35,86 +34,9 @@ class CustomTextField extends StatefulWidget {
     this.onTap,
     this.onChanged,
     this.onEditingComplete,
-    this.fieldStyle = CustomTextFieldStyle.standard,
     this.textInputAction,
     this.onSubmitted,
   });
-
-  const CustomTextField.ip({
-    super.key,
-    required this.label,
-    required this.controller,
-    this.hintText,
-    this.helperText,
-    this.errorText,
-    this.isEnabled = true,
-    this.focusNode,
-    this.onTap,
-    this.onChanged,
-    this.onEditingComplete,
-    this.textInputAction,
-    this.onSubmitted,
-  })  : icon = Icons.lan,
-        obscureText = false,
-        keyboardType = TextInputType.url,
-        fieldStyle = CustomTextFieldStyle.ip;
-
-  const CustomTextField.password({
-    super.key,
-    required this.label,
-    required this.controller,
-    this.hintText,
-    this.helperText,
-    this.errorText,
-    this.isEnabled = true,
-    this.focusNode,
-    this.onTap,
-    this.onChanged,
-    this.onEditingComplete,
-    this.textInputAction,
-    this.onSubmitted,
-  })  : icon = Icons.lock_outline,
-        obscureText = true,
-        keyboardType = TextInputType.visiblePassword,
-        fieldStyle = CustomTextFieldStyle.password;
-
-  const CustomTextField.username({
-    super.key,
-    required this.label,
-    required this.controller,
-    this.hintText,
-    this.helperText,
-    this.errorText,
-    this.isEnabled = true,
-    this.focusNode,
-    this.onTap,
-    this.onChanged,
-    this.onEditingComplete,
-    this.textInputAction,
-    this.onSubmitted,
-  })  : icon = Icons.person_outline,
-        obscureText = false,
-        keyboardType = TextInputType.text,
-        fieldStyle = CustomTextFieldStyle.username;
-
-  const CustomTextField.url({
-    super.key,
-    required this.label,
-    required this.controller,
-    this.hintText,
-    this.helperText,
-    this.errorText,
-    this.isEnabled = true,
-    this.focusNode,
-    this.onTap,
-    this.onChanged,
-    this.onEditingComplete,
-    this.textInputAction,
-    this.onSubmitted,
-  })  : icon = Icons.settings_ethernet,
-        obscureText = false,
-        keyboardType = TextInputType.url,
-        fieldStyle = CustomTextFieldStyle.url;
 
   @override
   State<CustomTextField> createState() => _CustomTextFieldState();
@@ -180,7 +102,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   BoxDecoration _getContainerDecoration(bool isFocused) {
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(_getBorderRadius()),
+      borderRadius: BorderRadius.circular(16.0),
       boxShadow: isFocused ? AppStyles.elevatedShadow : AppStyles.cardShadow,
     );
   }
@@ -210,16 +132,22 @@ class _CustomTextFieldState extends State<CustomTextField> {
   Widget? _buildPrefixIcon(bool isFocused) {
     if (widget.icon == null) return null;
     
+    const activePrefixGradient = LinearGradient(
+      colors: [AppStyles.primaryColor, Color(0xFF5B61F1)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    
     return AnimatedContainer(
       duration: AppStyles.mediumDuration,
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        gradient: isFocused ? _getPrefixGradient() : _inactivePrefixGradient,
+        gradient: isFocused ? activePrefixGradient : _inactivePrefixGradient,
         borderRadius: BorderRadius.circular(10),
         boxShadow: isFocused ? [
           BoxShadow(
-            color: _getPrefixColor().withOpacity(0.25),
+            color: AppStyles.primaryColor.withOpacity(0.25),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -245,31 +173,20 @@ class _CustomTextFieldState extends State<CustomTextField> {
     );
   }
 
-  double _getBorderRadius() {
-    switch (widget.fieldStyle) {
-      case CustomTextFieldStyle.standard:
-      case CustomTextFieldStyle.ip:
-      case CustomTextFieldStyle.password:
-      case CustomTextFieldStyle.username:
-      case CustomTextFieldStyle.url:
-        return 16.0;
-    }
-  }
-
   Color get _fillColor => widget.isEnabled ? Colors.white : Colors.grey[100]!;
 
   OutlineInputBorder _getBorder() {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(_getBorderRadius()),
+      borderRadius: BorderRadius.circular(16.0),
       borderSide: BorderSide.none,
     );
   }
 
   OutlineInputBorder _getFocusedBorder() {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(_getBorderRadius()),
+      borderRadius: BorderRadius.circular(16.0),
       borderSide: BorderSide(
-        color: _getPrefixColor(),
+        color: AppStyles.primaryColor,
         width: 2,
       ),
     );
@@ -277,7 +194,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   OutlineInputBorder _getErrorBorder() {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(_getBorderRadius()),
+      borderRadius: BorderRadius.circular(16.0),
       borderSide: const BorderSide(
         color: AppStyles.errorColor,
         width: 2,
@@ -295,7 +212,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
     return TextStyle(
       fontSize: isFocused ? 14 : 16,
       fontWeight: FontWeight.w500,
-      color: isFocused ? _getPrefixColor() : Colors.grey[600],
+      color: isFocused ? AppStyles.primaryColor : Colors.grey[600],
     );
   }
 
@@ -317,40 +234,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   EdgeInsets get _contentPadding => const EdgeInsets.symmetric(horizontal: 16, vertical: 20);
 
-  Color _getPrefixColor() {
-    switch (widget.fieldStyle) {
-      case CustomTextFieldStyle.standard:
-      case CustomTextFieldStyle.url:
-        return AppStyles.primaryColor;
-      case CustomTextFieldStyle.ip:
-        return AppStyles.accentColor;
-      case CustomTextFieldStyle.password:
-        return AppStyles.warningColor;
-      case CustomTextFieldStyle.username:
-        return AppStyles.secondaryColor;
-    }
-  }
-
-  LinearGradient _getPrefixGradient() {
-    final color = _getPrefixColor();
-    return LinearGradient(
-      colors: [color, color.withOpacity(0.8)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
-
   LinearGradient get _inactivePrefixGradient => const LinearGradient(
         colors: [Color(0xFFBDBDBD), Color(0xFF9E9E9E)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       );
-}
-
-enum CustomTextFieldStyle {
-  standard,
-  ip,
-  password,
-  username,
-  url,
 }

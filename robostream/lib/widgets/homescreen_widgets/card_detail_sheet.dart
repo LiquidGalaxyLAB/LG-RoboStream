@@ -44,22 +44,13 @@ class CardDetailSheet extends StatelessWidget {
       },
       child: Container(
         color: Colors.transparent,
-        child: GestureDetector(
-          onTap: () {},
-          child: DraggableScrollableSheet(
+        child: DraggableScrollableSheet(
             initialChildSize: initialSize,
             minChildSize: 0.3,
             maxChildSize: 0.8,
             builder: (context, scrollController) => Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFF8FAFC),
-                    const Color(0xFFF1F5F9),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                gradient: _createCommonGradient(),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
                 boxShadow: [
                   BoxShadow(
@@ -81,6 +72,7 @@ class CardDetailSheet extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  // Drag handle
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Container(
@@ -125,7 +117,6 @@ class CardDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
@@ -196,14 +187,7 @@ class CardDetailSheet extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: statusInfo['status'] == 'Online' || 
-                         statusInfo['status'] == 'Active' || 
-                         statusInfo['status'] == 'Connected' ||
-                         statusInfo['status'] == 'Tracking' ||
-                         statusInfo['status'] == 'Ready' ||
-                         statusInfo['status'] == 'Monitoring'
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
+                  color: _getStatusColor(statusInfo['status']!),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -213,14 +197,7 @@ class CardDetailSheet extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: statusInfo['status'] == 'Online' || 
-                         statusInfo['status'] == 'Active' || 
-                         statusInfo['status'] == 'Connected' ||
-                         statusInfo['status'] == 'Tracking' ||
-                         statusInfo['status'] == 'Ready' ||
-                         statusInfo['status'] == 'Monitoring'
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
+                  color: _getStatusColor(statusInfo['status']!),
                 ),
               ),
             ],
@@ -404,28 +381,7 @@ class CardDetailSheet extends StatelessWidget {
           _buildCameraPreview(),
           const SizedBox(height: 12),
           // Add refresh button for camera
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (onRefreshImage != null) {
-                    onRefreshImage!();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh Image', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
+          _buildRefreshButton(),
           const SizedBox(height: 12),
           _buildDetailRow('Camera ID', rgbCamera.cameraId),
           _buildDetailRow('Resolution', rgbCamera.resolution),
@@ -442,11 +398,7 @@ class CardDetailSheet extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF8FAFC),
-            const Color(0xFFF1F5F9),
-          ],
+        gradient: _createCommonGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -542,14 +494,7 @@ class CardDetailSheet extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF8FAFC),
-            const Color(0xFFF1F5F9),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+        gradient: _createCommonGradient(),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFF59E0B).withOpacity(0.1),
@@ -572,13 +517,11 @@ class CardDetailSheet extends StatelessWidget {
             if (loadingProgress == null) return child;
             return Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: _createCommonGradient(
                   colors: [
                     const Color(0xFFF1F5F9),
                     const Color(0xFFF8FAFC),
                   ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
                 ),
               ),
               child: Center(
@@ -617,13 +560,11 @@ class CardDetailSheet extends StatelessWidget {
             print('Error loading camera image: $error');
             return Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: _createCommonGradient(
                   colors: [
                     const Color(0xFFF1F5F9),
                     const Color(0xFFF8FAFC),
                   ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
                 ),
               ),
               child: Center(
@@ -655,15 +596,9 @@ class CardDetailSheet extends StatelessWidget {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
-                        // Call refresh callback if provided
                         if (onRefreshImage != null) {
                           onRefreshImage!();
                         }
-                        // Force refresh by creating a new instance
-                        Navigator.of(context).pop();
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          // Reopen the sheet if needed
-                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
@@ -688,6 +623,60 @@ class CardDetailSheet extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+
+  // Helper function to determine if a status is positive
+  bool _isPositiveStatus(String status) {
+    return status == 'Online' || 
+           status == 'Active' || 
+           status == 'Connected' ||
+           status == 'Tracking' ||
+           status == 'Ready' ||
+           status == 'Monitoring';
+  }
+
+  // Helper function to get status color
+  Color _getStatusColor(String status) {
+    return _isPositiveStatus(status) 
+        ? const Color(0xFF10B981) 
+        : const Color(0xFFEF4444);
+  }
+
+  // Helper function to create common gradient
+  LinearGradient _createCommonGradient({
+    List<Color>? colors,
+    AlignmentGeometry? begin,
+    AlignmentGeometry? end,
+  }) {
+    return LinearGradient(
+      colors: colors ?? [
+        const Color(0xFFF8FAFC),
+        const Color(0xFFF1F5F9),
+      ],
+      begin: begin ?? Alignment.topCenter,
+      end: end ?? Alignment.bottomCenter,
+    );
+  }
+
+  // Helper function to create refresh button
+  Widget _buildRefreshButton() {
+    return ElevatedButton.icon(
+      onPressed: () {
+        if (onRefreshImage != null) {
+          onRefreshImage!();
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF6366F1),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      icon: const Icon(Icons.refresh, size: 16),
+      label: const Text('Refresh Image', style: TextStyle(fontSize: 12)),
     );
   }
 }

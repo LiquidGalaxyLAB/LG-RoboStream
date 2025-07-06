@@ -22,24 +22,7 @@ class KMLSender {
     }
   }
 
-  Future<bool> sendHTMLContent(String htmlContent, String fileName) async {
-    try {
-      final htmlCommand = '''echo '$htmlContent' > /var/www/html/$fileName''';
-      await _client.run(htmlCommand);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  Future<bool> sendCommand(String command) async {
-    try {
-      await _client.run(command);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
 
   /// Sends KML content to the leftmost screen (for logo)
   Future<bool> sendKMLToLeftmostScreen(String kmlContent) async {
@@ -54,7 +37,6 @@ class KMLSender {
   /// Sends image to the rightmost screen (for camera data)
   Future<bool> sendImageToRightmostScreen(Uint8List imageBytes, String fileName) async {
     try {
-      // Extraer el tipo de sensor del nombre del archivo para limpiar archivos antiguos
       final baseName = fileName.split('_').first;
       await cleanupOldImages('${baseName}_*.png');
       
@@ -93,10 +75,8 @@ class KMLSender {
     return success;
   }
 
-  /// Limpia archivos de imagen antiguos para evitar acumulación
   Future<bool> cleanupOldImages(String pattern) async {
     try {
-      // Eliminar archivos que coincidan con el patrón (ej: gps_data_*.png)
       final cleanupCommand = '''find /var/www/html/ -name "$pattern" -type f -mmin +5 -delete''';
       await _client.run(cleanupCommand);
       return true;

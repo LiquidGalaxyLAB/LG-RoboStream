@@ -709,7 +709,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
   Widget _buildModernInfoRow(String label, String value, IconData icon, Color themeColor) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _buildCardDecoration(themeColor),
+      decoration: _buildUnifiedDecoration(themeColor: themeColor),
       child: Row(
         children: [
           _buildIconContainer(icon, themeColor),
@@ -743,32 +743,50 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
     );
   }
 
-  // Método para crear decoración de tarjeta reutilizable
-  BoxDecoration _buildCardDecoration(Color themeColor) {
+  // Unified decoration method that handles all box decoration patterns
+  BoxDecoration _buildUnifiedDecoration({
+    required Color themeColor,
+    double borderRadius = 16,
+    bool useGradient = true,
+    double shadowOpacity = 0.08,
+  }) {
     return BoxDecoration(
-      gradient: LinearGradient(
+      gradient: useGradient ? LinearGradient(
         colors: [
           const Color(0xFFF8FAFC),
           const Color(0xFFF1F5F9),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(16),
+      ) : null,
+      color: useGradient ? null : Colors.white,
+      borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: themeColor.withOpacity(0.08),
+        color: themeColor.withOpacity(shadowOpacity),
         width: 1,
       ),
+      boxShadow: [
+        BoxShadow(
+          color: themeColor.withOpacity(0.1),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
     );
   }
 
-  // Método para crear contenedor de icono reutilizable
-  Widget _buildIconContainer(IconData icon, Color themeColor) {
+  // Enhanced icon container with configurable size
+  Widget _buildIconContainer(IconData icon, Color themeColor, {double size = 40}) {
     return Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(size * 0.3),
         gradient: LinearGradient(
           colors: [
             themeColor.withOpacity(0.1),
@@ -781,41 +799,19 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
       child: Icon(
         icon,
         color: themeColor,
-        size: 20,
+        size: size * 0.5,
       ),
     );
   }
 
-  // Método para crear contenedor principal con tema
+  // Simplified theme container using unified decoration
   Widget _buildThemeContainer(Color themeColor, String title, String subtitle, IconData headerIcon, Widget child) {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            Colors.white.withOpacity(0.95),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: themeColor.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(
-          color: themeColor.withOpacity(0.08),
-          width: 1,
-        ),
+      decoration: _buildUnifiedDecoration(
+        themeColor: themeColor, 
+        borderRadius: 24,
+        useGradient: false,
       ),
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -823,26 +819,7 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [
-                      themeColor.withOpacity(0.1),
-                      themeColor.withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Icon(
-                  headerIcon,
-                  color: themeColor,
-                  size: 24,
-                ),
-              ),
+              _buildIconContainer(headerIcon, themeColor, size: 48),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

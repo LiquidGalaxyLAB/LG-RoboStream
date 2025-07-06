@@ -17,31 +17,19 @@ class SystemInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.elasticOut,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value.clamp(0.0, 1.0),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        decoration: _cardDecoration,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 20),
-              _buildSystemDetailsGrid(),
-            ],
-          ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeInOut,
+      decoration: _cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 20),
+            _buildSystemDetailsGrid(),
+          ],
         ),
       ),
     );
@@ -52,7 +40,15 @@ class SystemInfoCard extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: _iconContainerDecoration,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppStyles.primaryColor.withOpacity(0.2),
+                AppStyles.secondaryColor.withOpacity(0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Icon(
             Icons.memory,
             color: AppStyles.primaryColor,
@@ -64,13 +60,21 @@ class SystemInfoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'System Information',
-                style: _titleTextStyle,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
               ),
-              Text(
+              const Text(
                 'Robot Operating System Details',
-                style: _subtitleTextStyle,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -151,28 +155,6 @@ class SystemInfoCard extends StatelessWidget {
       ),
     ],
   );
-
-  BoxDecoration get _iconContainerDecoration => BoxDecoration(
-    gradient: LinearGradient(
-      colors: [
-        AppStyles.primaryColor.withOpacity(0.2),
-        AppStyles.secondaryColor.withOpacity(0.1),
-      ],
-    ),
-    borderRadius: BorderRadius.circular(12),
-  );
-
-  TextStyle get _titleTextStyle => const TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w700,
-    color: Color(0xFF1E293B),
-  );
-
-  TextStyle get _subtitleTextStyle => const TextStyle(
-    fontSize: 13,
-    color: Color(0xFF64748B),
-    fontWeight: FontWeight.w500,
-  );
 }
 
 class _SystemDetailCard extends StatelessWidget {
@@ -192,7 +174,21 @@ class _SystemDetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -206,45 +202,25 @@ class _SystemDetailCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: _labelTextStyle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             value,
-            style: _valueTextStyle,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
+            ),
           ),
         ],
       ),
     );
   }
-
-  BoxDecoration get _cardDecoration => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(
-      color: color.withOpacity(0.2),
-      width: 1,
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: color.withOpacity(0.1),
-        blurRadius: 8,
-        offset: const Offset(0, 2),
-      ),
-    ],
-  );
-
-  TextStyle get _labelTextStyle => const TextStyle(
-    fontSize: 12,
-    color: Color(0xFF64748B),
-    fontWeight: FontWeight.w600,
-  );
-
-  TextStyle get _valueTextStyle => const TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w700,
-    color: Color(0xFF1E293B),
-  );
 }

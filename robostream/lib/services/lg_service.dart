@@ -126,8 +126,6 @@ class LGService {
   Future<bool> showSensorData(SensorData sensorData, List<String> selectedSensors) async {
     if (!isConnected || selectedSensors.isEmpty) return false;
     
-    print('🚀 Mostrando datos de sensores en LG: ${selectedSensors.join(", ")}');
-    
     List<String> sensorOverlays = [];
     bool allImagesUploaded = true;
     
@@ -147,7 +145,6 @@ class LGService {
       String imageName = sensorInfo['imageName'] as String;
       bool imageSent = await _connectionManager.kmlSender!.sendImageToRightmostScreen(imageBytes, imageName);
       if (!imageSent) {
-        print('❌ Error al enviar imagen para sensor: $selectedSensor');
         allImagesUploaded = false;
         continue;
       }
@@ -158,12 +155,6 @@ class LGService {
     
     String combinedKML = _buildCombinedKML(sensorOverlays);
     bool kmlSent = await _connectionManager.kmlSender!.sendKMLToRightmostScreen(combinedKML);
-    
-    if (allImagesUploaded && kmlSent) {
-      print('✅ Datos de sensores enviados exitosamente a LG');
-    } else {
-      print('❌ Error al enviar algunos datos de sensores a LG');
-    }
     
     return allImagesUploaded && kmlSent;
   }

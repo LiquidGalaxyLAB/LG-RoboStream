@@ -25,7 +25,7 @@ class ModernAnimatedCard extends StatelessWidget {
           child: Transform.scale(
             scale: 0.8 + (0.2 * value),
             child: Opacity(
-              opacity: value.clamp(0.0, 1.0),
+              opacity: value,
               child: child,
             ),
           ),
@@ -47,7 +47,6 @@ class ModernAnimatedCard extends StatelessWidget {
               color: (cardData['color'] as Color).withOpacity(0.12),
               blurRadius: 16,
               offset: const Offset(0, 8),
-              spreadRadius: 0,
             ),
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -57,7 +56,6 @@ class ModernAnimatedCard extends StatelessWidget {
           ],
           border: Border.all(
             color: (cardData['color'] as Color).withOpacity(0.08),
-            width: 1,
           ),
         ),
         child: Material(

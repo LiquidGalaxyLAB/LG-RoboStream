@@ -48,7 +48,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
 
   @override
   void dispose() {
-    _disposeTestService();
+    _testService?.dispose();
+    _testService = null;
     _urlController.dispose();
     super.dispose();
   }
@@ -56,7 +57,8 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   Future<void> _testConnection(String url) async {
     if (!mounted) return;
     
-    _disposeTestService();
+    _testService?.dispose();
+    _testService = null;
     
     setState(() {
       _isTestingConnection = true;
@@ -83,13 +85,9 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         _isTestingConnection = false;
       });
     } finally {
-      _disposeTestService();
+      _testService?.dispose();
+      _testService = null;
     }
-  }
-
-  void _disposeTestService() {
-    _testService?.dispose();
-    _testService = null;
   }
 
   // Helper methods for common UI patterns

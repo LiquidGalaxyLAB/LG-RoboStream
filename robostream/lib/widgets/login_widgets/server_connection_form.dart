@@ -29,7 +29,6 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
   void initState() {
     super.initState();
     _serverIpController.addListener(() => setState(() {}));
-    // No auto-fill - solo el valor dinámico que introduce el usuario
   }
 
   @override
@@ -88,46 +87,19 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-          builder: (context, value, _) {
-            return Transform.translate(
-              offset: Offset(0, 20 * (1 - value)),
-              child: Opacity(
-                opacity: value,
-                child: _buildEnhancedTextField(
-                  controller: _serverIpController,
-                  focusNode: _serverIpFocus,
-                  label: 'Server IP Address',
-                  icon: Icons.dns_rounded,
-                  hintText: 'Enter server IP address',
-                  keyboardType: TextInputType.url,
-                ),
-              ),
-            );
-          },
-        ),
+        _buildServerIpField(),
         const SizedBox(height: 32),
         _buildConnectButton(),
       ],
     );
   }
 
-  Widget _buildEnhancedTextField({
-    required TextEditingController controller,
-    required FocusNode focusNode,
-    required String label,
-    required IconData icon,
-    String? hintText,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  Widget _buildServerIpField() {
     return AnimatedBuilder(
-      animation: focusNode,
+      animation: _serverIpFocus,
       builder: (context, child) {
-        final isFocused = focusNode.hasFocus;
-        final hasContent = controller.text.isNotEmpty;
+        final isFocused = _serverIpFocus.hasFocus;
+        final hasContent = _serverIpController.text.isNotEmpty;
         final isActive = isFocused || hasContent;
         
         return Container(
@@ -135,10 +107,9 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // External floating label with animation
+              // Floating label
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
                 height: isActive ? 24 : 0,
                 padding: EdgeInsets.only(
                   left: 20,
@@ -148,7 +119,7 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
                   opacity: isActive ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
                   child: Text(
-                    label.toUpperCase(),
+                    'SERVER IP ADDRESS',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -161,10 +132,8 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
                 ),
               ),
               
-              // Modern input field
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
+              // Input field
+              Container(
                 decoration: BoxDecoration(
                   boxShadow: [
                     BoxShadow(
@@ -173,89 +142,60 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
                           : Colors.black.withOpacity(0.02),
                       blurRadius: isFocused ? 16 : 4,
                       offset: Offset(0, isFocused ? 6 : 2),
-                      spreadRadius: 0,
                     ),
                   ],
                 ),
                 child: TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  keyboardType: keyboardType,
+                  controller: _serverIpController,
+                  focusNode: _serverIpFocus,
+                  keyboardType: TextInputType.url,
                   textInputAction: TextInputAction.done,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[800],
-                    letterSpacing: 0.3,
-                    height: 1.4,
                   ),
                   onSubmitted: (_) => _onConnectPressed(),
                   onTap: () => HapticFeedback.selectionClick(),
                   decoration: InputDecoration(
-                    labelText: !isActive ? label : null,
-                    hintText: isActive ? (hintText ?? 'Enter your ${label.toLowerCase()}') : null,
+                    labelText: !isActive ? 'Server IP Address' : null,
+                    hintText: isActive ? 'Enter server IP address' : null,
                     hintStyle: TextStyle(
                       color: Colors.grey[400],
                       fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.2,
                     ),
                     labelStyle: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
-                    prefixIcon: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
+                    prefixIcon: Container(
                       margin: const EdgeInsets.all(8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         gradient: isFocused 
                             ? LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                                 colors: [
                                   AppStyles.primaryColor,
                                   AppStyles.secondaryColor,
                                 ],
                               )
                             : LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
                                 colors: [
                                   Colors.grey[100]!,
                                   Colors.grey[200]!,
                                 ],
                               ),
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: isFocused ? [
-                          BoxShadow(
-                            color: AppStyles.primaryColor.withOpacity(0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ] : [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
-                      child: AnimatedScale(
-                        scale: isFocused ? 1.1 : 1.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          icon,
-                          color: isFocused ? Colors.white : Colors.grey[600],
-                          size: 20,
-                        ),
+                      child: Icon(
+                        Icons.dns_rounded,
+                        color: isFocused ? Colors.white : Colors.grey[600],
+                        size: 20,
                       ),
                     ),
                     filled: true,
-                    fillColor: isFocused 
-                        ? Colors.white
-                        : Colors.grey[50],
+                    fillColor: isFocused ? Colors.white : Colors.grey[50],
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide(
@@ -294,63 +234,51 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
   }
 
   Widget _buildConnectButton() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: AppStyles.bouncyCurve,
-      builder: (context, value, _) {
-        return Transform.scale(
-          scale: value,
-          child: AnimatedContainer(
-            duration: AppStyles.mediumDuration,
-            width: double.infinity,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: AppStyles.primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: _isConnecting 
-                  ? AppStyles.cardShadow 
-                  : AppStyles.floatingShadow,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                onTap: _isConnecting ? null : _onConnectPressed,
-                splashColor: Colors.white.withOpacity(0.25),
-                highlightColor: Colors.white.withOpacity(0.1),
-                child: Container(
-                  alignment: Alignment.center,
-                  child: _isConnecting
-                      ? const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.wifi_find_rounded,
-                              color: Colors.white,
-                              size: LoginStyles.buttonIconSize,
-                            ),
-                            SizedBox(width: LoginStyles.buttonIconSpacing),
-                            Text(
-                              'Connect to Server',
-                              style: LoginStyles.buttonTextStyle,
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
+    return AnimatedContainer(
+      duration: AppStyles.mediumDuration,
+      width: double.infinity,
+      height: 64,
+      decoration: BoxDecoration(
+        gradient: AppStyles.primaryGradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: _isConnecting 
+            ? AppStyles.cardShadow 
+            : AppStyles.floatingShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: _isConnecting ? null : _onConnectPressed,
+          child: Container(
+            alignment: Alignment.center,
+            child: _isConnecting
+                ? const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.wifi_find_rounded,
+                        color: Colors.white,
+                        size: LoginStyles.buttonIconSize,
+                      ),
+                      SizedBox(width: LoginStyles.buttonIconSpacing),
+                      Text(
+                        'Connect to Server',
+                        style: LoginStyles.buttonTextStyle,
+                      ),
+                    ],
+                  ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
