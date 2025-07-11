@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:robostream/config/server_config.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:robostream/services/lg_service_manager.dart';
 
 class ServerConfigScreen extends StatefulWidget {
   final RobotServerService? serverService;
@@ -69,12 +72,29 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       _testService = RobotServerService();
       _testService!.updateServerUrl(url);
       
-      final isConnected = await _testService!.checkConnection();
+      // Try connection with retry mechanism
+      bool isConnected = false;
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!isConnected && retryCount < maxRetries) {
+        isConnected = await _testService!.checkConnection();
+        if (!isConnected) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
+      }
       
       if (!mounted) return;
       
       setState(() {
-        _connectionStatus = isConnected ? 'Connected successfully!' : 'Connection failed';
+        if (isConnected) {
+          _connectionStatus = 'Connected successfully!';
+        } else {
+          _connectionStatus = 'Connection failed after $maxRetries attempts. Please check the server URL and ensure the server is running.';
+        }
         _isTestingConnection = false;
       });
     } catch (e) {
@@ -677,7 +697,11 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   }
 
   Future<void> _saveConfiguration() async {
+    print('🔴 DEBUG: _saveConfiguration() called - START');
+    
     final newUrl = _urlController.text.trim();
+    print('🔴 DEBUG: newUrl = $newUrl');
+    
     if (newUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -698,35 +722,193 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       return;
     }
 
-    if (widget.serverService != null && 
-        widget.serverService!.currentBaseUrl != newUrl && 
-        widget.serverService!.isStreaming) {
-      widget.serverService!.stopStreaming();
+    try {
+      // Save configuration immediately without testing
+      await ServerConfigManager.instance.saveServerIp(newUrl.replaceAll('http://', '').replaceAll(':8000', ''));
+
+      // Update existing service if it exists
+      if (widget.serverService != null) {
+        // Update URL
+        widget.serverService!.updateServerUrl(newUrl);
+        
+        // Start background connection verification and streaming setup
+        _startBackgroundConnectionVerification(widget.serverService!);
+      }
+
+      // Try to fetch and save LG config in background
+      _fetchAndSaveLGConfig(newUrl);
+      
+      // Send current LG config to server immediately
+      print('🔴 DEBUG: About to call _sendCurrentLGConfigToServer()');
+      await _sendCurrentLGConfigToServer(newUrl);
+      print('🔴 DEBUG: _sendCurrentLGConfigToServer() completed');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Configuration saved successfully')),
+            ],
+          ),
+          backgroundColor: _successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      
+      // Return immediately to home screen
+      Navigator.pop(context, newUrl);
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Error saving configuration: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: _errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _startBackgroundConnectionVerification(RobotServerService service) async {
+    // This runs in background after user returns to home screen
+    try {
+      // Stop current streaming if running
+      if (service.isStreaming) {
+        service.stopStreaming();
+      }
+      
+      // Wait a moment for the UI to settle
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Try to establish connection with 5-second timeout
+      bool isConnected = false;
+      int retryCount = 0;
+      const maxRetries = 2; // Reduced retries for faster response
+      
+      while (!isConnected && retryCount < maxRetries) {
+        try {
+          isConnected = await service.checkConnection().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => false,
+          );
+          if (!isConnected) {
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await Future.delayed(const Duration(seconds: 1));
+            }
+          }
+        } catch (e) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
+      }
+      
+      // Start streaming regardless of connection status
+      // The connection indicator will update automatically through the stream
+      service.startStreaming();
+      
+    } catch (e) {
+      // Silent error handling - just start streaming anyway
+      service.startStreaming();
+    }
+  }
+
+  Future<void> _fetchAndSaveLGConfig(String serverUrl) async {
+    try {
+      final response = await http.get(Uri.parse('$serverUrl/lg-config'));
+      if (response.statusCode == 200) {
+        final config = json.decode(response.body);
+        await LGConfigService.saveLGConfig(
+          host: config['host'] ?? '',
+          username: config['username'] ?? '',
+          password: config['password'] ?? '',
+          totalScreens: config['total_screens'] ?? 3,
+        );
+      }
+    } catch (e) {
+      print('Could not fetch LG config from server during server setup: $e');
+    }
+  }
+
+  Future<void> _sendCurrentLGConfigToServer(String serverUrl) async {
+    print('🔴🔴🔴 DEBUG: _sendCurrentLGConfigToServer called with URL: $serverUrl 🔴🔴🔴');
+    
+    try {
+      // Get current LG configuration from local storage
+      print('🔴 DEBUG: Getting LG config from local storage...');
+      final lgConfig = await LGConfigService.getLGConfig();
+      final totalScreens = await LGConfigService.getTotalScreens();
+      
+      print('🔴 DEBUG: Retrieved LG config from local storage:');
+      print('🔴   Host: ${lgConfig['host']}');
+      print('🔴   Username: ${lgConfig['username']}');
+      print('🔴   Password: ${lgConfig['password']}');
+      print('🔴   Total screens: $totalScreens');
+      
+      // Only send if we have valid configuration
+      final host = lgConfig['host'];
+      if (host != null && host.isNotEmpty) {
+        print('🔴 DEBUG: Host is valid, sending LG configuration to server: $host');
+        
+        final requestBody = {
+          'host': host,
+          'username': lgConfig['username'] ?? 'lg',
+          'password': lgConfig['password'] ?? '',
+          'total_screens': totalScreens,
+        };
+        
+        final requestBodyJson = jsonEncode(requestBody);
+        print('🔴 DEBUG: Request body: $requestBodyJson');
+        
+        print('🔴 DEBUG: Making HTTP POST request to: $serverUrl/lg-config');
+        final response = await http.post(
+          Uri.parse('$serverUrl/lg-config'),
+          headers: {'Content-Type': 'application/json'},
+          body: requestBodyJson,
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print('🔴 DEBUG: HTTP request timeout');
+            throw Exception('Request timeout');
+          },
+        );
+        
+        print('🔴 DEBUG: HTTP response received');
+        print('🔴 DEBUG: Server response status: ${response.statusCode}');
+        print('🔴 DEBUG: Server response body: ${response.body}');
+        
+        if (response.statusCode == 200) {
+          print('🔴 ✅ LG configuration sent to server successfully');
+        } else {
+          print('🔴 ❌ Failed to send LG configuration to server: ${response.statusCode}');
+          print('🔴 ❌ Response body: ${response.body}');
+        }
+      } else {
+        print('🔴 ❌ No valid LG configuration found to send to server');
+        print('🔴    Host is null or empty: $host');
+        print('🔴    Full config: $lgConfig');
+      }
+    } catch (e, stackTrace) {
+      print('🔴 ❌ EXCEPTION in _sendCurrentLGConfigToServer: $e');
+      print('🔴 ❌ Stack trace: $stackTrace');
     }
     
-    widget.serverService?.updateServerUrl(newUrl);
-    
-    if (widget.serverService != null) {
-      widget.serverService!.startStreaming();
-    }
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(child: Text('Configuration saved successfully')),
-          ],
-        ),
-        backgroundColor: _successColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-    
-    Navigator.pop(context, newUrl);
+    print('🔴🔴🔴 DEBUG: _sendCurrentLGConfigToServer completed 🔴🔴🔴');
   }
 }

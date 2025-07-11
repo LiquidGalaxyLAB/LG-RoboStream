@@ -1,7 +1,5 @@
 import 'server.dart';
-import 'lg_config_service.dart';
-import 'lg_connection_manager.dart';
-import 'lg_file_manager.dart';
+import 'lg_service_manager.dart';
 import 'image_generator.dart';
 
 // Login result class to handle login responses

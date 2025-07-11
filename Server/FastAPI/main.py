@@ -11,6 +11,9 @@ import os
 
 from models import SensorData, ActuatorData, RGBCameraData
 from robot_simulator import RobotSimulator, ROS2_AVAILABLE
+from pydantic import BaseModel
+import LG.lg_data as lg_data
+from LG.lg_service import lg_service
 
 #Here I try to import the ROS2 integration module.
 try:
@@ -33,6 +36,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Pydantic model for LG configuration
+class LGConfig(BaseModel):
+    host: str
+    username: str
+    password: str
+    total_screens: int
+
+# Pydantic model for LG login
+class LGLoginRequest(BaseModel):
+    host: str
+    username: str 
+    password: str
+    total_screens: int
+
+# Pydantic model for sensor data streaming
+class LGSensorRequest(BaseModel):
+    selected_sensors: List[str]
+
+# Pydantic model for server host
+class LGServerRequest(BaseModel):
+    server_host: str
+
 #I create the robot simulator instance and list for connected WebSocket clients.
 robot = RobotSimulator()
 connected_clients: List[WebSocket] = []
@@ -53,8 +78,125 @@ async def root():
             "rgb_camera": "/rgb-camera",
             "rgb_camera_image": "/rgb-camera/image",
             "rgb_camera_image_data": "/rgb-camera/image-data",
-            "websocket": "/ws"
+            "websocket": "/ws",
+            "lg_config": "/lg-config",
+            "lg_login": "/lg/login",
+            "lg_show_logo": "/lg/show-logo",
+            "lg_show_camera": "/lg/show-camera",
+            "lg_show_sensors": "/lg/show-sensors",
+            "lg_hide_sensors": "/lg/hide-sensors",
+            "lg_disconnect": "/lg/disconnect"
         }
+    }
+
+#I define the endpoint to set LG configuration
+@app.post("/lg-config")
+async def set_lg_config(config: LGConfig):
+    lg_data.LG_HOST = config.host
+    lg_data.LG_USERNAME = config.username
+    lg_data.LG_PASSWORD = config.password
+    lg_data.LG_TOTAL_SCREENS = config.total_screens
+    return {"message": "Liquid Galaxy configuration updated successfully"}
+
+#I define the endpoint to get LG configuration
+@app.get("/lg-config")
+async def get_lg_config():
+    return {
+        "host": lg_data.LG_HOST,
+        "username": lg_data.LG_USERNAME,
+        "password": lg_data.LG_PASSWORD,
+        "total_screens": lg_data.LG_TOTAL_SCREENS,
+    }
+
+# LG Service Endpoints
+@app.post("/lg/login")
+async def lg_login(request: LGLoginRequest):
+    """Login to Liquid Galaxy and test connection"""
+    result = await lg_service.login(
+        request.host, 
+        request.username, 
+        request.password, 
+        request.total_screens
+    )
+    return {
+        "success": result.success,
+        "message": result.message
+    }
+
+@app.post("/lg/show-logo")
+async def lg_show_logo():
+    """Show RoboStream logo on Liquid Galaxy"""
+    print("Debug: lg_show_logo endpoint called")
+    print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
+    
+    success = await lg_service.show_logo()
+    print(f"Debug: lg_service.show_logo() returned: {success}")
+    
+    return {
+        "success": success,
+        "message": "Logo displayed successfully" if success else "Failed to display logo"
+    }
+
+@app.post("/lg/show-camera")
+async def lg_show_camera(request: LGServerRequest):
+    """Show RGB camera feed on Liquid Galaxy"""
+    print(f"Debug: lg_show_camera endpoint called with server_host: {request.server_host}")
+    print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
+    
+    success = await lg_service.show_rgb_camera(request.server_host)
+    print(f"Debug: lg_service.show_rgb_camera() returned: {success}")
+    
+    return {
+        "success": success,
+        "message": "Camera feed displayed successfully" if success else "Failed to display camera feed"
+    }
+
+@app.post("/lg/show-sensors")
+async def lg_show_sensors(request: LGSensorRequest):
+    """Show sensor data on Liquid Galaxy"""
+    print(f"Debug: lg_show_sensors endpoint called with sensors: {request.selected_sensors}")
+    print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
+    
+    robot.update_sensors()
+    sensor_data_dict = robot.sensor_data.dict()
+    
+    success = await lg_service.show_sensor_data(sensor_data_dict, request.selected_sensors)
+    print(f"Debug: lg_service.show_sensor_data() returned: {success}")
+    
+    return {
+        "success": success,
+        "message": "Sensor data displayed successfully" if success else "Failed to display sensor data"
+    }
+    return {
+        "success": success,
+        "message": "Sensor data displayed successfully" if success else "Failed to display sensor data"
+    }
+
+@app.post("/lg/hide-sensors")
+async def lg_hide_sensors():
+    """Hide sensor data from Liquid Galaxy"""
+    success = await lg_service.hide_sensor_data()
+    return {
+        "success": success,
+        "message": "Sensor data hidden successfully" if success else "Failed to hide sensor data"
+    }
+
+@app.post("/lg/disconnect")
+async def lg_disconnect():
+    """Disconnect from Liquid Galaxy"""
+    await lg_service.disconnect()
+    return {
+        "success": True,
+        "message": "Disconnected from Liquid Galaxy"
+    }
+
+@app.post("/lg/clear-all-kml")
+async def lg_clear_all_kml():
+    """Clear ALL KML content from ALL Liquid Galaxy screens"""
+    success = await lg_service.clear_all_kml()
+    return {
+        "success": success,
+        "message": "All KML content cleared successfully" if success else "Failed to clear all KML content"
     }
 
 #I define the sensors endpoint to get current sensor data.
@@ -212,6 +354,15 @@ if __name__ == "__main__":
     print(f"   GET  /rgb-camera/image-data - Camera image as base64 + metadata")
     print(f"   WS   /ws                - WebSocket real-time data")
     print(f"   GET  /ros2/status       - ROS2 integration status")
+    print(f"   POST /lg-config         - Set Liquid Galaxy configuration")
+    print(f"   GET  /lg-config         - Get Liquid Galaxy configuration")
+    print(f"   POST /lg/login          - Login to Liquid Galaxy")
+    print(f"   POST /lg/show-logo      - Show logo on Liquid Galaxy")
+    print(f"   POST /lg/show-camera    - Show camera feed on Liquid Galaxy")
+    print(f"   POST /lg/show-sensors   - Show sensor data on Liquid Galaxy")
+    print(f"   POST /lg/hide-sensors   - Hide sensor data from Liquid Galaxy")
+    print(f"   POST /lg/disconnect     - Disconnect from Liquid Galaxy")
+    print(f"   POST /lg/clear-all-kml  - Clear all KML content from Liquid Galaxy")
     
     #I initialize ROS2 if available.
     if ROS2_AVAILABLE:

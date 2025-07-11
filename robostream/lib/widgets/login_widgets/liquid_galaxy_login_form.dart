@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:robostream/services/lg_service.dart';
-import 'package:robostream/services/lg_config_service.dart';
+import 'package:robostream/services/lg_server_service.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
@@ -87,11 +86,12 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
         return;
       }
       
-      final result = await LGService.login(
+      final result = await LGServerService.login(
         lgIpAddress: _lgIpController.text,
         lgUsername: _lgUsernameController.text,
         lgPassword: _lgPasswordController.text,
         totalScreens: totalScreens,
+        serverHost: widget.serverIp,
       );
       
       if (mounted) {

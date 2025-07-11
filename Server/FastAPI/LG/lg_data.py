@@ -1,0 +1,4 @@
+LG_HOST = None
+LG_USERNAME = None
+LG_PASSWORD = None
+LG_TOTAL_SCREENS = None

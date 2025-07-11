@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/server_config_manager.dart';
 import '../widgets/widgets.dart';
-import '../services/lg_connection_manager.dart';
-import '../services/lg_service.dart';
 
 class LGConfigScreen extends StatefulWidget {
   final String currentHost;
@@ -39,6 +40,32 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     _usernameController = TextEditingController(text: widget.currentUsername);
     _passwordController = TextEditingController(text: widget.currentPassword);
     _totalScreensController = TextEditingController(text: widget.currentTotalScreens.toString());
+    _fetchConfigurationFromServer();
+  }
+
+  Future<void> _fetchConfigurationFromServer() async {
+    try {
+      final serverUrl = await ServerConfigManager.instance.getServerUrl();
+      if (serverUrl == null) {
+        // Server not configured, do nothing.
+        return;
+      }
+      final response = await http.get(Uri.parse('$serverUrl/lg-config'));
+      if (response.statusCode == 200) {
+        final config = json.decode(response.body);
+        if (mounted) {
+          setState(() {
+            _hostController.text = config['host'] ?? widget.currentHost;
+            _usernameController.text = config['username'] ?? widget.currentUsername;
+            _passwordController.text = config['password'] ?? widget.currentPassword;
+            _totalScreensController.text = (config['total_screens'] ?? widget.currentTotalScreens).toString();
+          });
+        }
+      }
+    } catch (e) {
+      // Silently fail if the server is not reachable or config doesn't exist
+      print('Could not fetch LG config from server: $e');
+    }
   }
 
   @override
@@ -106,36 +133,60 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
     try {
       HapticFeedback.mediumImpact();
-      
-      // Save configuration
-      widget.onConfigSaved(
-        fields['host'], 
-        fields['username'], 
-        fields['password'], 
-        fields['totalScreens']
-      );
-      
-      // Show logo on LG after saving configuration
-      final lgService = LGService(
-        host: fields['host'],
-        username: fields['username'],
-        password: fields['password'],
-        totalScreens: fields['totalScreens'],
-      );
-      
-      final connected = await lgService.connect();
-      if (connected) {
-        await lgService.showLogoUsingKML();
-        lgService.disconnect();
+
+      final serverUrl = await ServerConfigManager.instance.getServerUrl();
+      if (serverUrl == null) {
+        _showErrorSnackBar('Server URL is not configured.');
+        setState(() {
+          _isSaving = false;
+        });
+        return;
       }
-      
-      Navigator.pop(context, true);
+
+      final response = await http.post(
+        Uri.parse('$serverUrl/lg-config'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'host': fields['host'],
+          'username': fields['username'],
+          'password': fields['password'],
+          'total_screens': fields['totalScreens'],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Save configuration locally
+        widget.onConfigSaved(
+          fields['host'], 
+          fields['username'], 
+          fields['password'], 
+          fields['totalScreens']
+        );
+        
+        // Show logo on LG after saving configuration through server
+        final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+        if (serverIp != null) {
+          await http.post(
+            Uri.parse('http://$serverIp:8000/lg/show-logo'),
+            headers: {'Content-Type': 'application/json'},
+          );
+          // Logo request sent to server (no need to wait for response)
+        }
+        
+        if(mounted) Navigator.pop(context, true);
+      } else {
+        _showErrorSnackBar('Failed to save configuration on server: ${response.body}');
+      }
     } catch (e) {
       _showErrorSnackBar('Error saving configuration: ${e.toString()}');
     } finally {
-      setState(() {
-        _isSaving = false;
-      });
+      if(mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -148,35 +199,27 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     });
 
     try {
-      final connectionManager = LGConnectionManager(
-        host: fields['host'],
-        username: fields['username'],
-        password: fields['password'],
-        totalScreens: fields['totalScreens'],
-      );
-
-      final connected = await connectionManager.connect();
-      if (!connected) {
-        _showErrorSnackBar('Failed to connect to Liquid Galaxy');
-        setState(() {
-          _isClearing = false;
-        });
-        return;
-      }
-
-      final success = await connectionManager.kmlSender?.clearAllSlaves() ?? false;
-      connectionManager.disconnect();
-
-      if (success) {
-        HapticFeedback.mediumImpact();
-        _showSuccessSnackBar('All KML files cleared successfully');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to clear some KML files'),
-            backgroundColor: Colors.orange,
-          ),
+      // Clear ALL KML through server
+      final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+      if (serverIp != null) {
+        final response = await http.post(
+          Uri.parse('http://$serverIp:8000/lg/clear-all-kml'),
+          headers: {'Content-Type': 'application/json'},
         );
+        
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body);
+          if (responseData['success'] == true) {
+            HapticFeedback.mediumImpact();
+            _showSuccessSnackBar('All KML content cleared successfully from Liquid Galaxy');
+          } else {
+            _showErrorSnackBar('Failed to clear all KML: ${responseData['message']}');
+          }
+        } else {
+          _showErrorSnackBar('Failed to clear all KML from Liquid Galaxy');
+        }
+      } else {
+        _showErrorSnackBar('Server configuration not found');
       }
     } catch (e) {
       _showErrorSnackBar('Error clearing KML files: ${e.toString()}');

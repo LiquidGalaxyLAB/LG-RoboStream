@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:robostream/widgets/widgets.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
-import 'package:robostream/services/lg_service.dart';
-import 'package:robostream/services/lg_config_service.dart';
+import 'package:robostream/services/lg_server_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
@@ -39,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ActuatorData? _actuatorData;
   int _imageRefreshKey = 0;
 
-  LGService? _lgService;
+  LGServerService? _lgService;
   String _selectedSensor = '';
   bool _isStreamingToLG = false;
   bool _isLGConnected = false;
@@ -47,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _lgUsername = 'lg';
   String _lgPassword = 'lg';
   int _lgTotalScreens = 3;
+  String _serverHost = '192.168.1.100';
 
   String? _lastSensorDataHash;
   String? _lastActuatorDataHash;
@@ -112,22 +112,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _checkLGConnection() async {
     try {
-      final testLGService = LGService(
-        host: _lgHost,
-        username: _lgUsername,
-        password: _lgPassword,
-        totalScreens: _lgTotalScreens,
-      );
-      
-      bool connected = await testLGService.connect();
+      // Since we're using server-based LG, just check if we have config
+      final config = await LGConfigService.getLGConfig();
       if (mounted) {
         setState(() {
-          _isLGConnected = connected;
+          _isLGConnected = config['host']?.isNotEmpty == true;
         });
-      }
-      
-      if (connected) {
-        testLGService.disconnect();
       }
     } catch (e) {
       if (mounted) {
@@ -247,6 +237,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       barrierDismissible: true,
       builder: (context) => SensorSelectionDialog(
         onSelectionConfirmed: (selectedSensor) {
+          print('Debug: Sensor selected: "$selectedSensor"');
           _selectedSensor = selectedSensor;
           _startStreamingToLG();
         },
@@ -296,6 +287,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _startStreamingToLG() async {
+    print('Debug: Starting LG streaming with selectedSensor: "$_selectedSensor"');
+    
     setState(() {
       _isStreamingToLG = true;
     });
@@ -305,34 +298,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastActuatorDataHash = null;
     _lastForceUpdateTime = null;
     
-    _lgService = LGService(
-      host: _lgHost,
-      username: _lgUsername,
-      password: _lgPassword,
-      totalScreens: _lgTotalScreens,
-    );
+    // Get server host from config
+    final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+    _serverHost = serverIp ?? '192.168.1.100';
     
-    bool connected = false;
-    try {
-      connected = await _lgService?.connect() ?? false;
-    } catch (e) {
-      connected = false;
-    }
+    _lgService = LGServerService(serverHost: _serverHost);
     
-    if (!connected) {
-      if (mounted) {
-        setState(() {
-          _isLGConnected = false;
-        });
+    // Server-based LG doesn't need explicit connection, just set as connected if config exists
+    final lgConfig = await LGConfigService.getLGConfig();
+    bool hasLGConfig = lgConfig['host']?.isNotEmpty == true;
+    
+    print('Debug: LG Config: $lgConfig');
+    print('Debug: Has LG Config: $hasLGConfig');
+    
+    if (mounted) {
+      setState(() {
+        _isLGConnected = hasLGConfig;
+      });
+      
+      if (!hasLGConfig) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to connect to Liquid Galaxy'),
-            backgroundColor: Colors.red,
+            content: Text('No Liquid Galaxy configuration found'),
+            backgroundColor: Colors.orange,
           ),
         );
+        _stopStreamingToLG();
+        return;
       }
-      _stopStreamingToLG();
-      return;
     }
     
     if (mounted) {
@@ -361,22 +354,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _sendSelectedSensorsToLG(SensorData sensorData) async {
-    if (_lgService == null || _selectedSensor.isEmpty) return;
+    if (_lgService == null || _selectedSensor.isEmpty) {
+      print('Debug: Cannot send to LG - lgService: ${_lgService != null}, selectedSensor: "$_selectedSensor"');
+      return;
+    }
 
     try {
-      String serverBaseUrl = _serverService.currentBaseUrl;
-      String serverHost = serverBaseUrl.replaceAll('http://', '').replaceAll(':8000', '');
-
+      print('Debug: Sending $_selectedSensor to LG via server');
       if (_selectedSensor == 'RGB Camera') {
-        await _lgService?.showRGBCameraImage(serverHost);
+        final result = await _lgService?.showRGBCameraImage();
+        print('Debug: RGB Camera result: $result');
       } else if (_selectedSensor == 'All Sensors') {
         List<String> allSensors = ['GPS Position', 'IMU Sensors', 'Temperature', 'Wheel Motors', 'RGB Camera'];
-        await _lgService?.showSensorData(sensorData, allSensors);
+        final result = await _lgService?.showSensorData(allSensors);
+        print('Debug: All Sensors result: $result');
       } else {
-        await _lgService?.showSensorData(sensorData, [_selectedSensor]);
+        final result = await _lgService?.showSensorData([_selectedSensor]);
+        print('Debug: Single sensor ($_selectedSensor) result: $result');
       }
     } catch (e) {
-      // Handle error silently
+      print('Debug: Error sending to LG: $e');
     }
   }
 
@@ -393,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     try {
       if (_lgService != null) {
         await _lgService?.hideSensorData();
-        _lgService?.disconnect();
+        await _lgService?.disconnect();
         _lgService = null;
       }
     } catch (e) {
@@ -456,6 +453,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
            '${actuatorData.frontRightWheel.speed}'
            '${actuatorData.backLeftWheel.speed}'
            '${actuatorData.backRightWheel.speed}';
+  }
+
+  Future<void> _refreshConnectionStatus() async {
+    // Forzar verificación de conexión
+    final isConnected = await _serverService.checkConnection();
+    
+    if (mounted) {
+      setState(() {
+        _isConnected = isConnected;
+      });
+    }
+    
+    // Si la conexión es exitosa y el streaming no está activo, iniciarlo
+    if (isConnected && !_serverService.isStreaming) {
+      _serverService.startStreaming();
+    }
   }
 
   @override
@@ -693,11 +706,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (context) => StreamingMenu(
           onRGBCameraOnlyTap: () {
             Navigator.pop(context);
+            print('Debug: RGB Camera selected from menu');
             _selectedSensor = 'RGB Camera';
             _startStreamingToLG();
           },
           onAllSensorsTap: () {
             Navigator.pop(context);
+            print('Debug: All Sensors selected from menu, showing dialog');
             _showSensorSelectionDialog();
           },
         ),
@@ -725,6 +740,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (result != null && result.isNotEmpty) {
             // Actualizar la URL del servidor
             _serverService.updateServerUrl(result);
+            
+            // Refrescar inmediatamente el estado de conexión
+            await _refreshConnectionStatus();
+            
+            // Pequeña pausa para animación
             await Future.delayed(const Duration(milliseconds: 500));
             HapticFeedback.selectionClick();
           }

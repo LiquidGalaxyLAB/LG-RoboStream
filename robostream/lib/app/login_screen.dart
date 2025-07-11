@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 import 'package:robostream/widgets/login_widgets/login_widgets.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:robostream/services/lg_service_manager.dart';
+import 'package:robostream/services/server_config_manager.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -103,7 +107,28 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _showErrorMessage(message);
   }
 
+  Future<void> _fetchAndSaveLGConfigFromServer(String serverIp) async {
+    try {
+      // We assume the default port, as it's not available in the login screen.
+      // The server config screen should be used for non-default ports.
+      final port = await ServerConfigManager.instance.getSavedServerPort();
+      final serverUrl = 'http://$serverIp:$port';
+      final response = await http.get(Uri.parse('$serverUrl/lg-config'));
 
+      if (response.statusCode == 200) {
+        final config = json.decode(response.body);
+        await LGConfigService.saveLGConfig(
+          host: config['host'] ?? '',
+          username: config['username'] ?? '',
+          password: config['password'] ?? '',
+          totalScreens: config['total_screens'] ?? 3,
+        );
+      }
+    } catch (e) {
+      // Silently fail, the user can still input the data manually.
+      print('Could not fetch LG config from server on login: $e');
+    }
+  }
 
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -344,12 +369,13 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                               child: !_isServerConnected
                                   ? ServerConnectionForm(
                                       key: const ValueKey('server-form'),
-                                      onConnectionSuccess: (serverIp) {
+                                      onConnectionSuccess: (serverIp) async {
+                                        _showSuccessMessage('Server connected successfully! Please configure Liquid Galaxy.');
+                                        await _fetchAndSaveLGConfigFromServer(serverIp);
                                         setState(() {
                                           _isServerConnected = true;
                                           _serverIp = serverIp;
                                         });
-                                        _showSuccessMessage('Server connected successfully! Please configure Liquid Galaxy.');
                                       },
                                       onError: _onError,
                                     )
