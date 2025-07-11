@@ -1,11 +1,10 @@
 # 🤖 RoboStream v1.00
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/ce3605da-4f5f-458c-bd9d-7468db23b7fb" width="150" alt="RoboStream Logo">
+  <img src="https://github.com/user-attachments/assets/40783f94-63f8-4798-b599-3dece36d66a7" width="400" alt="RoboStream Logo">
   <h3>Real-time Robot Sensor Data Streaming for Liquid Galaxy</h3>
   <p>A comprehensive solution for visualizing robot sensor data on Liquid Galaxy displays</p>
 </div>
-
 ---
 
 ## 📋 Table of Contents
@@ -23,13 +22,19 @@
 
 ## 🚀 Server Setup
 
-First, initialize the server environment. Navigate to the project directory and run:
+First, initialize the server environment. Navigate to the server directory and run:
 
 ```bash
 docker-compose up -d --build
 ```
 
 This command uses Docker to build the project's required environment and start all necessary services in the background.
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/ce3605da-4f5f-458c-bd9d-7468db23b7fb" width="600" alt="RoboStream Logo">
+  <h3>Real-time Robot Sensor Data Streaming for Liquid Galaxy</h3>
+  <p>A comprehensive solution for visualizing robot sensor data on Liquid Galaxy displays</p>
+</div>
 
 ---
 
