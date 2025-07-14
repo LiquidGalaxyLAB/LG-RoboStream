@@ -121,7 +121,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           host: config['host'] ?? '',
           username: config['username'] ?? '',
           password: config['password'] ?? '',
-          totalScreens: config['total_screens'] ?? 3,
+          totalScreens: config['total_screens'] ?? '',
         );
       }
     } catch (e) {

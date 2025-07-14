@@ -203,14 +203,14 @@ class LGConfigService {
   static const String _lgTotalScreensKey = 'lg_total_screens';
   
   // Default values
-  static const String _defaultTotalScreens = '3';
+  static const String _defaultTotalScreens = '';
 
   /// Saves Liquid Galaxy configuration persistently
   static Future<void> saveLGConfig({
     required String host,
     required String username,
     required String password,
-    int totalScreens = 3,
+    required int totalScreens,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
