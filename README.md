@@ -7,6 +7,7 @@
 </div>
 ---
 
+
 ## 📋 Table of Contents
 - [🚀 Server Setup](#-server-setup)
 - [📲 App Installation](#-app-installation)
@@ -17,6 +18,7 @@
 - [📊 Sensor Data](#-sensor-data)
 - [📡 Data Streaming](#-data-streaming)
 - [⏹️ Stop Streaming](#️-stop-streaming)
+- [🙏 Acknowledgements](#-acknowledgements)
 
 ---
 
@@ -178,7 +180,7 @@ Simply press the **"Stop Streaming"** button to immediately stop all data transm
 <div align="center">
   <h3>🙏 Acknowledgements</h3>
   <p>
-    Thanks to my main mentor <strong>Moises Martínez</strong> and secondary mentors <strong>Andreu Ibañez</strong> and <strong>kamalimiquel</strong>.<br>
+    Thanks to my main mentor <strong>Moisés Martínez</strong> and secondary mentors <strong>Andreu Ibañez</strong> and <strong>kamalimiquel</strong>.<br>
     And thanks to the team of the <strong>Liquid Galaxy LAB Lleida</strong>, Headquarters of the Liquid Galaxy project:<br>
     <strong>Alba, Paula, Josep, Jordi, Oriol, Sharon, Alejandro, Marc</strong>, and admin <strong>Andreu</strong>, for their continuous support on my project.<br>
     Info at <a href="https://www.liquidgalaxy.eu" target="_blank">www.liquidgalaxy.eu</a>
