@@ -241,7 +241,7 @@ async def get_rgb_camera():
 
 #I define the RGB camera image endpoint to serve the current image file.
 @app.get("/rgb-camera/image")
-async def get_rgb_camera_image():
+async def get_rgb_camera_image(t: int = None):
     robot.update_sensors()
     image_path = robot.get_current_image_path()
     
@@ -251,10 +251,13 @@ async def get_rgb_camera_image():
             image_path,
             media_type="image/png",
             headers={
-                "Cache-Control": "no-cache",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
                 "X-Image-Index": str(robot.current_image_index),
                 "X-Total-Images": str(len(robot.image_files)),
-                "X-Current-Image": robot.image_files[robot.current_image_index] if robot.image_files else ""
+                "X-Current-Image": robot.image_files[robot.current_image_index] if robot.image_files else "",
+                "X-Timestamp": str(t) if t else "none"
             }
         )
     else:

@@ -1,6 +1,8 @@
 import time
 from typing import Dict, Any, List
 
+import time
+
 class KMLBuilder:
     def __init__(self, lg_host: str):
         self.lg_host = lg_host
@@ -20,11 +22,13 @@ class KMLBuilder:
     
     def build_camera_kml(self, server_host: str) -> str:
         """Builds KML for showing RGB camera feed"""
+        # Add timestamp to force image refresh and avoid caching
+        timestamp = int(time.time())
         return self._build_kml_document(
             'RoboStreamCameraFeed',
             self._build_screen_overlay(
                 'RGBCamera',
-                f'http://{server_host}:8000/rgb-camera/image',
+                f'http://{server_host}:8000/rgb-camera/image?t={timestamp}',
                 overlay_xy='1,1',
                 screen_xy='0.98,0.98',
                 size='400,300,pixels',

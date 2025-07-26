@@ -22,7 +22,7 @@ class RobotSimulator:
         self.base_lon = -3.7123
         
         #I configure the update intervals for sensors and images.
-        self.update_interval = 5.0
+        self.update_interval = 2.0  # Reduce to 2 seconds for more frequent updates
         self.last_update = 0.0
         
         #I set up the image folder and load available images.
@@ -102,13 +102,14 @@ class RobotSimulator:
     #I update the RGB camera image rotation based on time interval.
     def _update_rgb_camera(self):
         current_time = time.time()
+        time_since_last_rotation = current_time - self.last_image_update
         
         #I check if it's time to rotate to the next image.
-        if (current_time - self.last_image_update >= self.image_rotation_interval 
+        if (time_since_last_rotation >= self.image_rotation_interval 
             and self.image_files):
             self.current_image_index = (self.current_image_index + 1) % len(self.image_files)
             self.last_image_update = current_time
-            print(f"[{time.strftime('%H:%M:%S')}] RGB Camera: Rotated to image {self.current_image_index + 1}/{len(self.image_files)}: {self.image_files[self.current_image_index]}")
+            print(f"[{time.strftime('%H:%M:%S')}] RGB Camera: Rotated to image {self.current_image_index + 1}/{len(self.image_files)}: {self.image_files[self.current_image_index]} (after {time_since_last_rotation:.1f}s)")
         
         #I update the camera data with current information.
         self.sensor_data.rgb_camera = self._create_rgb_camera_data()

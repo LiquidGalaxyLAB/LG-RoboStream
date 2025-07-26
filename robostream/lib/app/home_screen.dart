@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/widgets/widgets.dart';
@@ -50,6 +51,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _lastSensorDataHash;
   String? _lastActuatorDataHash;
   DateTime? _lastForceUpdateTime;
+  
+  // Timer para envío de datos a LG cada 5 segundos durante streaming
+  Timer? _lgStreamingTimer;
 
   @override
   void initState() {
@@ -211,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _scrollController.dispose();
     _serverService.dispose();
     _lgService?.disconnect();
+    _lgStreamingTimer?.cancel();
     super.dispose();
   }
 
@@ -341,10 +346,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await _sendSelectedSensorsToLG(currentSensorData);
     }
     
+    // Iniciar timer para envío automático cada 5 segundos
+    _startLGStreamingTimer();
+    
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Streaming $_selectedSensor to Liquid Galaxy'),
+          content: Text('Streaming $_selectedSensor to Liquid Galaxy (every 5s)'),
           backgroundColor: Colors.green,
         ),
       );
@@ -359,66 +367,122 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     try {
       print('Debug: Sending $_selectedSensor to LG via server');
+      
+      // Añadir timeout de 3 segundos para todas las operaciones
+      Future<bool?> sendOperation;
+      
       if (_selectedSensor == 'RGB Camera') {
-        final result = await _lgService?.showRGBCameraImage();
-        print('Debug: RGB Camera result: $result');
+        sendOperation = _lgService?.showRGBCameraImage() ?? Future.value(false);
       } else if (_selectedSensor == 'All Sensors') {
         List<String> allSensors = ['GPS Position', 'IMU Sensors', 'Temperature', 'Wheel Motors', 'RGB Camera'];
-        final result = await _lgService?.showSensorData(allSensors);
-        print('Debug: All Sensors result: $result');
+        sendOperation = _lgService?.showSensorData(allSensors) ?? Future.value(false);
       } else {
-        final result = await _lgService?.showSensorData([_selectedSensor]);
-        print('Debug: Single sensor ($_selectedSensor) result: $result');
+        sendOperation = _lgService?.showSensorData([_selectedSensor]) ?? Future.value(false);
       }
+      
+      final result = await Future.any([
+        sendOperation,
+        Future.delayed(const Duration(seconds: 3), () => null)
+      ]);
+      
+      print('Debug: $_selectedSensor result: $result');
     } catch (e) {
       print('Debug: Error sending to LG: $e');
     }
   }
 
   void _stopStreamingToLG() async {
+    // Primero actualizar la UI inmediatamente
     setState(() {
       _isStreamingToLG = false;
     });
+    
+    // Cancelar el timer de streaming inmediatamente
+    _lgStreamingTimer?.cancel();
+    _lgStreamingTimer = null;
     
     // Resetear los hashes de datos
     _lastSensorDataHash = null;
     _lastActuatorDataHash = null;
     _lastForceUpdateTime = null;
+    _selectedSensor = '';
     
-    try {
-      if (_lgService != null) {
-        await _lgService?.hideSensorData();
-        await _lgService?.disconnect();
-        _lgService = null;
-      }
-    } catch (e) {
-      // Handle error silently
+    // Mostrar confirmación inmediata al usuario
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Streaming stopped'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
     
-    _selectedSensor = '';
+    // Hacer las operaciones de red en segundo plano sin bloquear la UI
+    _cleanupLGServiceInBackground();
+  }
+  
+  /// Limpia el servicio LG en segundo plano sin bloquear la UI
+  void _cleanupLGServiceInBackground() {
+    if (_lgService != null) {
+      // Ejecutar en segundo plano con un timeout
+      Future.delayed(Duration.zero, () async {
+        try {
+          // Timeout de 3 segundos para evitar que se cuelgue
+          await Future.any([
+            _lgService?.hideSensorData() ?? Future.value(false),
+            Future.delayed(const Duration(seconds: 3))
+          ]);
+          
+          await Future.any([
+            _lgService?.disconnect() ?? Future.value(false),
+            Future.delayed(const Duration(seconds: 3))
+          ]);
+        } catch (e) {
+          print('Debug: Error during cleanup: $e');
+        } finally {
+          _lgService = null;
+        }
+      });
+    }
+  }
+
+  /// Inicia el timer para envío automático a LG cada 5 segundos
+  void _startLGStreamingTimer() {
+    // Cancelar timer anterior si existe
+    _lgStreamingTimer?.cancel();
+    
+    // Crear nuevo timer que se ejecute cada 5 segundos
+    _lgStreamingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
+        print('Debug: Timer - Sending $_selectedSensor to LG every 5 seconds');
+        
+        try {
+          // Añadir timeout de 4 segundos para evitar que se cuelgue
+          await Future.any([
+            _sendSelectedSensorsToLG(_sensorData!),
+            Future.delayed(const Duration(seconds: 4))
+          ]);
+        } catch (e) {
+          print('Debug: Timer error sending to LG: $e');
+        }
+      }
+    });
   }
 
   /// Maneja los cambios en los datos del servidor durante el streaming
   void _handleServerDataChange(SensorData sensorData) async {
-    // Crear un hash de los datos del sensor para detectar cambios
+    // Con el nuevo timer de 5 segundos, solo actualizamos el hash para referencia
+    // El timer se encarga del envío automático cada 5 segundos
     String currentDataHash = _generateSensorDataHash(sensorData);
+    _lastSensorDataHash = currentDataHash;
+    _lastForceUpdateTime = DateTime.now();
     
-    // Verificar si ha pasado suficiente tiempo para forzar una actualización (cada 30 segundos)
-    final now = DateTime.now();
-    final shouldForceUpdate = _lastForceUpdateTime == null || 
-        now.difference(_lastForceUpdateTime!).inSeconds > 30;
-    
-    // Verificar si los datos han cambiado realmente o si necesitamos forzar actualización
-    final hasDataChanged = _lastSensorDataHash != currentDataHash;
-    final shouldUpdate = hasDataChanged || shouldForceUpdate;
-    if (shouldUpdate) {
-      // Actualizar el hash y timestamp
-      _lastSensorDataHash = currentDataHash;
-      _lastForceUpdateTime = now;
-      
-      // Regenerar y enviar la imagen automáticamente
-      await _sendSelectedSensorsToLG(sensorData);
-    }
+    // Usar substring seguro para evitar errores de rango
+    String displayHash = (_lastSensorDataHash?.length ?? 0) > 10 
+        ? _lastSensorDataHash!.substring(0, 10) 
+        : _lastSensorDataHash ?? 'empty';
+    print('Debug: Sensor data hash updated: $displayHash... at ${_lastForceUpdateTime?.toIso8601String()}');
   }
   
   /// Genera un hash simplificado basado en los datos del sensor para detectar cambios
@@ -430,19 +494,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Maneja los cambios en los datos del actuador durante el streaming
   void _handleActuatorDataChange(ActuatorData actuatorData) async {
-    // Crear un hash de los datos del actuador para detectar cambios
+    // Con el nuevo timer de 5 segundos, solo actualizamos el hash para referencia
+    // El timer se encarga del envío automático cada 5 segundos
     String currentDataHash = _generateActuatorDataHash(actuatorData);
+    _lastActuatorDataHash = currentDataHash;
     
-    // Verificar si los datos han cambiado realmente
-    if (_lastActuatorDataHash != currentDataHash) {
-      // Actualizar el hash
-      _lastActuatorDataHash = currentDataHash;
-      
-      // Regenerar y enviar la imagen automáticamente si el sensor seleccionado incluye datos del actuador
-      if (_selectedSensor == 'Temperature' || _selectedSensor == 'Wheel Motors' || _selectedSensor == 'All Sensors') {
-        await _sendSelectedSensorsToLG(_sensorData!);
-      }
-    }
+    // Usar substring seguro para evitar errores de rango
+    String displayHash = (_lastActuatorDataHash?.length ?? 0) > 10 
+        ? _lastActuatorDataHash!.substring(0, 10) 
+        : _lastActuatorDataHash ?? 'empty';
+    print('Debug: Actuator data hash updated: $displayHash...');
   }
   
   /// Genera un hash simplificado basado en los datos del actuador para detectar cambios
@@ -549,6 +610,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.camera_alt_outlined, 
         'label': 'RGB Camera', 
+        'value': rgbCamera != null 
+            ? '${rgbCamera.status} - ${rgbCamera.resolution}' 
+            : 'Disconnected',
         'color': rgbCamera != null && rgbCamera.status == 'Active' 
             ? const Color(0xFF6366F1) 
             : const Color(0xFF64748B),
@@ -556,6 +620,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.radar_outlined, 
         'label': 'LiDAR Sensor', 
+        'value': lidarStatus,
         'color': lidarStatus == 'Connected' 
             ? const Color(0xFF8B5CF6) 
             : const Color(0xFF64748B),
@@ -563,6 +628,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.location_on_outlined, 
         'label': 'GPS Position', 
+        'value': gpsData != null 
+            ? '${gpsData.latitude.toStringAsFixed(6)}\n${gpsData.longitude.toStringAsFixed(6)}' 
+            : 'No GPS Signal',
         'color': gpsData != null 
             ? const Color(0xFF06B6D4) 
             : const Color(0xFF64748B),
@@ -570,6 +638,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.speed_outlined, 
         'label': 'Movement', 
+        'value': gpsData != null 
+            ? '${gpsData.speed.toStringAsFixed(1)} m/s' 
+            : '0.0 m/s',
         'color': gpsData != null && gpsData.speed > 0 
             ? const Color(0xFF10B981) 
             : const Color(0xFF64748B),
@@ -577,6 +648,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.settings_input_component_outlined, 
         'label': 'IMU Sensors', 
+        'value': imuData != null 
+            ? 'Acc: ${imuData.accelerometer.x.toStringAsFixed(1)}\nGyro: ${imuData.gyroscope.x.toStringAsFixed(1)}' 
+            : 'No IMU Data',
         'color': imuData != null 
             ? const Color(0xFFF59E0B) 
             : const Color(0xFF64748B),
@@ -584,6 +658,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.precision_manufacturing_outlined, 
         'label': 'Wheel Motors', 
+        'value': _actuatorData != null 
+            ? 'FL: ${_actuatorData!.frontLeftWheel.speed}\nFR: ${_actuatorData!.frontRightWheel.speed}' 
+            : 'Motor Data N/A',
         'color': _actuatorData != null 
             ? const Color(0xFF8B5CF6) 
             : const Color(0xFF64748B),
@@ -591,6 +668,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.thermostat_outlined, 
         'label': 'Temperature', 
+        'value': _actuatorData != null 
+            ? '${_actuatorData!.frontLeftWheel.temperature.toStringAsFixed(1)}°C' 
+            : 'Temp N/A',
         'color': _actuatorData != null 
             ? const Color(0xFFEF4444) 
             : const Color(0xFF64748B),
@@ -598,6 +678,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       {
         'icon': Icons.cloud_outlined, 
         'label': 'Server Link', 
+        'value': _isConnected 
+            ? 'Connected' 
+            : 'Disconnected',
         'color': _isConnected 
             ? const Color(0xFF10B981) 
             : const Color(0xFFEF4444),

@@ -102,6 +102,19 @@ class ModernAnimatedCard extends StatelessWidget {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  if (cardData['value'] != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      cardData['value'] as String,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: (cardData['color'] as Color),
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),

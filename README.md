@@ -126,6 +126,7 @@ View detailed information from individual sensors:
 - **Real-time Data**: All sensor information is displayed and updated every 30 seconds
 - **Detailed View**: Tap any sensor card to see comprehensive data
 - **Server Sync**: Data comes directly from the server and matches what's shown on Liquid Galaxy
+- **Streaming**: When streaming to Liquid Galaxy, data is sent every 5 seconds automatically
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/957e445f-a745-4d69-81ac-32b3f8afd3bf" width="300" alt="Sensor Data 1">
@@ -141,7 +142,7 @@ Start streaming data to Liquid Galaxy:
 **Streaming Options:**
 - 📷 **RGB Camera**: Immediate streaming when selected
 - 🔬 **Other Sensors**: Select sensor, then press "Start Streaming"
-- ⏱️ **Update Frequency**: Data updates every 30 seconds
+- ⏱️ **Update Frequency**: Data updates every 5 seconds during streaming
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/333a18ea-7d27-4dc0-b088-222786c13310" width="300" alt="Streaming Options">
