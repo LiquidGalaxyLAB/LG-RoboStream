@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 import 'package:robostream/widgets/login_widgets/login_widgets.dart';
+import 'package:robostream/widgets/common/custom_snackbar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:robostream/services/lg_service_manager.dart';
@@ -131,25 +132,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   void _showSuccessMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppStyles.primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    CustomSnackBar.showSuccess(context, message);
   }
 
   void _showErrorMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppStyles.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    CustomSnackBar.showError(context, message);
   }
 
   void _showSuccessAnimation() {

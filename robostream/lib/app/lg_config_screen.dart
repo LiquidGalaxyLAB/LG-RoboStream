@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/server_config_manager.dart';
 import '../widgets/widgets.dart';
+import '../widgets/common/custom_snackbar.dart';
 
 class LGConfigScreen extends StatefulWidget {
   final String currentHost;
@@ -105,22 +106,12 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
   // Helper method for showing error messages
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
+    CustomSnackBar.showError(context, message);
   }
 
   // Helper method for showing success messages
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
+    CustomSnackBar.showSuccess(context, message);
   }
 
   void _saveConfiguration() async {

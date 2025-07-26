@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/widgets/widgets.dart';
+import 'package:robostream/widgets/common/custom_snackbar.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/services/lg_server_service.dart';
@@ -280,12 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (result == true) {
       HapticFeedback.selectionClick();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Liquid Galaxy configuration saved'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      CustomSnackBar.showSuccess(context, 'Liquid Galaxy configuration saved');
     }
   }
 
@@ -320,12 +316,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
       
       if (!hasLGConfig) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No Liquid Galaxy configuration found'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        CustomSnackBar.showWarning(context, 'No Liquid Galaxy configuration found');
         _stopStreamingToLG();
         return;
       }
@@ -350,12 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _startLGStreamingTimer();
     
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Streaming $_selectedSensor to Liquid Galaxy (every 5s)'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      CustomSnackBar.showSuccess(context, 'Streaming $_selectedSensor to Liquid Galaxy (every 5s)');
     }
   }
 
@@ -409,13 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     // Mostrar confirmación inmediata al usuario
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Streaming stopped'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      CustomSnackBar.showInfo(context, 'Streaming stopped');
     }
     
     // Hacer las operaciones de red en segundo plano sin bloquear la UI
