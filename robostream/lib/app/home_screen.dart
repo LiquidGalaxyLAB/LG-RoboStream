@@ -36,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final RobotServerService _serverService = RobotServerService();
   SensorData? _sensorData;
   ActuatorData? _actuatorData;
-  int _imageRefreshKey = 0;
 
   LGServerService? _lgService;
   String _selectedSensor = '';
@@ -141,7 +140,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _sensorData = sensorData;
-          _imageRefreshKey++;
         });
         // Verificar si los datos del servidor han cambiado durante el streaming
         if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty) {
@@ -679,14 +677,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         actuatorData: _actuatorData,
         isConnected: _isConnected,
         serverBaseUrl: _serverService.currentBaseUrl,
-        imageRefreshKey: _imageRefreshKey,
-        onRefreshImage: () {
-          if (mounted) {
-            setState(() {
-              _imageRefreshKey++;
-            });
-          }
-        },
       ),
     );
   }

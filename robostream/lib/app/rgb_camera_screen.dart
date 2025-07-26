@@ -3,8 +3,10 @@ import 'package:robostream/services/server.dart';
 import 'dart:async';
 import 'dart:convert';
 
+final GlobalKey<_RGBCameraScreenState> rgbCameraScreenKey = GlobalKey<_RGBCameraScreenState>();
+
 class RGBCameraScreen extends StatefulWidget {
-  const RGBCameraScreen({super.key});
+  const RGBCameraScreen({Key? key}) : super(key: key);
 
   @override
   State<RGBCameraScreen> createState() => _RGBCameraScreenState();
@@ -74,6 +76,10 @@ class _RGBCameraScreenState extends State<RGBCameraScreen> {
         });
       }
     }
+  }
+
+  Future<void> loadCameraData() async {
+    await _loadCameraData();
   }
 
   Future<void> _loadImageMetadata() async {

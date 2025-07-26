@@ -6,7 +6,8 @@ class LGConfigService {
   static const String _lgUsernameKey = 'lg_username';
   static const String _lgPasswordKey = 'lg_password';
   static const String _lgTotalScreensKey = 'lg_total_screens';
-  
+  static const String _serverHostKey = 'server_host';
+
   // Default values
   static const String _defaultTotalScreens = '';
 
@@ -55,6 +56,36 @@ class LGConfigService {
       return prefs.getInt(_lgTotalScreensKey) ?? int.parse(_defaultTotalScreens);
     } catch (e) {
       return int.parse(_defaultTotalScreens);
+    }
+  }
+
+  /// Guarda la IP/dirección del servidor
+  static Future<void> saveServerHost(String serverHost) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_serverHostKey, serverHost.trim());
+    } catch (e) {
+      // Error saving server host - silent fail
+    }
+  }
+
+  /// Obtiene la IP/dirección del servidor
+  static Future<String> getServerHost() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_serverHostKey) ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /// Borra la IP/dirección del servidor
+  static Future<void> clearServerHost() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_serverHostKey);
+    } catch (e) {
+      // Error clearing server host - silent fail
     }
   }
 

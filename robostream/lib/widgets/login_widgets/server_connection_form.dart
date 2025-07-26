@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
+import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
@@ -29,6 +30,16 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
   void initState() {
     super.initState();
     _serverIpController.addListener(() => setState(() {}));
+    _loadSavedServerHost();
+  }
+
+  void _loadSavedServerHost() async {
+    final savedHost = await LGConfigService.getServerHost();
+    if (savedHost.isNotEmpty && mounted) {
+      setState(() {
+        _serverIpController.text = savedHost;
+      });
+    }
   }
 
   @override
@@ -52,8 +63,10 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
     });
 
     try {
-      // Guardar la IP del servidor usando el servicio centralizado
-      await ServerConfigManager.instance.saveServerIp(_serverIpController.text.trim());
+      // Guardar la IP del servidor usando el servicio centralizado y persistente
+      final trimmedIp = _serverIpController.text.trim();
+      await ServerConfigManager.instance.saveServerIp(trimmedIp);
+      await LGConfigService.saveServerHost(trimmedIp);
       
       // Crear el servicio del servidor con la IP introducida
       final serverUrl = 'http://${_serverIpController.text.trim()}:8000';

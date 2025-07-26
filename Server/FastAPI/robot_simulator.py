@@ -30,7 +30,7 @@ class RobotSimulator:
         self.image_files = self._load_image_files()
         self.current_image_index = 0
         self.last_image_update = time.time()
-        self.image_rotation_interval = 180.0
+        self.image_rotation_interval = 5.0
         
         #I initialize the sensor data with default values.
         self.sensor_data = SensorData(

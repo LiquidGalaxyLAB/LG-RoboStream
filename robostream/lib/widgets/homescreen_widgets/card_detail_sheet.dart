@@ -2,14 +2,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:robostream/services/server.dart';
 
-class CardDetailSheet extends StatelessWidget {
+class CardDetailSheet extends StatefulWidget {
   final Map<String, dynamic> cardData;
   final SensorData? sensorData;
   final ActuatorData? actuatorData;
   final bool isConnected;
   final String serverBaseUrl;
-  final int imageRefreshKey;
-  final VoidCallback? onRefreshImage;
 
   const CardDetailSheet({
     super.key,
@@ -18,9 +16,14 @@ class CardDetailSheet extends StatelessWidget {
     this.actuatorData,
     required this.isConnected,
     required this.serverBaseUrl,
-    required this.imageRefreshKey,
-    this.onRefreshImage,
   });
+
+  @override
+  State<CardDetailSheet> createState() => _CardDetailSheetState();
+}
+
+class _CardDetailSheetState extends State<CardDetailSheet> {
+  int imageRefreshKey = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +57,7 @@ class CardDetailSheet extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
                 boxShadow: [
                   BoxShadow(
-                    color: (cardData['color'] as Color).withOpacity(0.1),
+                    color: (widget.cardData['color'] as Color).withOpacity(0.1),
                     blurRadius: 30,
                     offset: const Offset(0, -15),
                     spreadRadius: 0,
@@ -66,7 +69,7 @@ class CardDetailSheet extends StatelessWidget {
                   ),
                 ],
                 border: Border.all(
-                  color: (cardData['color'] as Color).withOpacity(0.08),
+                  color: (widget.cardData['color'] as Color).withOpacity(0.08),
                   width: 1,
                 ),
               ),
@@ -100,7 +103,7 @@ class CardDetailSheet extends StatelessWidget {
                                 gradient: LinearGradient(
                                   colors: [
                                     Colors.transparent,
-                                    (cardData['color'] as Color).withOpacity(0.2),
+                                    (widget.cardData['color'] as Color).withOpacity(0.2),
                                     Colors.transparent,
                                   ],
                                 ),
@@ -132,29 +135,29 @@ class CardDetailSheet extends StatelessWidget {
             shape: BoxShape.circle,
             gradient: LinearGradient(
               colors: [
-                cardData['color'] as Color,
-                (cardData['color'] as Color).withOpacity(0.8),
+                widget.cardData['color'] as Color,
+                (widget.cardData['color'] as Color).withOpacity(0.8),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
-                color: (cardData['color'] as Color).withOpacity(0.3),
+                color: (widget.cardData['color'] as Color).withOpacity(0.3),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Icon(
-            cardData['icon'] as IconData,
+            widget.cardData['icon'] as IconData,
             size: 28,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 20),
         Text(
-          cardData['label'] as String,
+          widget.cardData['label'] as String,
           style: const TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -168,15 +171,15 @@ class CardDetailSheet extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                (cardData['color'] as Color).withOpacity(0.1),
-                (cardData['color'] as Color).withOpacity(0.05),
+                (widget.cardData['color'] as Color).withOpacity(0.1),
+                (widget.cardData['color'] as Color).withOpacity(0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: (cardData['color'] as Color).withOpacity(0.2),
+              color: (widget.cardData['color'] as Color).withOpacity(0.2),
               width: 1,
             ),
           ),
@@ -217,7 +220,7 @@ class CardDetailSheet extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (cardData['color'] as Color).withOpacity(0.1),
+              color: (widget.cardData['color'] as Color).withOpacity(0.1),
               width: 1,
             ),
           ),
@@ -235,30 +238,30 @@ class CardDetailSheet extends StatelessWidget {
   }
 
   Map<String, String> _getStatusInfo() {
-    final String label = cardData['label'] as String;
+    final String label = widget.cardData['label'] as String;
     String status = 'Offline';
     String value = 'N/A';
     
     if (label == 'RGB Camera') {
-      final rgbCamera = sensorData?.rgbCamera;
+      final rgbCamera = widget.sensorData?.rgbCamera;
       status = rgbCamera?.status ?? 'Offline';
       value = rgbCamera != null && rgbCamera.status == 'Active' 
           ? '${rgbCamera.resolution}@${rgbCamera.fps}fps' 
           : 'N/A';
     } else if (label == 'LiDAR Sensor') {
-      final lidarStatus = sensorData?.lidar ?? 'Disconnected';
+      final lidarStatus = widget.sensorData?.lidar ?? 'Disconnected';
       status = lidarStatus;
       value = lidarStatus == 'Connected' ? '360° scan' : 'N/A';
     } else if (label == 'GPS Position') {
-      final gpsData = sensorData?.gps;
+      final gpsData = widget.sensorData?.gps;
       status = gpsData != null ? 'Active' : 'Offline';
       value = gpsData != null ? 'Tracking' : 'N/A';
     } else if (label == 'Movement') {
-      final gpsData = sensorData?.gps;
+      final gpsData = widget.sensorData?.gps;
       status = gpsData != null ? 'Tracking' : 'Offline';
       value = gpsData != null ? '${gpsData.speed.toStringAsFixed(1)} m/s' : 'N/A';
     } else if (label == 'IMU Sensors') {
-      final imuData = sensorData?.imu;
+      final imuData = widget.sensorData?.imu;
       status = imuData != null ? 'Active' : 'Offline';
       if (imuData != null) {
         final acc = imuData.accelerometer;
@@ -266,9 +269,9 @@ class CardDetailSheet extends StatelessWidget {
         value = '${totalAcceleration.toStringAsFixed(1)} m/s²';
       }
     } else if (label == 'Wheel Motors') {
-      status = actuatorData != null ? 'Ready' : 'Offline';
-      if (actuatorData != null) {
-        final wheels = actuatorData!;
+      status = widget.actuatorData != null ? 'Ready' : 'Offline';
+      if (widget.actuatorData != null) {
+        final wheels = widget.actuatorData!;
         final avgWheelSpeed = (wheels.frontLeftWheel.speed + 
                               wheels.frontRightWheel.speed + 
                               wheels.backLeftWheel.speed + 
@@ -276,9 +279,9 @@ class CardDetailSheet extends StatelessWidget {
         value = '${avgWheelSpeed.toStringAsFixed(0)} RPM';
       }
     } else if (label == 'Temperature') {
-      status = actuatorData != null ? 'Monitoring' : 'Offline';
-      if (actuatorData != null) {
-        final actuators = actuatorData!;
+      status = widget.actuatorData != null ? 'Monitoring' : 'Offline';
+      if (widget.actuatorData != null) {
+        final actuators = widget.actuatorData!;
         final avgTemp = (actuators.frontLeftWheel.temperature + 
                         actuators.frontRightWheel.temperature + 
                         actuators.backLeftWheel.temperature + 
@@ -286,9 +289,9 @@ class CardDetailSheet extends StatelessWidget {
         value = '${avgTemp.toStringAsFixed(1)}°C';
       }
     } else if (label == 'Server Link') {
-      status = isConnected ? 'Online' : 'Offline';
-      if (isConnected && sensorData?.timestamp != null) {
-        final timestamp = sensorData?.timestamp;
+      status = widget.isConnected ? 'Online' : 'Offline';
+      if (widget.isConnected && widget.sensorData?.timestamp != null) {
+        final timestamp = widget.sensorData?.timestamp;
         if (timestamp != null) {
           final lastUpdate = DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt());
           final now = DateTime.now();
@@ -302,11 +305,11 @@ class CardDetailSheet extends StatelessWidget {
   }
 
   List<Widget> _buildDetailWidgets() {
-    final String label = cardData['label'] as String;
+    final String label = widget.cardData['label'] as String;
     List<Widget> detailWidgets = [];
 
-    if (label == 'GPS Position' && sensorData?.gps != null) {
-      final gps = sensorData?.gps;
+    if (label == 'GPS Position' && widget.sensorData?.gps != null) {
+      final gps = widget.sensorData?.gps;
       if (gps != null) {
         detailWidgets.addAll([
           _buildDetailRow('Latitude', '${gps.latitude.toStringAsFixed(6)}°'),
@@ -315,8 +318,8 @@ class CardDetailSheet extends StatelessWidget {
           _buildDetailRow('Speed', '${gps.speed.toStringAsFixed(2)} m/s'),
         ]);
       }
-    } else if (label == 'Wheel Motors' && actuatorData != null) {
-      final actuators = actuatorData!;
+    } else if (label == 'Wheel Motors' && widget.actuatorData != null) {
+      final actuators = widget.actuatorData!;
       detailWidgets.addAll([
         _buildDetailRow('Front Left', '${actuators.frontLeftWheel.speed} RPM • ${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
         _buildDetailRow('Front Right', '${actuators.frontRightWheel.speed} RPM • ${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
@@ -326,8 +329,8 @@ class CardDetailSheet extends StatelessWidget {
         _buildDetailRow('Avg Power', '${((actuators.frontLeftWheel.consumption + actuators.frontRightWheel.consumption + actuators.backLeftWheel.consumption + actuators.backRightWheel.consumption) / 4).toStringAsFixed(2)} A'),
         _buildDetailRow('Avg Voltage', '${((actuators.frontLeftWheel.voltage + actuators.frontRightWheel.voltage + actuators.backLeftWheel.voltage + actuators.backRightWheel.voltage) / 4).toStringAsFixed(1)} V'),
       ]);
-    } else if (label == 'IMU Sensors' && sensorData?.imu != null) {
-      final imu = sensorData?.imu;
+    } else if (label == 'IMU Sensors' && widget.sensorData?.imu != null) {
+      final imu = widget.sensorData?.imu;
       if (imu != null) {
         detailWidgets.addAll([
           _buildSectionTitle('Accelerometer (m/s²)', Icons.speed_rounded),
@@ -350,10 +353,10 @@ class CardDetailSheet extends StatelessWidget {
         ]);
       }
     } else if (label == 'Server Link') {
-      final timestamp = sensorData?.timestamp;
+      final timestamp = widget.sensorData?.timestamp;
       detailWidgets.addAll([
-        _buildDetailRow('Status', isConnected ? 'Connected' : 'Disconnected'),
-        _buildDetailRow('Server URL', serverBaseUrl),
+        _buildDetailRow('Status', widget.isConnected ? 'Connected' : 'Disconnected'),
+        _buildDetailRow('Server URL', widget.serverBaseUrl),
         _buildDetailRow('Update Interval', '2s'),
         if (timestamp != null) ...[
           _buildDetailRow('Last Update', 
@@ -363,8 +366,8 @@ class CardDetailSheet extends StatelessWidget {
             '${DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt())).inSeconds}s'),
         ],
       ]);
-    } else if (label == 'Temperature' && actuatorData != null) {
-      final actuators = actuatorData!;
+    } else if (label == 'Temperature' && widget.actuatorData != null) {
+      final actuators = widget.actuatorData!;
       detailWidgets.addAll([
         _buildDetailRow('Front Left Motor', '${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
         _buildDetailRow('Front Right Motor', '${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
@@ -374,8 +377,8 @@ class CardDetailSheet extends StatelessWidget {
         _buildDetailRow('Average', '${((actuators.frontLeftWheel.temperature + actuators.frontRightWheel.temperature + actuators.backLeftWheel.temperature + actuators.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C'),
         _buildDetailRow('Max Safe Temp', '80.0°C'),
       ]);
-    } else if (label == 'RGB Camera' && sensorData?.rgbCamera != null) {
-      final rgbCamera = sensorData?.rgbCamera;
+    } else if (label == 'RGB Camera' && widget.sensorData?.rgbCamera != null) {
+      final rgbCamera = widget.sensorData?.rgbCamera;
       if (rgbCamera != null) {
         detailWidgets.addAll([
           _buildCameraPreview(),
@@ -487,7 +490,7 @@ class CardDetailSheet extends StatelessWidget {
   }
 
   Widget _buildCameraPreview() {
-    final imageUrl = '$serverBaseUrl/rgb-camera/image';
+    final imageUrl = '${widget.serverBaseUrl}/rgb-camera/image';
     
     return Container(
       height: 200,
@@ -596,9 +599,9 @@ class CardDetailSheet extends StatelessWidget {
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () {
-                        if (onRefreshImage != null) {
-                          onRefreshImage!();
-                        }
+                        setState(() {
+                          imageRefreshKey++;
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6366F1),
@@ -663,9 +666,9 @@ class CardDetailSheet extends StatelessWidget {
   Widget _buildRefreshButton() {
     return ElevatedButton.icon(
       onPressed: () {
-        if (onRefreshImage != null) {
-          onRefreshImage!();
-        }
+        setState(() {
+          imageRefreshKey++;
+        });
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF6366F1),
