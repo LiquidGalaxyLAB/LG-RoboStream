@@ -17,12 +17,12 @@ except ImportError as e:
 #I create the robot simulator class to generate fake sensor data.
 class RobotSimulator:
     def __init__(self):
-        #I set the base GPS coordinates for Madrid.
-        self.base_lat = 40.4238
-        self.base_lon = -3.7123
+        #I set the base GPS coordinates for Lleida, Spain.
+        self.base_lat = 41.6175
+        self.base_lon = 0.6200
         
         #I configure the update intervals for sensors and images.
-        self.update_interval = 2.0  # Reduce to 2 seconds for more frequent updates
+        self.update_interval = 10.0  # Update every 10 seconds
         self.last_update = 0.0
         
         #I set up the image folder and load available images.
@@ -43,7 +43,7 @@ class RobotSimulator:
             gps=GPSData(
                 latitude=self.base_lat,
                 longitude=self.base_lon,
-                altitude=655.0,
+                altitude=175.0,
                 speed=0.0
             ),
             lidar="Connected",
@@ -158,11 +158,11 @@ class RobotSimulator:
         self.sensor_data.imu.gyroscope = self._create_three_axis_data()
         self.sensor_data.imu.magnetometer = self._create_three_axis_data()
         
-        #I update GPS coordinates with small random variations.
-        self.sensor_data.gps.latitude = self.base_lat + random.uniform(-0.0001, 0.0001)
-        self.sensor_data.gps.longitude = self.base_lon + random.uniform(-0.0001, 0.0001)
-        self.sensor_data.gps.altitude = round(random.uniform(650.0, 660.0), 1)
-        self.sensor_data.gps.speed = round(random.uniform(0.0, 5.0), 1)
+        #I update GPS coordinates with more significant random variations for Lleida area.
+        self.sensor_data.gps.latitude = self.base_lat + random.uniform(-0.001, 0.001)
+        self.sensor_data.gps.longitude = self.base_lon + random.uniform(-0.001, 0.001)
+        self.sensor_data.gps.altitude = round(random.uniform(150.0, 200.0), 1)
+        self.sensor_data.gps.speed = round(random.uniform(0.0, 8.0), 1)
         
         #I randomly set the status of lidar and camera sensors.
         self.sensor_data.lidar = "Connected" if random.random() > 0.1 else "Disconnected"

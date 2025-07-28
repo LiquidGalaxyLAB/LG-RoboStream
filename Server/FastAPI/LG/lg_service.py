@@ -10,7 +10,6 @@ import os
 from . import lg_data
 from .slave_calculator import SlaveCalculator
 from .kml_builder import KMLBuilder
-from .image_generator import ImageGenerator
 
 class LoginResult:
     def __init__(self, success: bool, message: str):
@@ -150,8 +149,8 @@ class LGConnectionManager:
 </kml>'''
         return await self.send_kml_to_slave(empty_kml, slave_number)
     
-    async def clear_all_screens(self) -> bool:
-        """Clears KML content from ALL screens"""
+    async def clear_rightmost_screen(self) -> bool:
+        """Clears KML content from only the rightmost screen"""
         try:
             if not self.is_connected:
                 return False
@@ -161,32 +160,92 @@ class LGConnectionManager:
                 print("Error: LG_TOTAL_SCREENS not configured")
                 return False
                 
-            # Clear all slaves
-            success = True
-            for slave_num in range(1, lg_data.LG_TOTAL_SCREENS + 1):
-                if slave_num != lg_data.LG_TOTAL_SCREENS // 2 + 1:  # Skip master screen
-                    result = await self.clear_slave(slave_num)
-                    if not result:
-                        success = False
-                        print(f"Failed to clear slave {slave_num}")
+            # Calculate rightmost screen number
+            rightmost_screen = self.slave_calculator.rightmost_screen
+            
+            # Clear only the rightmost screen
+            result = await self.clear_slave(rightmost_screen)
+            if not result:
+                print(f"Failed to clear rightmost screen {rightmost_screen}")
                         
-            return success
+            return result
         except Exception as e:
-            print(f"Error clearing all screens: {e}")
+            print(f"Error clearing rightmost screen: {e}")
+            return False
+    
+    async def relaunch_lg(self) -> bool:
+        """Relaunches Liquid Galaxy by executing relaunch commands on all screens"""
+        try:
+            if not self.is_connected:
+                return False
+                
+            # Check if total screens is configured
+            if lg_data.LG_TOTAL_SCREENS is None:
+                print("Error: LG_TOTAL_SCREENS not configured")
+                return False
+                
+            password = lg_data.LG_PASSWORD
+            username = lg_data.LG_USERNAME
+            total_screens = lg_data.LG_TOTAL_SCREENS
+            
+            if not password or not username:
+                print("Error: LG credentials not configured")
+                return False
+            
+            print(f"Starting LG relaunch for {total_screens} screens")
+            
+            # Execute relaunch on all screens from highest to lowest number
+            for i in range(total_screens, 0, -1):
+                try:
+                    print(f"Relaunching screen lg{i}")
+                    
+                    # First execute the lg-relaunch script
+                    lg_relaunch_cmd = f'"/home/{username}/bin/lg-relaunch" > /home/{username}/log.txt'
+                    stdin, stdout, stderr = self.client.exec_command(lg_relaunch_cmd)
+                    await asyncio.sleep(1)  # Small delay between commands
+                    
+                    # Then execute the service restart command for each screen
+                    relaunch_command = f'''RELAUNCH_CMD="\\
+if [ -f /etc/init/lxdm.conf ]; then
+  export SERVICE=lxdm
+elif [ -f /etc/init/lightdm.conf ]; then
+  export SERVICE=lightdm
+else
+  exit 1
+fi
+if  [[ \\$(service \\$SERVICE status) =~ 'stop' ]]; then
+  echo {password} | sudo -S service \\${{SERVICE}} start
+else
+  echo {password} | sudo -S service \\${{SERVICE}} restart
+fi
+" && sshpass -p {password} ssh -x -t {username}@lg{i} "$RELAUNCH_CMD"'''
+                    
+                    stdin, stdout, stderr = self.client.exec_command(relaunch_command)
+                    
+                    # Wait a bit for the command to execute
+                    await asyncio.sleep(2)
+                    
+                    print(f"Relaunch command sent to lg{i}")
+                    
+                except Exception as screen_error:
+                    print(f"Error relaunching screen lg{i}: {screen_error}")
+                    # Continue with other screens even if one fails
+                    continue
+            
+            print("LG relaunch commands completed for all screens")
+            return True
+                
+        except Exception as e:
+            print(f"Error executing lg-relaunch command: {e}")
             return False
 
 class LGService:
     def __init__(self):
         self.connection_manager: Optional[LGConnectionManager] = None
-        self.image_generator = ImageGenerator()
         
     def _get_connection_manager(self) -> Optional[LGConnectionManager]:
         """Gets connection manager with current LG configuration"""
-        print(f"Debug: _get_connection_manager called")
-        print(f"Debug: LG_HOST={lg_data.LG_HOST}, LG_USERNAME={lg_data.LG_USERNAME}, LG_PASSWORD={lg_data.LG_PASSWORD}, LG_TOTAL_SCREENS={lg_data.LG_TOTAL_SCREENS}")
-        
         if not all([lg_data.LG_HOST, lg_data.LG_USERNAME, lg_data.LG_PASSWORD, lg_data.LG_TOTAL_SCREENS]):
-            print("Debug: Missing LG configuration, returning None")
             return None
             
         if (not self.connection_manager or 
@@ -195,12 +254,9 @@ class LGService:
             self.connection_manager.password != lg_data.LG_PASSWORD or
             self.connection_manager.total_screens != lg_data.LG_TOTAL_SCREENS):
             
-            print("Debug: Creating new connection manager")
             self.connection_manager = LGConnectionManager(
                 lg_data.LG_HOST, lg_data.LG_USERNAME, lg_data.LG_PASSWORD, lg_data.LG_TOTAL_SCREENS
             )
-        else:
-            print("Debug: Reusing existing connection manager")
         
         return self.connection_manager
     
@@ -306,7 +362,7 @@ class LGService:
             return False
     
     async def show_sensor_data(self, sensor_data: Dict[str, Any], selected_sensors: List[str]) -> bool:
-        """Shows sensor data overlays"""
+        """Shows sensor data using KML balloons instead of images"""
         print(f"Debug: show_sensor_data() called with sensors: {selected_sensors}")
         manager = self._get_connection_manager()
         if not manager or not selected_sensors:
@@ -319,40 +375,75 @@ class LGService:
                 if not connected:
                     return False
             
-            sensor_overlays = []
-            all_images_uploaded = True
+            # Handle RGB Camera separately if included
+            camera_overlay = ""
+            non_camera_sensors = [s for s in selected_sensors if s != 'RGB Camera']
             
-            for i, selected_sensor in enumerate(selected_sensors):
-                if selected_sensor == 'RGB Camera':
-                    camera_overlay = self._build_camera_overlay(manager.host, i)
-                    sensor_overlays.append(camera_overlay)
-                    continue
-                
-                # Get sensor info and generate image
-                sensor_info = manager.kml_builder.build_sensor_data(sensor_data, selected_sensor)
-                image_bytes = await self.image_generator.generate_sensor_image(sensor_info)
-                
-                if image_bytes:
-                    image_name = sensor_info['imageName']
-                    image_sent = await manager.send_image(image_bytes, image_name)
-                    if not image_sent:
-                        all_images_uploaded = False
-                        continue
-                    
-                    sensor_overlay = self._build_sensor_overlay(selected_sensor, image_name, manager.host, i)
-                    sensor_overlays.append(sensor_overlay)
+            if 'RGB Camera' in selected_sensors:
+                camera_overlay = self._build_camera_overlay(manager.host, 0)
+            
+            # Generate balloon KML for sensor data
+            balloon_kml = ""
+            if non_camera_sensors:
+                if len(non_camera_sensors) == 1:
+                    # Single sensor balloon
+                    balloon_kml = manager.kml_builder.build_sensor_balloon_kml(sensor_data, non_camera_sensors[0])
                 else:
-                    all_images_uploaded = False
+                    # Multi-sensor balloon
+                    balloon_kml = manager.kml_builder.build_multi_sensor_balloon_kml(sensor_data, non_camera_sensors)
             
-            # Send combined KML
-            combined_kml = self._build_combined_kml(sensor_overlays)
-            kml_sent = await manager.send_kml_to_rightmost_screen(combined_kml)
+            # Send appropriate KML
+            if camera_overlay and balloon_kml:
+                # For now, prioritize balloon over camera when both are selected
+                # Could be enhanced later to show both simultaneously
+                kml_sent = await manager.send_kml_to_rightmost_screen(balloon_kml)
+            elif balloon_kml:
+                # Only sensor balloon
+                kml_sent = await manager.send_kml_to_rightmost_screen(balloon_kml)
+            elif camera_overlay:
+                # Only camera
+                combined_kml = self._build_combined_kml([camera_overlay])
+                kml_sent = await manager.send_kml_to_rightmost_screen(combined_kml)
+            else:
+                return False
             
-            return all_images_uploaded and kml_sent
+            # Check if GPS Position is being streamed and perform flyTo
+            if 'GPS Position' in selected_sensors and sensor_data.get('gps'):
+                await self._fly_to_gps_location(sensor_data['gps'], manager)
+            
+            return kml_sent
         except Exception as e:
             print(f"Error showing sensor data: {e}")
             return False
     
+    async def _fly_to_gps_location(self, gps_data: Dict[str, Any], manager) -> bool:
+        """Flies to GPS location using KML LookAt"""
+        try:
+            latitude = gps_data.get('latitude', 0.0)
+            longitude = gps_data.get('longitude', 0.0)
+            altitude = gps_data.get('altitude', 100.0)
+            
+            print(f"Debug: GPS data received - Lat: {latitude}, Lon: {longitude}, Alt: {altitude}")
+            
+            # Create LookAt KML for flyTo
+            look_at_kml = f'''<LookAt><longitude>{longitude}</longitude><latitude>{latitude}</latitude><altitude>{altitude + 100}</altitude><heading>0</heading><tilt>45</tilt><range>1000</range><altitudeMode>relativeToGround</altitudeMode></LookAt>'''
+            
+            # Escape the KML for command
+            escaped_look_at = look_at_kml.replace('"', '\\"')
+            
+            # Send flyTo command
+            command = f'echo "flytoview={escaped_look_at}" > /tmp/query.txt'
+            
+            if manager.client:
+                stdin, stdout, stderr = manager.client.exec_command(command)
+                stdout.read()
+                print(f"Debug: FlyTo command sent for GPS coordinates: {latitude}, {longitude}")
+                return True
+            return False
+        except Exception as e:
+            print(f"Error flying to GPS location: {e}")
+            return False
+
     async def hide_sensor_data(self) -> bool:
         """Hides sensor data"""
         manager = self._get_connection_manager()
@@ -413,7 +504,7 @@ class LGService:
             await self.connection_manager.disconnect()
     
     async def clear_all_kml(self) -> bool:
-        """Clears ALL KML content from ALL screens"""
+        """Clears KML content from only the rightmost screen"""
         manager = self._get_connection_manager()
         if not manager:
             return False
@@ -424,9 +515,26 @@ class LGService:
                 if not connected:
                     return False
             
-            return await manager.clear_all_screens()
+            return await manager.clear_rightmost_screen()
         except Exception as e:
-            print(f"Error clearing all KML: {e}")
+            print(f"Error clearing rightmost screen KML: {e}")
+            return False
+    
+    async def relaunch_lg(self) -> bool:
+        """Relaunches the Liquid Galaxy system"""
+        manager = self._get_connection_manager()
+        if not manager:
+            return False
+            
+        try:
+            if not manager.is_connected:
+                connected = await manager.connect()
+                if not connected:
+                    return False
+            
+            return await manager.relaunch_lg()
+        except Exception as e:
+            print(f"Error relaunching Liquid Galaxy: {e}")
             return False
 
 # Global LG service instance

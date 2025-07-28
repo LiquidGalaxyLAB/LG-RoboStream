@@ -379,7 +379,7 @@ class StreamingMenu extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 SensorStreamOption(
-                  icon: Icons.camera_alt_rounded,
+                  icon: Icons.camera_alt_outlined,
                   title: 'RGB Camera',
                   subtitle: 'Stream camera feed',
                   color: const Color(0xFF6366F1),

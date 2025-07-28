@@ -33,6 +33,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   late TextEditingController _totalScreensController;
   bool _isSaving = false;
   bool _isClearing = false;
+  bool _isRelaunching = false;
 
   @override
   void initState() {
@@ -217,6 +218,46 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     } finally {
       setState(() {
         _isClearing = false;
+      });
+    }
+  }
+
+  void _relaunchLG() async {
+    final fields = _getValidatedFields();
+    if (fields == null) return;
+
+    setState(() {
+      _isRelaunching = true;
+    });
+
+    try {
+      // Relaunch LG through server
+      final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+      if (serverIp != null) {
+        final response = await http.post(
+          Uri.parse('http://$serverIp:8000/lg/relaunch'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        
+        if (response.statusCode == 200) {
+          final responseData = json.decode(response.body);
+          if (responseData['success'] == true) {
+            HapticFeedback.mediumImpact();
+            _showSuccessSnackBar('Liquid Galaxy relaunched successfully');
+          } else {
+            _showErrorSnackBar('Failed to relaunch LG: ${responseData['message']}');
+          }
+        } else {
+          _showErrorSnackBar('Failed to relaunch Liquid Galaxy');
+        }
+      } else {
+        _showErrorSnackBar('Server configuration not found');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error relaunching LG: ${e.toString()}');
+    } finally {
+      setState(() {
+        _isRelaunching = false;
       });
     }
   }
@@ -462,6 +503,50 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Relaunch LG Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isRelaunching ? null : _relaunchLG,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: _isRelaunching ? 0 : 4,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isRelaunching)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    else
+                      const Icon(
+                        Icons.restart_alt_rounded,
+                        size: 20,
+                      ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isRelaunching ? 'Relaunching...' : 'Relaunch Liquid Galaxy',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             // Clear ALL KML Button
             SizedBox(
               width: double.infinity,

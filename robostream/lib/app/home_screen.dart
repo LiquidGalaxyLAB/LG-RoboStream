@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _lastActuatorDataHash;
   DateTime? _lastForceUpdateTime;
   
-  // Timer para envío de datos a LG cada 5 segundos durante streaming
+  // Timer para envío de datos a LG cada 10 segundos durante streaming
   Timer? _lgStreamingTimer;
 
   @override
@@ -337,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await _sendSelectedSensorsToLG(currentSensorData);
     }
     
-    // Iniciar timer para envío automático cada 5 segundos
+    // Iniciar timer para envío automático cada 10 segundos
     _startLGStreamingTimer();
     
     if (mounted) {
@@ -427,21 +427,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Inicia el timer para envío automático a LG cada 5 segundos
+  /// Inicia el timer para envío automático a LG cada 10 segundos
   void _startLGStreamingTimer() {
     // Cancelar timer anterior si existe
     _lgStreamingTimer?.cancel();
     
-    // Crear nuevo timer que se ejecute cada 5 segundos
-    _lgStreamingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+    // Crear nuevo timer que se ejecute cada 10 segundos
+    _lgStreamingTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
-        print('Debug: Timer - Sending $_selectedSensor to LG every 5 seconds');
+        print('Debug: Timer - Sending $_selectedSensor to LG every 10 seconds');
         
         try {
-          // Añadir timeout de 4 segundos para evitar que se cuelgue
+          // Añadir timeout de 8 segundos para evitar que se cuelgue
           await Future.any([
             _sendSelectedSensorsToLG(_sensorData!),
-            Future.delayed(const Duration(seconds: 4))
+            Future.delayed(const Duration(seconds: 8))
           ]);
         } catch (e) {
           print('Debug: Timer error sending to LG: $e');
@@ -452,8 +452,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Maneja los cambios en los datos del servidor durante el streaming
   void _handleServerDataChange(SensorData sensorData) async {
-    // Con el nuevo timer de 5 segundos, solo actualizamos el hash para referencia
-    // El timer se encarga del envío automático cada 5 segundos
+    // Con el nuevo timer de 10 segundos, solo actualizamos el hash para referencia
+    // El timer se encarga del envío automático cada 10 segundos
     String currentDataHash = _generateSensorDataHash(sensorData);
     _lastSensorDataHash = currentDataHash;
     _lastForceUpdateTime = DateTime.now();

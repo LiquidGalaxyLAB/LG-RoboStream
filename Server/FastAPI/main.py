@@ -158,15 +158,14 @@ async def lg_show_sensors(request: LGSensorRequest):
     print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
     
     robot.update_sensors()
-    sensor_data_dict = robot.sensor_data.dict()
     
-    success = await lg_service.show_sensor_data(sensor_data_dict, request.selected_sensors)
+    # Combine sensor data and actuator data
+    combined_data = robot.sensor_data.dict()
+    combined_data['actuators'] = robot.actuator_data.dict()
+    
+    success = await lg_service.show_sensor_data(combined_data, request.selected_sensors)
     print(f"Debug: lg_service.show_sensor_data() returned: {success}")
     
-    return {
-        "success": success,
-        "message": "Sensor data displayed successfully" if success else "Failed to display sensor data"
-    }
     return {
         "success": success,
         "message": "Sensor data displayed successfully" if success else "Failed to display sensor data"
@@ -197,6 +196,15 @@ async def lg_clear_all_kml():
     return {
         "success": success,
         "message": "All KML content cleared successfully" if success else "Failed to clear all KML content"
+    }
+
+@app.post("/lg/relaunch")
+async def lg_relaunch():
+    """Relaunch the Liquid Galaxy system by executing lg-relaunch command"""
+    success = await lg_service.relaunch_lg()
+    return {
+        "success": success,
+        "message": "Liquid Galaxy relaunched successfully" if success else "Failed to relaunch Liquid Galaxy"
     }
 
 #I define the sensors endpoint to get current sensor data.

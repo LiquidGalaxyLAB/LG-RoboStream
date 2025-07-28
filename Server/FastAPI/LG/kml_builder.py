@@ -2,6 +2,7 @@ import time
 from typing import Dict, Any, List
 
 import time
+from .balloon_maker import BalloonMaker
 
 class KMLBuilder:
     def __init__(self, lg_host: str):
@@ -160,3 +161,113 @@ class KMLBuilder:
             'data': config['data'],
             'imageName': self._get_sensor_image_name(selected_sensor),
         }
+    
+    def build_sensor_balloon_kml(self, sensor_data: Dict[str, Any], selected_sensor: str) -> str:
+        """Builds KML for showing sensor data using balloons instead of images"""
+        # Prepare structured data for single sensor
+        structured_data = self._prepare_structured_sensor_data(sensor_data, [selected_sensor])
+        # Return balloon directly since it's already a complete KML document
+        return BalloonMaker.generate_sensor_balloon(structured_data, selected_sensor)
+    
+    def build_multi_sensor_balloon_kml(self, sensor_data: Dict[str, Any], selected_sensors: List[str]) -> str:
+        """Builds KML for showing multiple sensor data using balloons"""
+        # Prepare structured data for balloon
+        structured_data = self._prepare_structured_sensor_data(sensor_data, selected_sensors)
+        # Return balloon directly since it's already a complete KML document
+        return BalloonMaker.generate_multi_sensor_balloon(structured_data, selected_sensors)
+    
+    def _prepare_structured_sensor_data(self, sensor_data: Dict[str, Any], selected_sensors: List[str]) -> Dict[str, Any]:
+        """Prepares structured sensor data for balloon generation"""
+        data_list = []
+        
+        for sensor in selected_sensors:
+            if sensor == 'RGB Camera':
+                continue  # Skip camera
+                
+            sensor_items = self._get_sensor_items(sensor_data, sensor)
+            for item in sensor_items:
+                item['category'] = sensor  # Add category for organization
+                data_list.append(item)
+        
+        return {'data': data_list}
+    
+    def _get_sensor_items(self, sensor_data: Dict[str, Any], sensor_name: str) -> List[Dict[str, Any]]:
+        """Gets sensor items for a specific sensor type"""
+        if sensor_name == 'GPS Position':
+            return [
+                {'label': 'Latitude', 'value': f"{sensor_data.get('gps', {}).get('latitude', 0.0):.6f}", 'unit': '°'},
+                {'label': 'Longitude', 'value': f"{sensor_data.get('gps', {}).get('longitude', 0.0):.6f}", 'unit': '°'},
+                {'label': 'Altitude', 'value': f"{sensor_data.get('gps', {}).get('altitude', 0.0):.1f}", 'unit': 'm'},
+                {'label': 'Speed', 'value': f"{sensor_data.get('gps', {}).get('speed', 0.0):.2f}", 'unit': 'm/s'},
+            ]
+        elif sensor_name == 'IMU Sensors':
+            imu_data = sensor_data.get('imu', {})
+            accel = imu_data.get('accelerometer', {})
+            gyro = imu_data.get('gyroscope', {})
+            mag = imu_data.get('magnetometer', {})
+            return [
+                {'label': 'Accel X', 'value': f"{accel.get('x', 0.0):.2f}", 'unit': 'm/s²'},
+                {'label': 'Accel Y', 'value': f"{accel.get('y', 0.0):.2f}", 'unit': 'm/s²'},
+                {'label': 'Accel Z', 'value': f"{accel.get('z', 0.0):.2f}", 'unit': 'm/s²'},
+                {'label': 'Gyro X', 'value': f"{gyro.get('x', 0.0):.3f}", 'unit': 'rad/s'},
+                {'label': 'Gyro Y', 'value': f"{gyro.get('y', 0.0):.3f}", 'unit': 'rad/s'},
+                {'label': 'Gyro Z', 'value': f"{gyro.get('z', 0.0):.3f}", 'unit': 'rad/s'},
+                {'label': 'Mag X', 'value': f"{mag.get('x', 0.0):.2f}", 'unit': 'μT'},
+                {'label': 'Mag Y', 'value': f"{mag.get('y', 0.0):.2f}", 'unit': 'μT'},
+                {'label': 'Mag Z', 'value': f"{mag.get('z', 0.0):.2f}", 'unit': 'μT'},
+            ]
+        elif sensor_name == 'LiDAR Status':
+            return [
+                {'label': 'Status', 'value': sensor_data.get('lidar', 'Unknown'), 'unit': ''},
+                {'label': 'Camera Status', 'value': sensor_data.get('camera', 'Unknown'), 'unit': ''},
+                {'label': 'Last Update', 'value': time.strftime('%H:%M:%S'), 'unit': ''},
+            ]
+        elif sensor_name == 'Temperature':
+            # Get actual temperature data from actuators
+            actuators = sensor_data.get('actuators', {})
+            temps = []
+            motor_status = []
+            
+            for wheel_name, wheel_data in actuators.items():
+                if isinstance(wheel_data, dict) and 'temperature' in wheel_data:
+                    temps.append(wheel_data['temperature'])
+                    motor_status.append(wheel_data.get('status', 'Unknown'))
+            
+            avg_temp = sum(temps) / len(temps) if temps else 0.0
+            active_motors = sum(1 for status in motor_status if status == 'Operational')
+            
+            return [
+                {'label': 'Average Temp', 'value': f"{avg_temp:.1f}", 'unit': '°C'},
+                {'label': 'Min Temp', 'value': f"{min(temps):.1f}" if temps else "N/A", 'unit': '°C'},
+                {'label': 'Max Temp', 'value': f"{max(temps):.1f}" if temps else "N/A", 'unit': '°C'},
+                {'label': 'Active Motors', 'value': f"{active_motors}", 'unit': f'/ {len(motor_status)}'},
+                {'label': 'Status', 'value': 'Normal' if avg_temp < 70 else 'High' if avg_temp < 80 else 'Critical', 'unit': ''},
+            ]
+        elif sensor_name == 'Wheel Motors':
+            # Get detailed actuator data
+            actuators = sensor_data.get('actuators', {})
+            items = []
+            
+            for wheel_name, wheel_data in actuators.items():
+                if isinstance(wheel_data, dict):
+                    wheel_display = wheel_name.replace('_', ' ').title()
+                    items.extend([
+                        {'label': f'{wheel_display} Speed', 'value': f"{wheel_data.get('speed', 0)}", 'unit': 'RPM'},
+                        {'label': f'{wheel_display} Temp', 'value': f"{wheel_data.get('temperature', 0.0):.1f}", 'unit': '°C'},
+                        {'label': f'{wheel_display} Current', 'value': f"{wheel_data.get('consumption', 0.0):.2f}", 'unit': 'A'},
+                        {'label': f'{wheel_display} Voltage', 'value': f"{wheel_data.get('voltage', 0.0):.1f}", 'unit': 'V'},
+                        {'label': f'{wheel_display} Status', 'value': wheel_data.get('status', 'Unknown'), 'unit': ''},
+                    ])
+            
+            if not items:
+                items = [{'label': 'Status', 'value': 'No Motor Data', 'unit': ''}]
+            
+            return items
+        elif sensor_name == 'Server Link':
+            return [
+                {'label': 'Status', 'value': 'Connected', 'unit': ''},
+                {'label': 'Last Update', 'value': time.strftime('%H:%M:%S'), 'unit': ''},
+                {'label': 'Timestamp', 'value': f"{sensor_data.get('timestamp', 0.0):.0f}", 'unit': ''},
+            ]
+        else:
+            return [{'label': 'Status', 'value': 'No Data', 'unit': ''}]
