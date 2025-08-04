@@ -66,7 +66,16 @@ When you first open the app, you'll see the server configuration screen:
 </div>
 
 ---
+##  Robot Configuration (Not implemented yet, just visual)
+Configure the IP Address From the Robot, (In this case, I am still working on the implementation of ROS and the robot on the server, for the moment this is something just visual as a demo on how will it work when its finished)
+**Required Information:**
+- Robot IP Address
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/898e08d0-6858-4885-bc12-3a5a9d86c77d" width="300" alt="Robot Configuration">
+</div>
+
+---
 ## 🌌 Liquid Galaxy Setup
 
 Configure your Liquid Galaxy connection:
@@ -80,10 +89,11 @@ Configure your Liquid Galaxy connection:
 **Connection Confirmation**: When successful, the RoboStream logo will appear on the leftmost screen of the Liquid Galaxy.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/7d483b87-69d0-44c3-b035-e932cb395423" width="300" alt="Liquid Galaxy Configuration">
+  <img src="https://github.com/user-attachments/assets/bef763b5-337d-4476-ae3d-8429aa513fba" width="300" alt="Liquid Galaxy Configuration">
 </div>
 
 ---
+
 
 ## 🏠 Home Screen
 
