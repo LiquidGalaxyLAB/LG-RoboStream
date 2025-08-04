@@ -90,6 +90,22 @@ Configure your Liquid Galaxy connection:
 - 🔒 Password
 - 📺 Total number of screens
 
+**QR Code Configuration:**
+- 📱 **QR Scanner Button**: Tap the QR code button to automatically fill all connection details
+- 🔍 **Quick Setup**: Scan a QR code containing all Liquid Galaxy configuration data
+
+**QR Code JSON Format Example:**
+```json
+{
+  "ip": "192.168.1.100",
+  "username": "lg",
+  "password": "lglg",
+  "screens": "5"
+}
+```
+
+**Purpose**: The QR code scanner allows for quick and error-free configuration by scanning a code that contains all necessary Liquid Galaxy connection parameters, eliminating manual data entry.
+
 **Connection Confirmation**: When successful, the RoboStream logo will appear on the leftmost screen of the Liquid Galaxy.
 
 <div align="center">
