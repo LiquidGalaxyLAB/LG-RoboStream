@@ -202,7 +202,7 @@ To end the streaming session:
 Simply press the **"Stop Streaming"** button to immediately stop all data transmission to Liquid Galaxy.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/b1ff3672-df68-4cc9-aa16-bce5b0ed7545" width="300" alt="Stop Streaming">
+  <img src="https://github.com/user-attachments/assets/c3dd09b4-a6b6-40db-878b-b96fca375ba8" width="300" alt="Stop Streaming">
 </div>
 
 ---
