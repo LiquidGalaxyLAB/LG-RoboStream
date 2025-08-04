@@ -139,7 +139,9 @@ Access the settings menu to modify your connections:
 - 🔧 Change server IP address
 - 🧪 Test server connection
 - 🌌 Update Liquid Galaxy details
+- 🔄 Relaunch Button
 - 🧹 Clear all KMLs from display
+- 🤖 Configure robot IP address
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/98c75486-b939-4520-9dbf-8a2d8062874f" width="250" alt="Settings Menu">
