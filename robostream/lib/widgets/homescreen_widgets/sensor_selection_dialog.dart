@@ -111,7 +111,6 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
   void _toggleSensor(int index) {
     HapticFeedback.selectionClick();
     setState(() {
-      // Allow multiple selection for checkboxes
       _sensorOptions[index].isSelected = !_sensorOptions[index].isSelected;
     });
   }
@@ -122,7 +121,6 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
         .map((sensor) => sensor.id)
         .toList();
 
-    // If no sensors selected, select GPS Position by default
     if (selectedSensors.isEmpty) {
       selectedSensors.add('GPS Position');
     }
@@ -364,7 +362,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6), // Square corners for checkbox
+                    borderRadius: BorderRadius.circular(6),
                     color: sensor.isSelected ? sensor.color : Colors.transparent,
                     border: Border.all(
                       color: sensor.isSelected ? sensor.color : Colors.grey.shade400,

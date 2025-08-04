@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
 class CustomSnackBar {
-  // Colores estandarizados
+
   static const Color _successColor = Color(0xFF10B981);
   static const Color _errorColor = Color(0xFFEF4444);
   static const Color _warningColor = Color(0xFFF59E0B);
   static const Color _infoColor = Color(0xFF6366F1);
 
-  // Mostrar notificación de éxito
   static void showSuccess(BuildContext context, String message) {
     _show(
       context: context,
@@ -17,7 +16,6 @@ class CustomSnackBar {
     );
   }
 
-  // Mostrar notificación de error
   static void showError(BuildContext context, String message) {
     _show(
       context: context,
@@ -27,7 +25,6 @@ class CustomSnackBar {
     );
   }
 
-  // Mostrar notificación de advertencia
   static void showWarning(BuildContext context, String message) {
     _show(
       context: context,
@@ -37,7 +34,6 @@ class CustomSnackBar {
     );
   }
 
-  // Mostrar notificación de información
   static void showInfo(BuildContext context, String message) {
     _show(
       context: context,
@@ -47,7 +43,6 @@ class CustomSnackBar {
     );
   }
 
-  // Método privado para crear el SnackBar
   static void _show({
     required BuildContext context,
     required String message,

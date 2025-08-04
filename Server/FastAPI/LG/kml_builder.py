@@ -9,7 +9,6 @@ class KMLBuilder:
         self.lg_host = lg_host
     
     def build_logo_kml(self) -> str:
-        """Builds KML for showing RoboStream logo"""
         return self._build_kml_document(
             'RoboStreamLogo',
             self._build_screen_overlay(
@@ -22,8 +21,6 @@ class KMLBuilder:
         )
     
     def build_camera_kml(self, server_host: str) -> str:
-        """Builds KML for showing RGB camera feed"""
-        # Add timestamp to force image refresh and avoid caching
         timestamp = int(time.time())
         return self._build_kml_document(
             'RoboStreamCameraFeed',
@@ -37,7 +34,6 @@ class KMLBuilder:
         )
     
     def build_sensor_data_kml(self, sensor_type: str) -> str:
-        """Builds KML for showing sensor data"""
         image_name = self._get_sensor_image_name(sensor_type)
         return self._build_kml_document(
             f'RoboStream {sensor_type} Data',
@@ -51,11 +47,11 @@ class KMLBuilder:
         )
     
     def build_empty_kml(self) -> str:
-        """Builds empty KML document"""
+
         return self._build_kml_document('Empty', '')
     
     def _build_kml_document(self, name: str, content: str) -> str:
-        """Helper method to build KML document structure"""
+
         return f'''<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
@@ -65,7 +61,7 @@ class KMLBuilder:
 </kml>'''
     
     def _build_screen_overlay(self, name: str, href: str, **kwargs) -> str:
-        """Helper method to build ScreenOverlay"""
+
         overlay_xy = kwargs.get('overlay_xy', '1,1')
         screen_xy = kwargs.get('screen_xy', '0.98,0.98') 
         size = kwargs.get('size', '0,0,pixels')
@@ -85,7 +81,6 @@ class KMLBuilder:
     </ScreenOverlay>'''
     
     def _get_sensor_image_name(self, sensor_type: str) -> str:
-        """Gets image name for sensor type with timestamp"""
         timestamp = int(time.time() * 1000)
         sensor_images = {
             'GPS Position': 'gps_data',
@@ -99,7 +94,6 @@ class KMLBuilder:
         return f'{base_name}_{timestamp}.png'
     
     def build_sensor_data(self, sensor_data: Dict[str, Any], selected_sensor: str) -> Dict[str, Any]:
-        """Builds sensor data configuration for image generation"""
         sensor_configs = {
             'GPS Position': {
                 'title': '📍 GPS Position',
@@ -163,36 +157,28 @@ class KMLBuilder:
         }
     
     def build_sensor_balloon_kml(self, sensor_data: Dict[str, Any], selected_sensor: str) -> str:
-        """Builds KML for showing sensor data using balloons instead of images"""
-        # Prepare structured data for single sensor
         structured_data = self._prepare_structured_sensor_data(sensor_data, [selected_sensor])
-        # Return balloon directly since it's already a complete KML document
         return BalloonMaker.generate_sensor_balloon(structured_data, selected_sensor)
     
     def build_multi_sensor_balloon_kml(self, sensor_data: Dict[str, Any], selected_sensors: List[str]) -> str:
-        """Builds KML for showing multiple sensor data using balloons"""
-        # Prepare structured data for balloon
         structured_data = self._prepare_structured_sensor_data(sensor_data, selected_sensors)
-        # Return balloon directly since it's already a complete KML document
         return BalloonMaker.generate_multi_sensor_balloon(structured_data, selected_sensors)
     
     def _prepare_structured_sensor_data(self, sensor_data: Dict[str, Any], selected_sensors: List[str]) -> Dict[str, Any]:
-        """Prepares structured sensor data for balloon generation"""
         data_list = []
         
         for sensor in selected_sensors:
             if sensor == 'RGB Camera':
-                continue  # Skip camera
+                continue 
                 
             sensor_items = self._get_sensor_items(sensor_data, sensor)
             for item in sensor_items:
-                item['category'] = sensor  # Add category for organization
+                item['category'] = sensor 
                 data_list.append(item)
         
         return {'data': data_list}
     
     def _get_sensor_items(self, sensor_data: Dict[str, Any], sensor_name: str) -> List[Dict[str, Any]]:
-        """Gets sensor items for a specific sensor type"""
         if sensor_name == 'GPS Position':
             return [
                 {'label': 'Latitude', 'value': f"{sensor_data.get('gps', {}).get('latitude', 0.0):.6f}", 'unit': '°'},
@@ -223,7 +209,6 @@ class KMLBuilder:
                 {'label': 'Last Update', 'value': time.strftime('%H:%M:%S'), 'unit': ''},
             ]
         elif sensor_name == 'Temperature':
-            # Get actual temperature data from actuators
             actuators = sensor_data.get('actuators', {})
             temps = []
             motor_status = []
@@ -244,7 +229,6 @@ class KMLBuilder:
                 {'label': 'Status', 'value': 'Normal' if avg_temp < 70 else 'High' if avg_temp < 80 else 'Critical', 'unit': ''},
             ]
         elif sensor_name == 'Wheel Motors':
-            # Get detailed actuator data
             actuators = sensor_data.get('actuators', {})
             items = []
             

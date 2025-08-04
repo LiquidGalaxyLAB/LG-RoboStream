@@ -59,7 +59,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
   Future<void> _loadSavedConfig() async {
     final config = await LGConfigService.getLGConfig();
     setState(() {
-      // Si hay datos QR, usarlos; de lo contrario, usar configuración guardada
       if (widget.qrData != null) {
         _lgIpController.text = widget.qrData!['ip'] ?? '';
         _lgUsernameController.text = widget.qrData!['username'] ?? '';
@@ -82,7 +81,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
     });
     
     try {
-      // Simple validation
       if (_lgIpController.text.isEmpty ||
           _lgUsernameController.text.isEmpty ||
           _lgPasswordController.text.isEmpty ||
@@ -125,7 +123,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Server connection info
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
@@ -155,8 +152,7 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
           ),
         ),
         const SizedBox(height: 24),
-        
-        // LG Form fields
+
         _buildTextField(
           controller: _lgIpController,
           focusNode: _lgIpFocus,
@@ -193,7 +189,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
         ),
         const SizedBox(height: 32),
         
-        // Login button
         _buildLoginButton(),
       ],
     );
@@ -222,7 +217,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // External floating label
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 height: isActive ? 24 : 0,
@@ -247,7 +241,6 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
                 ),
               ),
               
-              // Input field
               AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 decoration: BoxDecoration(

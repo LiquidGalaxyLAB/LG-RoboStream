@@ -14,10 +14,8 @@ from pydantic import BaseModel
 import LG.lg_data as lg_data
 from LG.lg_service import lg_service
 
-#I import the FastAPI and other necessary modules.
 app = FastAPI(title="Robot Sensor API", version="1.0.0")
 
-#I set up CORS middleware to allow cross-origin requests.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,33 +24,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic model for LG configuration
 class LGConfig(BaseModel):
     host: str
     username: str
     password: str
     total_screens: int
 
-# Pydantic model for LG login
 class LGLoginRequest(BaseModel):
     host: str
     username: str 
     password: str
     total_screens: int
 
-# Pydantic model for sensor data streaming
 class LGSensorRequest(BaseModel):
     selected_sensors: List[str]
 
-# Pydantic model for server host
 class LGServerRequest(BaseModel):
     server_host: str
 
-#I create the robot simulator instance and list for connected WebSocket clients.
 robot = RobotSimulator()
 connected_clients: List[WebSocket] = []
 
-#I define the root endpoint with API information.
 @app.get("/")
 async def root():
     return {
@@ -79,7 +71,6 @@ async def root():
         }
     }
 
-#I define the endpoint to set LG configuration
 @app.post("/lg-config")
 async def set_lg_config(config: LGConfig):
     lg_data.LG_HOST = config.host
@@ -88,7 +79,6 @@ async def set_lg_config(config: LGConfig):
     lg_data.LG_TOTAL_SCREENS = config.total_screens
     return {"message": "Liquid Galaxy configuration updated successfully"}
 
-#I define the endpoint to get LG configuration
 @app.get("/lg-config")
 async def get_lg_config():
     return {
@@ -98,10 +88,8 @@ async def get_lg_config():
         "total_screens": lg_data.LG_TOTAL_SCREENS,
     }
 
-# LG Service Endpoints
 @app.post("/lg/login")
 async def lg_login(request: LGLoginRequest):
-    """Login to Liquid Galaxy and test connection"""
     result = await lg_service.login(
         request.host, 
         request.username, 
@@ -115,7 +103,6 @@ async def lg_login(request: LGLoginRequest):
 
 @app.post("/lg/show-logo")
 async def lg_show_logo():
-    """Show RoboStream logo on Liquid Galaxy"""
     print("Debug: lg_show_logo endpoint called")
     print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
     
@@ -129,7 +116,6 @@ async def lg_show_logo():
 
 @app.post("/lg/show-camera")
 async def lg_show_camera(request: LGServerRequest):
-    """Show RGB camera feed on Liquid Galaxy"""
     print(f"Debug: lg_show_camera endpoint called with server_host: {request.server_host}")
     print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
     
@@ -143,13 +129,11 @@ async def lg_show_camera(request: LGServerRequest):
 
 @app.post("/lg/show-sensors")
 async def lg_show_sensors(request: LGSensorRequest):
-    """Show sensor data on Liquid Galaxy"""
     print(f"Debug: lg_show_sensors endpoint called with sensors: {request.selected_sensors}")
     print(f"Debug: LG Config - Host: {lg_data.LG_HOST}, Username: {lg_data.LG_USERNAME}, Screens: {lg_data.LG_TOTAL_SCREENS}")
     
     robot.update_sensors()
-    
-    # Combine sensor data and actuator data
+
     combined_data = robot.sensor_data.dict()
     combined_data['actuators'] = robot.actuator_data.dict()
     
@@ -163,7 +147,6 @@ async def lg_show_sensors(request: LGSensorRequest):
 
 @app.post("/lg/hide-sensors")
 async def lg_hide_sensors():
-    """Hide sensor data from Liquid Galaxy"""
     success = await lg_service.hide_sensor_data()
     return {
         "success": success,
@@ -172,7 +155,6 @@ async def lg_hide_sensors():
 
 @app.post("/lg/disconnect")
 async def lg_disconnect():
-    """Disconnect from Liquid Galaxy"""
     await lg_service.disconnect()
     return {
         "success": True,
@@ -181,7 +163,6 @@ async def lg_disconnect():
 
 @app.post("/lg/clear-all-kml")
 async def lg_clear_all_kml():
-    """Clear ALL KML content from ALL Liquid Galaxy screens"""
     success = await lg_service.clear_all_kml()
     return {
         "success": success,
@@ -190,26 +171,22 @@ async def lg_clear_all_kml():
 
 @app.post("/lg/relaunch")
 async def lg_relaunch():
-    """Relaunch the Liquid Galaxy system by executing lg-relaunch command"""
     success = await lg_service.relaunch_lg()
     return {
         "success": success,
         "message": "Liquid Galaxy relaunched successfully" if success else "Failed to relaunch Liquid Galaxy"
     }
 
-#I define the sensors endpoint to get current sensor data.
 @app.get("/sensors", response_model=SensorData)
 async def get_sensors():
     robot.update_sensors()
     return robot.sensor_data
 
-#I define the actuators endpoint to get current actuator data.
 @app.get("/actuators", response_model=ActuatorData)
 async def get_actuators():
     robot.update_sensors()
     return robot.actuator_data
 
-#I define the config endpoint to get server configuration.
 @app.get("/config")
 async def get_config():
     return {
@@ -221,7 +198,6 @@ async def get_config():
         "update_schedule": robot.get_update_info()
     }
 
-#I define the force update endpoint to manually trigger data updates.
 @app.post("/force-update")
 async def force_update():
     robot.force_update()
@@ -231,19 +207,16 @@ async def force_update():
         "update_info": robot.get_update_info()
     }
 
-#I define the RGB camera endpoint to get camera sensor data.
 @app.get("/rgb-camera", response_model=RGBCameraData)
 async def get_rgb_camera():
     robot.update_sensors()
     return robot.sensor_data.rgb_camera
 
-#I define the RGB camera image endpoint to serve the current image file.
 @app.get("/rgb-camera/image")
 async def get_rgb_camera_image(t: int = None):
     robot.update_sensors()
     image_path = robot.get_current_image_path()
-    
-    #I check if the image exists and return it or an error message.
+
     if image_path and os.path.exists(image_path):
         return FileResponse(
             image_path,
@@ -261,12 +234,10 @@ async def get_rgb_camera_image(t: int = None):
     else:
         return {"error": "No image available", "message": "No images found in the images folder"}
 
-#I define the RGB camera image data endpoint to get base64 encoded image with metadata.
 @app.get("/rgb-camera/image-data")
 async def get_rgb_camera_image_data():
     robot.update_sensors()
-    
-    #I get the image as base64 and calculate timing information.
+
     image_base64 = robot.get_image_as_base64()
     current_time = time.time()
     time_since_last_rotation = current_time - robot.last_image_update
@@ -290,7 +261,6 @@ async def get_rgb_camera_image_data():
         }
     }
 
-#I define the health check endpoint for monitoring.
 @app.get("/health")
 async def health_check():
     return {
@@ -298,13 +268,11 @@ async def health_check():
         "timestamp": time.time()
     }
 
-#I define the WebSocket endpoint for real-time data streaming.
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.append(websocket)
     try:
-        #I continuously send updated sensor data to the client.
         while True:
             robot.update_sensors()
             
@@ -317,11 +285,9 @@ async def websocket_endpoint(websocket: WebSocket):
             
             await asyncio.sleep(2)
     except WebSocketDisconnect:
-        #I remove the client from the list when they disconnect.
         connected_clients.remove(websocket)
         print(f"Client disconnected. Active connections: {len(connected_clients)}")
 
-#I run the server when this file is executed directly.
 if __name__ == "__main__":
     print("🤖 Robot Sensor API Server")
     print("=" * 50)
@@ -351,5 +317,4 @@ if __name__ == "__main__":
     print(f"   POST /lg/clear-all-kml  - Clear all KML content from Liquid Galaxy")
     
     print("=" * 50)
-    #I start the FastAPI server with uvicorn.
     uvicorn.run(app, host="0.0.0.0", port=8000)

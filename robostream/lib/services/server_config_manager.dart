@@ -15,7 +15,6 @@ class ServerConfigManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_serverIpKey, ip.trim());
     } catch (e) {
-      // Error saving server IP - silent fail
     }
   }
 
@@ -33,7 +32,6 @@ class ServerConfigManager {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_serverPortKey, port.trim());
     } catch (e) {
-      // Error saving server port - silent fail
     }
   }
 
@@ -61,7 +59,6 @@ class ServerConfigManager {
       await prefs.remove(_serverIpKey);
       await prefs.remove(_serverPortKey);
     } catch (e) {
-      // Error clearing server config - silent fail
     }
   }
 

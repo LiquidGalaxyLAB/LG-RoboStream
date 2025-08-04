@@ -16,7 +16,6 @@ class ServerConfigScreen extends StatefulWidget {
 }
 
 class _ServerConfigScreenState extends State<ServerConfigScreen> {
-  // Constants for repeated colors and styles
   static const Color _primaryColor = Color(0xFF6366F1);
   static const Color _secondaryColor = Color(0xFF8B5CF6);
   static const Color _textPrimaryColor = Color(0xFF1E293B);
@@ -40,7 +39,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   Future<void> _loadConfiguration() async {
     if (!mounted) return;
     
-    // Primero intentar cargar desde el servicio centralizado
     final savedUrl = await ServerConfigManager.instance.getServerUrl();
     final currentUrl = savedUrl ?? widget.serverService?.currentBaseUrl ?? ServerConfig.baseUrl;
     
@@ -72,7 +70,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
       _testService = RobotServerService();
       _testService!.updateServerUrl(url);
       
-      // Try connection with retry mechanism
       bool isConnected = false;
       int retryCount = 0;
       const maxRetries = 3;
@@ -110,7 +107,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     }
   }
 
-  // Helper methods for common UI patterns
   LinearGradient get _primaryGradient => const LinearGradient(
     colors: [_primaryColor, _secondaryColor],
     begin: Alignment.topLeft,
@@ -697,10 +693,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   }
 
   Future<void> _saveConfiguration() async {
-    print('🔴 DEBUG: _saveConfiguration() called - START');
-    
     final newUrl = _urlController.text.trim();
-    print('🔴 DEBUG: newUrl = $newUrl');
     
     if (newUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -723,25 +716,17 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
     }
 
     try {
-      // Save configuration immediately without testing
       await ServerConfigManager.instance.saveServerIp(newUrl.replaceAll('http://', '').replaceAll(':8000', ''));
 
-      // Update existing service if it exists
       if (widget.serverService != null) {
-        // Update URL
         widget.serverService!.updateServerUrl(newUrl);
-        
-        // Start background connection verification and streaming setup
+
         _startBackgroundConnectionVerification(widget.serverService!);
       }
 
-      // Try to fetch and save LG config in background
       _fetchAndSaveLGConfig(newUrl);
       
-      // Send current LG config to server immediately
-      print('🔴 DEBUG: About to call _sendCurrentLGConfigToServer()');
       await _sendCurrentLGConfigToServer(newUrl);
-      print('🔴 DEBUG: _sendCurrentLGConfigToServer() completed');
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -760,7 +745,6 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         ),
       );
       
-      // Return immediately to home screen
       Navigator.pop(context, newUrl);
       
     } catch (e) {
@@ -784,20 +768,16 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
   }
 
   void _startBackgroundConnectionVerification(RobotServerService service) async {
-    // This runs in background after user returns to home screen
     try {
-      // Stop current streaming if running
       if (service.isStreaming) {
         service.stopStreaming();
       }
-      
-      // Wait a moment for the UI to settle
+
       await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Try to establish connection with 5-second timeout
+
       bool isConnected = false;
       int retryCount = 0;
-      const maxRetries = 2; // Reduced retries for faster response
+      const maxRetries = 2;
       
       while (!isConnected && retryCount < maxRetries) {
         try {
@@ -818,13 +798,10 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
           }
         }
       }
-      
-      // Start streaming regardless of connection status
-      // The connection indicator will update automatically through the stream
+
       service.startStreaming();
       
     } catch (e) {
-      // Silent error handling - just start streaming anyway
       service.startStreaming();
     }
   }
@@ -842,29 +819,16 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         );
       }
     } catch (e) {
-      print('Could not fetch LG config from server during server setup: $e');
     }
   }
 
   Future<void> _sendCurrentLGConfigToServer(String serverUrl) async {
-    print('🔴🔴🔴 DEBUG: _sendCurrentLGConfigToServer called with URL: $serverUrl 🔴🔴🔴');
-    
     try {
-      // Get current LG configuration from local storage
-      print('🔴 DEBUG: Getting LG config from local storage...');
       final lgConfig = await LGConfigService.getLGConfig();
       final totalScreens = await LGConfigService.getTotalScreens();
-      
-      print('🔴 DEBUG: Retrieved LG config from local storage:');
-      print('🔴   Host: ${lgConfig['host']}');
-      print('🔴   Username: ${lgConfig['username']}');
-      print('🔴   Password: ${lgConfig['password']}');
-      print('🔴   Total screens: $totalScreens');
-      
-      // Only send if we have valid configuration
+
       final host = lgConfig['host'];
       if (host != null && host.isNotEmpty) {
-        print('🔴 DEBUG: Host is valid, sending LG configuration to server: $host');
         
         final requestBody = {
           'host': host,
@@ -874,9 +838,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         };
         
         final requestBodyJson = jsonEncode(requestBody);
-        print('🔴 DEBUG: Request body: $requestBodyJson');
         
-        print('🔴 DEBUG: Making HTTP POST request to: $serverUrl/lg-config');
         final response = await http.post(
           Uri.parse('$serverUrl/lg-config'),
           headers: {'Content-Type': 'application/json'},
@@ -884,31 +846,19 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
         ).timeout(
           const Duration(seconds: 10),
           onTimeout: () {
-            print('🔴 DEBUG: HTTP request timeout');
             throw Exception('Request timeout');
           },
         );
         
-        print('🔴 DEBUG: HTTP response received');
-        print('🔴 DEBUG: Server response status: ${response.statusCode}');
-        print('🔴 DEBUG: Server response body: ${response.body}');
-        
         if (response.statusCode == 200) {
-          print('🔴 ✅ LG configuration sent to server successfully');
         } else {
-          print('🔴 ❌ Failed to send LG configuration to server: ${response.statusCode}');
-          print('🔴 ❌ Response body: ${response.body}');
+
         }
       } else {
-        print('🔴 ❌ No valid LG configuration found to send to server');
-        print('🔴    Host is null or empty: $host');
-        print('🔴    Full config: $lgConfig');
+
       }
-    } catch (e, stackTrace) {
-      print('🔴 ❌ EXCEPTION in _sendCurrentLGConfigToServer: $e');
-      print('🔴 ❌ Stack trace: $stackTrace');
+    } catch (e) {
+
     }
-    
-    print('🔴🔴🔴 DEBUG: _sendCurrentLGConfigToServer completed 🔴🔴🔴');
   }
 }

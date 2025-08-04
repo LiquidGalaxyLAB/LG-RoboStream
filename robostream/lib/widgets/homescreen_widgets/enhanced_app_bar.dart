@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-// Constantes para optimizar el rendimiento
 const _kParticlePositions = [
   Offset(50, 30),
   Offset(250, 80),

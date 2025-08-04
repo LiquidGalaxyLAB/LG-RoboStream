@@ -18,7 +18,6 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     
-    // Initialize fade animation
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -32,10 +31,8 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeInOut,
     ));
     
-    // Start the animation
     _animationController.forward();
     
-    // Navigate to login screen after 4 seconds with smooth transition
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
         _animationController.reverse().then((_) {
@@ -66,7 +63,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo perfectamente redondeado sin picos
                 ClipRRect(
                   borderRadius: BorderRadius.circular(40),
                   child: Container(
@@ -100,7 +96,6 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 150),
-                // Loading indicator - solo la rueda girando sin fondo
                 SizedBox(
                   width: 50,
                   height: 50,

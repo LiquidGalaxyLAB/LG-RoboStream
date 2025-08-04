@@ -31,7 +31,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
   late StreamSubscription<ActuatorData> _actuatorSubscription;
   late StreamSubscription<bool> _connectionSubscription;
   
-  // Internal state for real-time data
   SensorData? _currentSensorData;
   ActuatorData? _currentActuatorData;
   bool _currentConnectionStatus = false;
@@ -39,13 +38,11 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
   @override
   void initState() {
     super.initState();
-    
-    // Initialize current data with the provided initial data
+
     _currentSensorData = widget.sensorData;
     _currentActuatorData = widget.actuatorData;
     _currentConnectionStatus = widget.isConnected;
-    
-    // Set up real-time data subscriptions
+
     _sensorSubscription = widget.serverService.sensorStream.listen((sensorData) {
       if (mounted) {
         setState(() {
@@ -129,7 +126,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
               ),
               child: Column(
                 children: [
-                  // Drag handle
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Container(
@@ -437,7 +433,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         detailWidgets.addAll([
           _buildCameraPreview(),
           const SizedBox(height: 12),
-          // Add refresh button for camera
           _buildRefreshButton(),
           const SizedBox(height: 12),
           _buildDetailRow('Camera ID', rgbCamera.cameraId),
@@ -614,7 +609,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
             );
           },
           errorBuilder: (context, error, stackTrace) {
-            print('Error loading camera image: $error');
             return Container(
               decoration: BoxDecoration(
                 gradient: _createCommonGradient(
@@ -683,7 +677,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     );
   }
 
-  // Helper function to determine if a status is positive
   bool _isPositiveStatus(String status) {
     return status == 'Online' || 
            status == 'Active' || 
@@ -693,14 +686,12 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
            status == 'Monitoring';
   }
 
-  // Helper function to get status color
   Color _getStatusColor(String status) {
     return _isPositiveStatus(status) 
         ? const Color(0xFF10B981) 
         : const Color(0xFFEF4444);
   }
 
-  // Helper function to create common gradient
   LinearGradient _createCommonGradient({
     List<Color>? colors,
     AlignmentGeometry? begin,
@@ -716,7 +707,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     );
   }
 
-  // Helper function to create refresh button
   Widget _buildRefreshButton() {
     return ElevatedButton.icon(
       onPressed: () {

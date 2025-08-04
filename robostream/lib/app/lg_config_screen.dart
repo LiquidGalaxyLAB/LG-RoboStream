@@ -49,7 +49,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     try {
       final serverUrl = await ServerConfigManager.instance.getServerUrl();
       if (serverUrl == null) {
-        // Server not configured, do nothing.
         return;
       }
       final response = await http.get(Uri.parse('$serverUrl/lg-config'));
@@ -65,8 +64,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
         }
       }
     } catch (e) {
-      // Silently fail if the server is not reachable or config doesn't exist
-      print('Could not fetch LG config from server: $e');
     }
   }
 
@@ -79,7 +76,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     super.dispose();
   }
 
-  // Helper method for validation and getting values
   Map<String, dynamic>? _getValidatedFields() {
     final host = _hostController.text.trim();
     final username = _usernameController.text.trim();
@@ -105,12 +101,10 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     };
   }
 
-  // Helper method for showing error messages
   void _showErrorSnackBar(String message) {
     CustomSnackBar.showError(context, message);
   }
 
-  // Helper method for showing success messages
   void _showSuccessSnackBar(String message) {
     CustomSnackBar.showSuccess(context, message);
   }
@@ -149,7 +143,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Save configuration locally
         widget.onConfigSaved(
           fields['host'], 
           fields['username'], 
@@ -157,14 +150,12 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
           fields['totalScreens']
         );
         
-        // Show logo on LG after saving configuration through server
         final serverIp = await ServerConfigManager.instance.getSavedServerIp();
         if (serverIp != null) {
           await http.post(
             Uri.parse('http://$serverIp:8000/lg/show-logo'),
             headers: {'Content-Type': 'application/json'},
           );
-          // Logo request sent to server (no need to wait for response)
         }
         
         if(mounted) Navigator.pop(context, true);
@@ -191,7 +182,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     });
 
     try {
-      // Clear ALL KML through server
       final serverIp = await ServerConfigManager.instance.getSavedServerIp();
       if (serverIp != null) {
         final response = await http.post(
@@ -363,7 +353,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     final fields = _getValidatedFields();
     if (fields == null) return;
 
-    // Mostrar diálogo de confirmación
     final shouldRelaunch = await _showRelaunchConfirmationDialog();
     if (!shouldRelaunch) return;
 
@@ -372,7 +361,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     });
 
     try {
-      // Relaunch LG through server
       final serverIp = await ServerConfigManager.instance.getSavedServerIp();
       if (serverIp != null) {
         final response = await http.post(
@@ -644,7 +632,7 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Relaunch LG Button
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -688,7 +676,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Clear ALL KML Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -732,7 +719,6 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Save Configuration Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

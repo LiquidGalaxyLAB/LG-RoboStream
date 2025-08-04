@@ -21,7 +21,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
   late MobileScannerController cameraController;
   bool _isScanning = true;
   bool _flashOn = false;
-  String? _lastErrorCode; // Para evitar errores repetidos
+  String? _lastErrorCode;
   DateTime? _lastErrorTime;
   String _scanningMessage = 'Position the QR code within the frame';
   Color _frameColor = AppStyles.primaryColor;
@@ -82,17 +82,16 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     _scanLineController.dispose();
     _pulseController.dispose();
     
-    // Detener el escáner antes de liberar el controlador
     try {
       cameraController.stop();
     } catch (e) {
-      // Ignorar errores al detener la cámara
+
     }
     
     try {
       cameraController.dispose();
     } catch (e) {
-      // Ignorar errores al liberar el controlador
+
     }
     
     super.dispose();
@@ -105,7 +104,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     for (final barcode in barcodes) {
       final String? code = barcode.rawValue;
       if (code != null && code.isNotEmpty) {
-        // Evitar procesar el mismo código repetidamente
+
         final now = DateTime.now();
         if (_lastErrorCode == code && 
             _lastErrorTime != null &&
@@ -113,7 +112,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
           return;
         }
         
-        // Actualizar el tiempo del último código procesado
         _lastErrorCode = code;
         _lastErrorTime = now;
         
@@ -124,7 +122,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
   }
 
   void _processQRCode(String qrCode) {
-    if (!mounted) return; // Verificar que el widget sigue montado
+    if (!mounted) return;
     
     setState(() {
       _isScanning = false;
@@ -137,24 +135,20 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     try {
       final Map<String, dynamic> data = json.decode(qrCode);
       
-      // Validar que el JSON contenga los campos requeridos
       if (data.containsKey('username') &&
           data.containsKey('ip') &&
           data.containsKey('port') &&
           data.containsKey('password') &&
           data.containsKey('screens')) {
         
-        // Convertir el puerto a string si viene como número
         if (data['port'] is int) {
           data['port'] = data['port'].toString();
         }
-        
-        // Convertir las pantallas a string si viene como número
         if (data['screens'] is int) {
           data['screens'] = data['screens'].toString();
         }
         
-        if (!mounted) return; // Verificar nuevamente antes de setState
+        if (!mounted) return;
         
         setState(() {
           _scanningMessage = 'QR code detected successfully!';
@@ -162,10 +156,9 @@ class _QRScannerScreenState extends State<QRScannerScreen>
         });
         
         HapticFeedback.heavyImpact();
-        
-        // Pequeña pausa para mostrar el éxito antes de cerrar
+
         Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) { // Verificar que el widget sigue montado antes de llamar callbacks
+          if (mounted) {
             widget.onQRScanned(data);
             if (Navigator.canPop(context)) {
               Navigator.of(context).pop();
@@ -181,9 +174,8 @@ class _QRScannerScreenState extends State<QRScannerScreen>
   }
 
   void _showError(String message, String code) {
-    if (!mounted) return; // Verificar que el widget sigue montado
+    if (!mounted) return;
     
-    // Actualizar información del último error para evitar repetición
     _lastErrorCode = code;
     _lastErrorTime = DateTime.now();
     
@@ -194,7 +186,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     
     HapticFeedback.mediumImpact();
     
-    // Volver al estado normal después de 2 segundos
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -257,7 +248,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
       ),
       body: Stack(
         children: [
-          // Scanner view
           MobileScanner(
             controller: cameraController,
             onDetect: _onDetect,
@@ -313,7 +303,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
             },
           ),
           
-          // Enhanced overlay with animations (behind scanner interaction area)
           AnimatedBuilder(
             animation: Listenable.merge([_scanLineController, _pulseController]),
             builder: (context, child) {
@@ -330,7 +319,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
             },
           ),
           
-          // Status indicator
           Positioned(
             top: 120,
             left: 20,
@@ -386,7 +374,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
             ),
           ),
           
-          // Enhanced instructions panel
           Positioned(
             bottom: 120,
             left: 20,
@@ -440,7 +427,6 @@ class _QRScannerScreenState extends State<QRScannerScreen>
             ),
           ),
           
-          // Enhanced flash toggle button
           Positioned(
             bottom: 40,
             right: 20,
@@ -507,24 +493,17 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       ..color = frameColor.withOpacity(0.6)
       ..style = PaintingStyle.fill;
 
-    // Tamaño del área de escaneo más grande
     final double scanAreaSize = size.width * 0.75;
     final double left = (size.width - scanAreaSize) / 2;
     final double top = (size.height - scanAreaSize) / 2;
     final double right = left + scanAreaSize;
     final double bottom = top + scanAreaSize;
 
-    // Draw overlay only around the scanning area, not over it
-    // Top area
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, top), paint);
-    // Bottom area
     canvas.drawRect(Rect.fromLTWH(0, bottom, size.width, size.height - bottom), paint);
-    // Left area
     canvas.drawRect(Rect.fromLTWH(0, top, left, bottom - top), paint);
-    // Right area
     canvas.drawRect(Rect.fromLTWH(right, top, size.width - right, bottom - top), paint);
 
-    // Draw animated scanning line only
     final double scanLineY = top + (bottom - top) * scanLineProgress;
     final gradient = LinearGradient(
       begin: Alignment.centerLeft,
@@ -541,7 +520,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
     scanLinePaint.shader = shader;
     canvas.drawRect(rect, scanLinePaint);
 
-    // Draw enhanced frame corners with pulse effect
     final double cornerLength = 25;
     final double cornerThickness = 4;
     final double pulseOffset = (pulseScale - 1.0) * 10;
@@ -552,7 +530,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       ..strokeWidth = cornerThickness
       ..strokeCap = StrokeCap.round;
 
-    // Top-left corner
     canvas.drawPath(
       Path()
         ..moveTo(left - pulseOffset, top + cornerLength)
@@ -561,7 +538,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Top-right corner
     canvas.drawPath(
       Path()
         ..moveTo(right - cornerLength, top - pulseOffset)
@@ -570,7 +546,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Bottom-left corner
     canvas.drawPath(
       Path()
         ..moveTo(left - pulseOffset, bottom - cornerLength)
@@ -579,7 +554,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Bottom-right corner
     canvas.drawPath(
       Path()
         ..moveTo(right - cornerLength, bottom + pulseOffset)
@@ -588,7 +562,6 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
       cornerPaint,
     );
 
-    // Draw center guide lines
     final guidePaint = Paint()
       ..color = frameColor.withOpacity(0.3)
       ..style = PaintingStyle.stroke
@@ -598,28 +571,24 @@ class EnhancedScannerOverlayPainter extends CustomPainter {
     final centerY = (top + bottom) / 2;
     final guideLength = 20;
 
-    // Horizontal center line
     canvas.drawLine(
       Offset(centerX - guideLength, centerY),
       Offset(centerX + guideLength, centerY),
       guidePaint,
     );
 
-    // Vertical center line
     canvas.drawLine(
       Offset(centerX, centerY - guideLength),
       Offset(centerX, centerY + guideLength),
       guidePaint,
     );
 
-    // Draw corner decorations
     final decorationPaint = Paint()
       ..color = frameColor.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
     final decorationSize = 6.0;
     
-    // Corner dots
     canvas.drawCircle(Offset(left, top), decorationSize, decorationPaint);
     canvas.drawCircle(Offset(right, top), decorationSize, decorationPaint);
     canvas.drawCircle(Offset(left, bottom), decorationSize, decorationPaint);

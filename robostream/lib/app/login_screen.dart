@@ -34,14 +34,12 @@ class _LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
-  // Server connection state
+
   bool _isServerConnected = false;
   String _serverIp = '';
   
-  // QR data storage
   Map<String, dynamic>? _qrData;
   
-  // Animation controllers
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late AnimationController _screenFadeController;
@@ -84,7 +82,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       curve: AppStyles.smoothCurve,
     ));
 
-    // Start initial animations
     _fadeController.forward();
     _slideController.forward();
   }
@@ -99,7 +96,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   void _onLoginSuccess() {
     _showSuccessAnimation();
-    // Start fade out animation
     _screenFadeController.forward();
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
@@ -114,8 +110,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   Future<void> _fetchAndSaveLGConfigFromServer(String serverIp) async {
     try {
-      // We assume the default port, as it's not available in the login screen.
-      // The server config screen should be used for non-default ports.
       final port = await ServerConfigManager.instance.getSavedServerPort();
       final serverUrl = 'http://$serverIp:$port';
       final response = await http.get(Uri.parse('$serverUrl/lg-config'));
@@ -130,8 +124,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         );
       }
     } catch (e) {
-      // Silently fail, the user can still input the data manually.
-      print('Could not fetch LG config from server on login: $e');
     }
   }
 
@@ -147,20 +139,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     setState(() {
       _qrData = qrData;
     });
-    
-    // NO llamar Navigator.pop() aquí porque ya se hace en QRScannerScreen
-    // Navigator.of(context).pop(); // Cerrar el scanner
-    
-    // Mostrar mensaje de éxito
+
     _showSuccessMessage('QR configuration loaded! Data has been filled automatically.');
   }
 
   void _openQRScanner() {
-    print('QR Scanner button pressed! Server connected: $_isServerConnected');
-    
-    // Solo abrir el scanner si estamos en el estado de configuración de Liquid Galaxy
     if (_isServerConnected) {
-      print('Opening QR Scanner...');
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => QRScannerScreen(
@@ -168,13 +152,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           ),
         ),
       ).then((_) {
-        print('QR Scanner closed');
       }).catchError((error) {
-        print('Error opening QR Scanner: $error');
         _showErrorMessage('Error opening QR scanner: $error');
       });
     } else {
-      print('Server not connected, showing error message');
       _showErrorMessage('Please connect to the server first before scanning QR codes.');
     }
   }
@@ -249,7 +230,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       },
     );
 
-    // Auto-close the dialog
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted && Navigator.canPop(context)) {
         Navigator.of(context).pop();
@@ -278,7 +258,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Logo with scale animation
                             AnimatedBuilder(
                               animation: _fadeAnimation,
                               builder: (context, child) {
@@ -295,7 +274,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                 );
                               },
                             ),
-                            // App title with gradient
                             AnimatedBuilder(
                               animation: _fadeAnimation,
                               builder: (context, child) {
@@ -316,7 +294,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                               },
                             ),
                             const SizedBox(height: 8),
-                            // Subtitle with fade animation
                             AnimatedBuilder(
                               animation: _fadeAnimation,
                               builder: (context, child) {
@@ -338,7 +315,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 36),
                             
-                            // Show different forms based on server connection state with fade transition
                             AnimatedSwitcher(
                               duration: const Duration(milliseconds: 600),
                               transitionBuilder: (Widget child, Animation<double> animation) {
@@ -385,8 +361,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 ),
               ),
               
-              // QR Scanner button in top right corner (only when server is connected)
-              // Positioned at the end of Stack to ensure it's on top
               if (_isServerConnected)
                 Positioned(
                   top: 20,
@@ -395,7 +369,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     child: FloatingActionButton(
                       heroTag: "qr_scanner_fab",
                       onPressed: () {
-                        print('QR button tapped!');
                         _openQRScanner();
                       },
                       backgroundColor: Colors.white,

@@ -208,7 +208,7 @@ class RobotServerService {
     }
 
     _currentBaseUrl = newUrl;
-    _updateConnectionStatus(false); // Reset connection status
+    _updateConnectionStatus(false);
   }
 
   void _startPeriodicRequests() {
@@ -218,7 +218,6 @@ class RobotServerService {
       _fetchAllData();
     });
 
-    // Fetch data immediately
     _fetchAllData();
   }
 
@@ -230,7 +229,7 @@ class RobotServerService {
   void startStreaming() {
     if (!_isStreaming) {
       _isStreaming = true;
-      _updateConnectionStatus(false); // Reset connection status
+      _updateConnectionStatus(false);
       _startPeriodicRequests();
     }
   }
@@ -331,7 +330,6 @@ class RobotServerService {
       if (sensorData != null) _sensorController.add(sensorData);
       if (actuatorData != null) _actuatorController.add(actuatorData);
     } catch (e) {
-      // Error handling without print
     }
   }
 

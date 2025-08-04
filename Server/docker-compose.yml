@@ -1,14 +1,11 @@
 services:
   robot-api:
     build: .
-    container_name: robot-sensor-api-ros2
+    container_name: robot-sensor-api
     ports:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
-      - ROS_DISTRO=humble
-      - ROS_VERSION=2
-      - ROS_PYTHON_VERSION=3
       - LANG=en_US.UTF-8
       - LC_ALL=en_US.UTF-8
     restart: unless-stopped

@@ -63,17 +63,15 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
     });
 
     try {
-      // Guardar la IP del servidor usando el servicio centralizado y persistente
+
       final trimmedIp = _serverIpController.text.trim();
       await ServerConfigManager.instance.saveServerIp(trimmedIp);
       await LGConfigService.saveServerHost(trimmedIp);
-      
-      // Crear el servicio del servidor con la IP introducida
+
       final serverUrl = 'http://${_serverIpController.text.trim()}:8000';
       _serverService = RobotServerService();
       _serverService!.updateServerUrl(serverUrl);
-      
-      // Test connection
+
       final isConnected = await _serverService!.checkConnection();
       
       if (mounted) {
@@ -120,7 +118,7 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Floating label
+
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 height: isActive ? 24 : 0,
@@ -144,8 +142,7 @@ class _ServerConnectionFormState extends State<ServerConnectionForm> {
                   ),
                 ),
               ),
-              
-              // Input field
+
               Container(
                 decoration: BoxDecoration(
                   boxShadow: [

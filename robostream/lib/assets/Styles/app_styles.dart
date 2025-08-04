@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppStyles {
-  // Private constructor to prevent instantiation
   AppStyles._();
   
-  // Enhanced color palette with more variants
   static const Color primaryColor = Color(0xFF6366F1);
   static const Color secondaryColor = Color(0xFF8B5CF6);
   static const Color accentColor = Color(0xFF06B6D4);
@@ -15,7 +13,6 @@ class AppStyles {
   static const Color successColor = Color(0xFF10B981);
   static const Color warningColor = Color(0xFFF59E0B);
   
-  // Gradient definitions with more variations
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primaryColor, secondaryColor],
     begin: Alignment.topLeft,
@@ -51,19 +48,16 @@ class AppStyles {
     end: Alignment(1.0, 0.0),
   );
 
-  // RoboStream title gradient
   static const LinearGradient titleGradient = LinearGradient(
     colors: [primaryColor, secondaryColor, accentColor],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
-  // Animation curves
   static const Curve primaryCurve = Curves.easeOutCubic;
   static const Curve bouncyCurve = Curves.elasticOut;
   static const Curve smoothCurve = Curves.fastOutSlowIn;
 
-  // Durations
   static const Duration shortDuration = Duration(milliseconds: 200);
   static const Duration mediumDuration = Duration(milliseconds: 400);
   static const Duration longDuration = Duration(milliseconds: 600);
@@ -216,7 +210,6 @@ class AppStyles {
         ),
       ),
 
-      // Enhanced page transitions
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: CupertinoPageTransitionsBuilder(),
@@ -229,7 +222,6 @@ class AppStyles {
     );
   }
 
-  // Custom box shadows for different elevations (computed once)
   static final List<BoxShadow> cardShadow = [
     BoxShadow(
       color: Colors.black.withOpacity(0.04),
