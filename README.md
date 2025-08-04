@@ -189,8 +189,8 @@ Start streaming data to Liquid Galaxy:
 How the streaming data appears on Liquid Galaxy screens:
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/4fe76981-35c2-4ba0-bd3a-85eb1f51bbfb" width="400" alt="LG Display 1">
-  <img src="https://github.com/user-attachments/assets/6495c8f5-159a-4b87-ae06-43229435a328" width="400" alt="LG Display 2">
+  <img src="https://github.com/user-attachments/assets/199a16d4-610a-4afe-9fa4-4a9cdb579244" width="400" alt="LG Display 1">
+  <img src="https://github.com/user-attachments/assets/53fd4e14-2949-4780-88ee-a84eec6030ff" width="400" alt="LG Display 2">
 </div>
 
 ---
