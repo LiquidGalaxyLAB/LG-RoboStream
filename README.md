@@ -175,7 +175,8 @@ Start streaming data to Liquid Galaxy:
 
 **Streaming Options:**
 - 📷 **RGB Camera**: Immediate streaming when selected
-- 🔬 **Other Sensors**: Select sensor, then press "Start Streaming"
+- 🔬 **Other Sensors**: Select one or more sensors, then press "Start Streaming"
+- ✅ **Multiple Selection**: You can select several sensors simultaneously for concurrent data streaming
 - ⏱️ **Update Frequency**: Data updates every 5 seconds during streaming
 
 <div align="center">
