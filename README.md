@@ -163,8 +163,8 @@ View detailed information from individual sensors:
 - **Streaming**: When streaming to Liquid Galaxy, data is sent every 5 seconds automatically
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/957e445f-a745-4d69-81ac-32b3f8afd3bf" width="300" alt="Sensor Data 1">
-  <img src="https://github.com/user-attachments/assets/916a388d-b021-4c2a-909d-edfabc0804e9" width="300" alt="Sensor Data 2">
+  <img src="https://github.com/user-attachments/assets/a80293f6-32e6-47dd-ac08-befa373fefa8" width="300" alt="Sensor Data 1">
+  <img src="https://github.com/user-attachments/assets/da0f94b4-a8c2-422b-9833-02d4a56bb917" width="300" alt="Sensor Data 2">
 </div>
 
 ---
