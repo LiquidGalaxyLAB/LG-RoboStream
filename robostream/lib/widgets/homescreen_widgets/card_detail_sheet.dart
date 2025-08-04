@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:robostream/services/server.dart';
@@ -8,6 +9,7 @@ class CardDetailSheet extends StatefulWidget {
   final ActuatorData? actuatorData;
   final bool isConnected;
   final String serverBaseUrl;
+  final RobotServerService serverService;
 
   const CardDetailSheet({
     super.key,
@@ -16,6 +18,7 @@ class CardDetailSheet extends StatefulWidget {
     this.actuatorData,
     required this.isConnected,
     required this.serverBaseUrl,
+    required this.serverService,
   });
 
   @override
@@ -24,6 +27,57 @@ class CardDetailSheet extends StatefulWidget {
 
 class _CardDetailSheetState extends State<CardDetailSheet> {
   int imageRefreshKey = 0;
+  late StreamSubscription<SensorData> _sensorSubscription;
+  late StreamSubscription<ActuatorData> _actuatorSubscription;
+  late StreamSubscription<bool> _connectionSubscription;
+  
+  // Internal state for real-time data
+  SensorData? _currentSensorData;
+  ActuatorData? _currentActuatorData;
+  bool _currentConnectionStatus = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize current data with the provided initial data
+    _currentSensorData = widget.sensorData;
+    _currentActuatorData = widget.actuatorData;
+    _currentConnectionStatus = widget.isConnected;
+    
+    // Set up real-time data subscriptions
+    _sensorSubscription = widget.serverService.sensorStream.listen((sensorData) {
+      if (mounted) {
+        setState(() {
+          _currentSensorData = sensorData;
+        });
+      }
+    });
+    
+    _actuatorSubscription = widget.serverService.actuatorStream.listen((actuatorData) {
+      if (mounted) {
+        setState(() {
+          _currentActuatorData = actuatorData;
+        });
+      }
+    });
+    
+    _connectionSubscription = widget.serverService.connectionStream.listen((connected) {
+      if (mounted) {
+        setState(() {
+          _currentConnectionStatus = connected;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sensorSubscription.cancel();
+    _actuatorSubscription.cancel();
+    _connectionSubscription.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +219,7 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -243,25 +297,25 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     String value = 'N/A';
     
     if (label == 'RGB Camera') {
-      final rgbCamera = widget.sensorData?.rgbCamera;
+      final rgbCamera = _currentSensorData?.rgbCamera;
       status = rgbCamera?.status ?? 'Offline';
       value = rgbCamera != null && rgbCamera.status == 'Active' 
           ? '${rgbCamera.resolution}@${rgbCamera.fps}fps' 
           : 'N/A';
     } else if (label == 'LiDAR Sensor') {
-      final lidarStatus = widget.sensorData?.lidar ?? 'Disconnected';
+      final lidarStatus = _currentSensorData?.lidar ?? 'Disconnected';
       status = lidarStatus;
       value = lidarStatus == 'Connected' ? '360° scan' : 'N/A';
     } else if (label == 'GPS Position') {
-      final gpsData = widget.sensorData?.gps;
+      final gpsData = _currentSensorData?.gps;
       status = gpsData != null ? 'Active' : 'Offline';
       value = gpsData != null ? 'Tracking' : 'N/A';
     } else if (label == 'Movement') {
-      final gpsData = widget.sensorData?.gps;
+      final gpsData = _currentSensorData?.gps;
       status = gpsData != null ? 'Tracking' : 'Offline';
       value = gpsData != null ? '${gpsData.speed.toStringAsFixed(1)} m/s' : 'N/A';
     } else if (label == 'IMU Sensors') {
-      final imuData = widget.sensorData?.imu;
+      final imuData = _currentSensorData?.imu;
       status = imuData != null ? 'Active' : 'Offline';
       if (imuData != null) {
         final acc = imuData.accelerometer;
@@ -269,9 +323,9 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         value = '${totalAcceleration.toStringAsFixed(1)} m/s²';
       }
     } else if (label == 'Wheel Motors') {
-      status = widget.actuatorData != null ? 'Ready' : 'Offline';
-      if (widget.actuatorData != null) {
-        final wheels = widget.actuatorData!;
+      status = _currentActuatorData != null ? 'Ready' : 'Offline';
+      if (_currentActuatorData != null) {
+        final wheels = _currentActuatorData!;
         final avgWheelSpeed = (wheels.frontLeftWheel.speed + 
                               wheels.frontRightWheel.speed + 
                               wheels.backLeftWheel.speed + 
@@ -279,9 +333,9 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         value = '${avgWheelSpeed.toStringAsFixed(0)} RPM';
       }
     } else if (label == 'Temperature') {
-      status = widget.actuatorData != null ? 'Monitoring' : 'Offline';
-      if (widget.actuatorData != null) {
-        final actuators = widget.actuatorData!;
+      status = _currentActuatorData != null ? 'Monitoring' : 'Offline';
+      if (_currentActuatorData != null) {
+        final actuators = _currentActuatorData!;
         final avgTemp = (actuators.frontLeftWheel.temperature + 
                         actuators.frontRightWheel.temperature + 
                         actuators.backLeftWheel.temperature + 
@@ -289,9 +343,9 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         value = '${avgTemp.toStringAsFixed(1)}°C';
       }
     } else if (label == 'Server Link') {
-      status = widget.isConnected ? 'Online' : 'Offline';
-      if (widget.isConnected && widget.sensorData?.timestamp != null) {
-        final timestamp = widget.sensorData?.timestamp;
+      status = _currentConnectionStatus ? 'Online' : 'Offline';
+      if (_currentConnectionStatus && _currentSensorData?.timestamp != null) {
+        final timestamp = _currentSensorData?.timestamp;
         if (timestamp != null) {
           final lastUpdate = DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt());
           final now = DateTime.now();
@@ -308,8 +362,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     final String label = widget.cardData['label'] as String;
     List<Widget> detailWidgets = [];
 
-    if (label == 'GPS Position' && widget.sensorData?.gps != null) {
-      final gps = widget.sensorData?.gps;
+    if (label == 'GPS Position' && _currentSensorData?.gps != null) {
+      final gps = _currentSensorData?.gps;
       if (gps != null) {
         detailWidgets.addAll([
           _buildDetailRow('Latitude', '${gps.latitude.toStringAsFixed(6)}°'),
@@ -318,8 +372,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
           _buildDetailRow('Speed', '${gps.speed.toStringAsFixed(2)} m/s'),
         ]);
       }
-    } else if (label == 'Wheel Motors' && widget.actuatorData != null) {
-      final actuators = widget.actuatorData!;
+    } else if (label == 'Wheel Motors' && _currentActuatorData != null) {
+      final actuators = _currentActuatorData!;
       detailWidgets.addAll([
         _buildDetailRow('Front Left', '${actuators.frontLeftWheel.speed} RPM • ${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
         _buildDetailRow('Front Right', '${actuators.frontRightWheel.speed} RPM • ${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
@@ -329,8 +383,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         _buildDetailRow('Avg Power', '${((actuators.frontLeftWheel.consumption + actuators.frontRightWheel.consumption + actuators.backLeftWheel.consumption + actuators.backRightWheel.consumption) / 4).toStringAsFixed(2)} A'),
         _buildDetailRow('Avg Voltage', '${((actuators.frontLeftWheel.voltage + actuators.frontRightWheel.voltage + actuators.backLeftWheel.voltage + actuators.backRightWheel.voltage) / 4).toStringAsFixed(1)} V'),
       ]);
-    } else if (label == 'IMU Sensors' && widget.sensorData?.imu != null) {
-      final imu = widget.sensorData?.imu;
+    } else if (label == 'IMU Sensors' && _currentSensorData?.imu != null) {
+      final imu = _currentSensorData?.imu;
       if (imu != null) {
         detailWidgets.addAll([
           _buildSectionTitle('Accelerometer (m/s²)', Icons.speed_rounded),
@@ -353,9 +407,9 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         ]);
       }
     } else if (label == 'Server Link') {
-      final timestamp = widget.sensorData?.timestamp;
+      final timestamp = _currentSensorData?.timestamp;
       detailWidgets.addAll([
-        _buildDetailRow('Status', widget.isConnected ? 'Connected' : 'Disconnected'),
+        _buildDetailRow('Status', _currentConnectionStatus ? 'Connected' : 'Disconnected'),
         _buildDetailRow('Server URL', widget.serverBaseUrl),
         _buildDetailRow('Update Interval', '2s'),
         if (timestamp != null) ...[
@@ -366,8 +420,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
             '${DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch((timestamp * 1000).toInt())).inSeconds}s'),
         ],
       ]);
-    } else if (label == 'Temperature' && widget.actuatorData != null) {
-      final actuators = widget.actuatorData!;
+    } else if (label == 'Temperature' && _currentActuatorData != null) {
+      final actuators = _currentActuatorData!;
       detailWidgets.addAll([
         _buildDetailRow('Front Left Motor', '${actuators.frontLeftWheel.temperature.toStringAsFixed(1)}°C'),
         _buildDetailRow('Front Right Motor', '${actuators.frontRightWheel.temperature.toStringAsFixed(1)}°C'),
@@ -377,8 +431,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
         _buildDetailRow('Average', '${((actuators.frontLeftWheel.temperature + actuators.frontRightWheel.temperature + actuators.backLeftWheel.temperature + actuators.backRightWheel.temperature) / 4).toStringAsFixed(1)}°C'),
         _buildDetailRow('Max Safe Temp', '80.0°C'),
       ]);
-    } else if (label == 'RGB Camera' && widget.sensorData?.rgbCamera != null) {
-      final rgbCamera = widget.sensorData?.rgbCamera;
+    } else if (label == 'RGB Camera' && _currentSensorData?.rgbCamera != null) {
+      final rgbCamera = _currentSensorData?.rgbCamera;
       if (rgbCamera != null) {
         detailWidgets.addAll([
           _buildCameraPreview(),

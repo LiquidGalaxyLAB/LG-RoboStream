@@ -5,15 +5,6 @@ import base64
 from typing import List
 from models import SensorData, IMUData, ThreeAxisData, GPSData, RGBCameraData, ActuatorData, ServoData
 
-#Here I try to import the ROS2 integration module.
-try:
-    from ros2_setup import ros2_manager
-    ROS2_AVAILABLE = True
-    print("ROS2 integration enabled")
-except ImportError as e:
-    ROS2_AVAILABLE = False
-    print(f"ROS2 integration disabled: {e}")
-
 #I create the robot simulator class to generate fake sensor data.
 class RobotSimulator:
     def __init__(self):
@@ -177,17 +168,8 @@ class RobotSimulator:
         self.actuator_data.back_left_wheel = self._create_servo_data()
         self.actuator_data.back_right_wheel = self._create_servo_data()
         
-        #I publish data to ROS2 if available.
-        if ROS2_AVAILABLE:
-            try:
-                ros2_manager.update_sensor_data(self.sensor_data)
-            except Exception as e:
-                print(f"Error publishing to ROS2: {e}")
-        
         #I print status information to console.
         print(f"[{time.strftime('%H:%M:%S')}] Sensor data updated - GPS: {self.sensor_data.gps.latitude:.6f}, {self.sensor_data.gps.longitude:.6f}")
-        if ROS2_AVAILABLE:
-            print(f"[{time.strftime('%H:%M:%S')}] Data published to ROS2 topics")
 
     #I force an immediate update of all sensor data.
     def force_update(self):

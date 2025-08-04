@@ -6,8 +6,9 @@ import 'package:robostream/widgets/login_widgets/login_widgets.dart';
 import 'package:robostream/widgets/common/custom_snackbar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:robostream/services/lg_service_manager.dart';
+import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/services/server_config_manager.dart';
+import 'package:robostream/app/qr_scanner_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -36,6 +37,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   // Server connection state
   bool _isServerConnected = false;
   String _serverIp = '';
+  
+  // QR data storage
+  Map<String, dynamic>? _qrData;
   
   // Animation controllers
   late AnimationController _slideController;
@@ -139,6 +143,42 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     CustomSnackBar.showError(context, message);
   }
 
+  void _onQRScanned(Map<String, dynamic> qrData) {
+    setState(() {
+      _qrData = qrData;
+    });
+    
+    // NO llamar Navigator.pop() aquí porque ya se hace en QRScannerScreen
+    // Navigator.of(context).pop(); // Cerrar el scanner
+    
+    // Mostrar mensaje de éxito
+    _showSuccessMessage('QR configuration loaded! Data has been filled automatically.');
+  }
+
+  void _openQRScanner() {
+    print('QR Scanner button pressed! Server connected: $_isServerConnected');
+    
+    // Solo abrir el scanner si estamos en el estado de configuración de Liquid Galaxy
+    if (_isServerConnected) {
+      print('Opening QR Scanner...');
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => QRScannerScreen(
+            onQRScanned: _onQRScanned,
+          ),
+        ),
+      ).then((_) {
+        print('QR Scanner closed');
+      }).catchError((error) {
+        print('Error opening QR Scanner: $error');
+        _showErrorMessage('Error opening QR scanner: $error');
+      });
+    } else {
+      print('Server not connected, showing error message');
+      _showErrorMessage('Please connect to the server first before scanning QR codes.');
+    }
+  }
+
   void _showSuccessAnimation() {
     HapticFeedback.lightImpact();
     
@@ -217,31 +257,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     });
   }
 
-  // Helper method for simplified decorative circles
-  Widget _buildDecorativeCircle(double size, Color color) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_fadeAnimation, _screenFadeController]),
-      builder: (context, child) {
-        return Opacity(
-          opacity: _fadeAnimation.value * (1.0 - _screenFadeController.value),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  color.withOpacity(0.08),
-                  color.withOpacity(0.04),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -251,18 +266,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           opacity: 1.0 - _screenFadeController.value,
           child: Stack(
             children: [
-              // Simplified background decorative elements
-              Positioned(
-                top: -100,
-                right: -100,
-                child: _buildDecorativeCircle(200, AppStyles.primaryColor),
-              ),
-              Positioned(
-                bottom: -80,
-                left: -80,
-                child: _buildDecorativeCircle(160, AppStyles.secondaryColor),
-              ),
-              
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
@@ -367,10 +370,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                       onError: _onError,
                                     )
                                   : LiquidGalaxyLoginForm(
-                                      key: const ValueKey('lg-form'),
+                                      key: ValueKey('lg-form-${_qrData?.hashCode ?? 0}'),
                                       serverIp: _serverIp,
                                       onLoginSuccess: _onLoginSuccess,
                                       onError: _onError,
+                                      qrData: _qrData,
                                     ),
                             ),
                           ],
@@ -380,6 +384,31 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+              
+              // QR Scanner button in top right corner (only when server is connected)
+              // Positioned at the end of Stack to ensure it's on top
+              if (_isServerConnected)
+                Positioned(
+                  top: 20,
+                  right: 20,
+                  child: SafeArea(
+                    child: FloatingActionButton(
+                      heroTag: "qr_scanner_fab",
+                      onPressed: () {
+                        print('QR button tapped!');
+                        _openQRScanner();
+                      },
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppStyles.primaryColor,
+                      elevation: 8,
+                      child: Icon(
+                        Icons.qr_code_scanner,
+                        size: 28,
+                      ),
+                      tooltip: 'Scan QR Configuration',
+                    ),
+                  ),
+                ),
             ],
           ),
         );

@@ -32,7 +32,7 @@ class KMLBuilder:
                 f'http://{server_host}:8000/rgb-camera/image?t={timestamp}',
                 overlay_xy='1,1',
                 screen_xy='0.98,0.98',
-                size='400,300,pixels',
+                size='600,500,pixels',
             ),
         )
     

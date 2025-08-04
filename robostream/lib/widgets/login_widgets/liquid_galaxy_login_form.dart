@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:robostream/services/lg_server_service.dart';
+import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/assets/styles/login_styles.dart';
 import 'package:robostream/assets/styles/app_styles.dart';
 
@@ -8,12 +9,14 @@ class LiquidGalaxyLoginForm extends StatefulWidget {
   final String serverIp;
   final VoidCallback onLoginSuccess;
   final Function(String) onError;
+  final Map<String, dynamic>? qrData;
   
   const LiquidGalaxyLoginForm({
     super.key,
     required this.serverIp,
     required this.onLoginSuccess,
     required this.onError,
+    this.qrData,
   });
 
   @override
@@ -56,10 +59,18 @@ class _LiquidGalaxyLoginFormState extends State<LiquidGalaxyLoginForm> {
   Future<void> _loadSavedConfig() async {
     final config = await LGConfigService.getLGConfig();
     setState(() {
-      _lgIpController.text = config['host'] ?? '';
-      _lgUsernameController.text = config['username'] ?? '';
-      _lgPasswordController.text = config['password'] ?? '';
-      _totalScreensController.text = config['totalScreens'] ?? '';
+      // Si hay datos QR, usarlos; de lo contrario, usar configuración guardada
+      if (widget.qrData != null) {
+        _lgIpController.text = widget.qrData!['ip'] ?? '';
+        _lgUsernameController.text = widget.qrData!['username'] ?? '';
+        _lgPasswordController.text = widget.qrData!['password'] ?? '';
+        _totalScreensController.text = widget.qrData!['screens']?.toString() ?? '';
+      } else {
+        _lgIpController.text = config['host'] ?? '';
+        _lgUsernameController.text = config['username'] ?? '';
+        _lgPasswordController.text = config['password'] ?? '';
+        _totalScreensController.text = config['totalScreens'] ?? '';
+      }
     });
   }
 

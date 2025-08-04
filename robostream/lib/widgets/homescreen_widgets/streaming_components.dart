@@ -4,14 +4,14 @@ import 'package:flutter/services.dart';
 class ModernStreamingButton extends StatelessWidget {
   final bool isConnected;
   final bool isStreamingToLG;
-  final String selectedSensor;
+  final List<String> selectedSensors;
   final VoidCallback onTap;
 
   const ModernStreamingButton({
     super.key,
     required this.isConnected,
     required this.isStreamingToLG,
-    required this.selectedSensor,
+    required this.selectedSensors,
     required this.onTap,
   });
 

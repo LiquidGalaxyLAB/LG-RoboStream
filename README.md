@@ -123,8 +123,9 @@ Access the settings menu to modify your connections:
 
 View detailed information from individual sensors:
 
-- **Real-time Data**: All sensor information is displayed and updated every 30 seconds
-- **Detailed View**: Tap any sensor card to see comprehensive data
+- **Real-time Data**: All sensor information is displayed and updated every 2 seconds
+- **Live Detail Views**: Tap any sensor card to see comprehensive data that updates in real-time
+- **Live Indicator**: Cards show a "LIVE" indicator to confirm real-time updates
 - **Server Sync**: Data comes directly from the server and matches what's shown on Liquid Galaxy
 - **Streaming**: When streaming to Liquid Galaxy, data is sent every 5 seconds automatically
 

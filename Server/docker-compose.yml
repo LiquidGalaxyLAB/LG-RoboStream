@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   robot-api:
     build: .
@@ -15,8 +13,8 @@ services:
       - LC_ALL=en_US.UTF-8
     restart: unless-stopped
     volumes:
-      - /dev/shm:/dev/shm  # Shared memory for ROS2 communication
-    ipc: host  # Enable IPC for ROS2
+      - /dev/shm:/dev/shm  
+    ipc: host 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

@@ -4,7 +4,7 @@ import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:robostream/services/lg_service_manager.dart';
+import 'package:robostream/services/lg_config_service.dart';
 
 class ServerConfigScreen extends StatefulWidget {
   final RobotServerService? serverService;

@@ -1,14 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:robostream/widgets/widgets.dart';
 import 'package:robostream/widgets/common/custom_snackbar.dart';
 import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/services/lg_server_service.dart';
+import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
-import 'package:robostream/assets/styles/app_styles.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool fromLogin;
@@ -40,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ActuatorData? _actuatorData;
 
   LGServerService? _lgService;
-  String _selectedSensor = '';
+  List<String> _selectedSensors = [];
   bool _isStreamingToLG = false;
   bool _isLGConnected = false;
   String _lgHost = '192.168.1.100';
@@ -72,6 +74,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     } else {
       _fadeInController.value = 1.0;
     }
+    
+    // Verificar estado LG periódicamente cada 30 segundos
+    Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _checkLGConnection();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   void _initializeServerConnection() async {
@@ -114,16 +125,101 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Método público para forzar la verificación del estado LG
+  /// Útil cuando se actualiza la configuración desde otras pantallas
+  void refreshLGConnectionStatus() {
+    _checkLGConnection();
+  }
+
   Future<void> _checkLGConnection() async {
     try {
-      // Since we're using server-based LG, just check if we have config
+      // Si el servidor no está conectado, LG tampoco puede estar conectado
+      if (!_isConnected) {
+        if (mounted) {
+          setState(() {
+            _isLGConnected = false;
+          });
+        }
+        print('Debug: LG Connection set to false - Server not connected');
+        return;
+      }
+
+      // Verificar configuración local primero
       final config = await LGConfigService.getLGConfig();
+      
+      // Check if all required LG configuration fields are present and not null/empty
+      bool hasValidLocalConfig = config['host'] != null && 
+                                config['host']!.isNotEmpty &&
+                                config['username'] != null && 
+                                config['username']!.isNotEmpty &&
+                                config['password'] != null && 
+                                config['password']!.isNotEmpty;
+
+      if (!hasValidLocalConfig) {
+        if (mounted) {
+          setState(() {
+            _isLGConnected = false;
+          });
+        }
+        print('Debug: LG Connection set to false - Invalid local config');
+        return;
+      }
+
+      // Verificar configuración en el servidor
+      await _checkServerLGConfig();
+        
+    } catch (e) {
+      print('Debug: Error checking LG connection: $e');
       if (mounted) {
         setState(() {
-          _isLGConnected = config['host']?.isNotEmpty == true;
+          _isLGConnected = false;
         });
       }
+    }
+  }
+
+  /// Verifica la configuración LG en el servidor
+  Future<void> _checkServerLGConfig() async {
+    try {
+      final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+      final serverHost = serverIp ?? '192.168.1.100';
+      
+      final response = await http.get(
+        Uri.parse('http://$serverHost:8000/lg-config'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Verificar que la configuración en el servidor no sea null o vacía
+        bool hasValidServerConfig = data['host'] != null && 
+                                   data['host'].toString().isNotEmpty &&
+                                   data['username'] != null && 
+                                   data['username'].toString().isNotEmpty &&
+                                   data['password'] != null && 
+                                   data['password'].toString().isNotEmpty &&
+                                   data['total_screens'] != null &&
+                                   data['total_screens'] > 0;
+        
+        if (mounted) {
+          setState(() {
+            _isLGConnected = hasValidServerConfig;
+          });
+        }
+        
+        print('Debug: Server LG Config check - Valid: $hasValidServerConfig');
+        print('Debug: Server LG Config - Host: ${data['host']}, Username: ${data['username']}, Screens: ${data['total_screens']}');
+      } else {
+        print('Debug: Failed to get LG config from server - Status: ${response.statusCode}');
+        if (mounted) {
+          setState(() {
+            _isLGConnected = false;
+          });
+        }
+      }
     } catch (e) {
+      print('Debug: Error checking server LG config: $e');
       if (mounted) {
         setState(() {
           _isLGConnected = false;
@@ -138,6 +234,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _isConnected = connected;
         });
+        
+        // Verificar estado LG cada vez que cambie el estado del servidor
+        _checkLGConnection();
       }
     });
 
@@ -147,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _sensorData = sensorData;
         });
         // Verificar si los datos del servidor han cambiado durante el streaming
-        if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty) {
+        if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty) {
           _handleServerDataChange(sensorData);
         }
       }
@@ -159,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _actuatorData = actuatorData;
         });
         // También verificar cambios en los datos del actuador durante el streaming
-        if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
+        if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty && _sensorData != null) {
           _handleActuatorDataChange(actuatorData);
         }
       }
@@ -240,9 +339,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       context: context,
       barrierDismissible: true,
       builder: (context) => SensorSelectionDialog(
-        onSelectionConfirmed: (selectedSensor) {
-          print('Debug: Sensor selected: "$selectedSensor"');
-          _selectedSensor = selectedSensor;
+        onSelectionConfirmed: (selectedSensors) {
+          print('Debug: Sensors selected: $selectedSensors');
+          _selectedSensors = selectedSensors;
           _startStreamingToLG();
         },
       ),
@@ -286,11 +385,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _startStreamingToLG() async {
-    print('Debug: Starting LG streaming with selectedSensor: "$_selectedSensor"');
+    print('Debug: Starting LG streaming with selectedSensors: $_selectedSensors');
     
     setState(() {
       _isStreamingToLG = true;
     });
+    
+    // Verificar primero que el servidor esté conectado
+    if (!_isConnected) {
+      CustomSnackBar.showWarning(context, 'Server not connected. Cannot stream to Liquid Galaxy.');
+      _stopStreamingToLG();
+      return;
+    }
     
     // Resetear los hashes de datos para forzar una actualización inicial
     _lastSensorDataHash = null;
@@ -303,29 +409,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     _lgService = LGServerService(serverHost: _serverHost);
     
-    // Server-based LG doesn't need explicit connection, just set as connected if config exists
+    // Verificar configuración local
     final lgConfig = await LGConfigService.getLGConfig();
-    bool hasLGConfig = lgConfig['host']?.isNotEmpty == true;
+    bool hasValidLocalConfig = lgConfig['host'] != null && 
+                               lgConfig['host']!.isNotEmpty &&
+                               lgConfig['username'] != null && 
+                               lgConfig['username']!.isNotEmpty &&
+                               lgConfig['password'] != null && 
+                               lgConfig['password']!.isNotEmpty;
     
-    print('Debug: LG Config: $lgConfig');
-    print('Debug: Has LG Config: $hasLGConfig');
+    if (!hasValidLocalConfig) {
+      CustomSnackBar.showWarning(context, 'No valid local Liquid Galaxy configuration found. Please configure LG connection.');
+      _stopStreamingToLG();
+      return;
+    }
     
-    if (mounted) {
-      setState(() {
-        _isLGConnected = hasLGConfig;
-      });
+    // Verificar configuración en el servidor antes de continuar
+    try {
+      await _checkServerLGConfig();
       
-      if (!hasLGConfig) {
-        CustomSnackBar.showWarning(context, 'No Liquid Galaxy configuration found');
+      if (!_isLGConnected) {
+        CustomSnackBar.showWarning(context, 'Liquid Galaxy not properly configured on server. Please check server LG configuration.');
         _stopStreamingToLG();
         return;
       }
-    }
-    
-    if (mounted) {
-      setState(() {
-        _isLGConnected = true;
-      });
+    } catch (e) {
+      print('Debug: Error verifying server LG config: $e');
+      CustomSnackBar.showWarning(context, 'Unable to verify Liquid Galaxy configuration on server.');
+      _stopStreamingToLG();
+      return;
     }
 
     if (!_serverService.isStreaming) {
@@ -341,29 +453,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _startLGStreamingTimer();
     
     if (mounted) {
-      CustomSnackBar.showSuccess(context, 'Streaming $_selectedSensor to Liquid Galaxy (every 5s)');
+      CustomSnackBar.showSuccess(context, 'Streaming ${_selectedSensors.join(", ")} to Liquid Galaxy');
     }
   }
 
   Future<void> _sendSelectedSensorsToLG(SensorData sensorData) async {
-    if (_lgService == null || _selectedSensor.isEmpty) {
-      print('Debug: Cannot send to LG - lgService: ${_lgService != null}, selectedSensor: "$_selectedSensor"');
+    if (_lgService == null || _selectedSensors.isEmpty) {
+      print('Debug: Cannot send to LG - lgService: ${_lgService != null}, selectedSensors: $_selectedSensors');
       return;
     }
 
     try {
-      print('Debug: Sending $_selectedSensor to LG via server');
+      print('Debug: Sending $_selectedSensors to LG via server');
       
       // Añadir timeout de 3 segundos para todas las operaciones
       Future<bool?> sendOperation;
       
-      if (_selectedSensor == 'RGB Camera') {
+      if (_selectedSensors.contains('RGB Camera') && _selectedSensors.length == 1) {
         sendOperation = _lgService?.showRGBCameraImage() ?? Future.value(false);
-      } else if (_selectedSensor == 'All Sensors') {
-        List<String> allSensors = ['GPS Position', 'IMU Sensors', 'Temperature', 'Wheel Motors', 'RGB Camera'];
-        sendOperation = _lgService?.showSensorData(allSensors) ?? Future.value(false);
       } else {
-        sendOperation = _lgService?.showSensorData([_selectedSensor]) ?? Future.value(false);
+        sendOperation = _lgService?.showSensorData(_selectedSensors) ?? Future.value(false);
       }
       
       final result = await Future.any([
@@ -371,7 +480,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         Future.delayed(const Duration(seconds: 3), () => null)
       ]);
       
-      print('Debug: $_selectedSensor result: $result');
+      print('Debug: $_selectedSensors result: $result');
     } catch (e) {
       print('Debug: Error sending to LG: $e');
     }
@@ -391,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _lastSensorDataHash = null;
     _lastActuatorDataHash = null;
     _lastForceUpdateTime = null;
-    _selectedSensor = '';
+    _selectedSensors = [];
     
     // Mostrar confirmación inmediata al usuario
     if (mounted) {
@@ -434,8 +543,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     // Crear nuevo timer que se ejecute cada 10 segundos
     _lgStreamingTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      if (_isStreamingToLG && _lgService != null && _selectedSensor.isNotEmpty && _sensorData != null) {
-        print('Debug: Timer - Sending $_selectedSensor to LG every 10 seconds');
+      if (_isStreamingToLG && _lgService != null && _selectedSensors.isNotEmpty && _sensorData != null) {
+        print('Debug: Timer - Sending $_selectedSensors to LG every 10 seconds');
         
         try {
           // Añadir timeout de 8 segundos para evitar que se cuelgue
@@ -555,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       floatingActionButton: ModernStreamingButton(
         isConnected: _isConnected,
         isStreamingToLG: _isStreamingToLG,
-        selectedSensor: _selectedSensor,
+        selectedSensors: _selectedSensors,
         onTap: _showStreamingMenu,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
@@ -740,6 +849,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         actuatorData: _actuatorData,
         isConnected: _isConnected,
         serverBaseUrl: _serverService.currentBaseUrl,
+        serverService: _serverService,
       ),
     );
   }
@@ -760,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           onRGBCameraOnlyTap: () {
             Navigator.pop(context);
             print('Debug: RGB Camera selected from menu');
-            _selectedSensor = 'RGB Camera';
+            _selectedSensors = ['RGB Camera'];
             _startStreamingToLG();
           },
           onAllSensorsTap: () {

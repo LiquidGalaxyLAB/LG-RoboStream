@@ -18,7 +18,7 @@ class SensorOption {
 }
 
 class SensorSelectionDialog extends StatefulWidget {
-  final Function(String) onSelectionConfirmed;
+  final Function(List<String>) onSelectionConfirmed;
 
   const SensorSelectionDialog({
     super.key,
@@ -48,12 +48,6 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
       name: 'IMU Sensors',
       icon: Icons.settings_input_component_outlined,
       color: const Color(0xFFF59E0B),
-    ),
-    SensorOption(
-      id: 'RGB Camera',
-      name: 'RGB Camera',
-      icon: Icons.camera_alt_outlined,
-      color: const Color(0xFF6366F1),
     ),
     SensorOption(
       id: 'LiDAR Status',
@@ -117,20 +111,25 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
   void _toggleSensor(int index) {
     HapticFeedback.selectionClick();
     setState(() {
-      for (int i = 0; i < _sensorOptions.length; i++) {
-        _sensorOptions[i].isSelected = false;
-      }
-      _sensorOptions[index].isSelected = true;
+      // Allow multiple selection for checkboxes
+      _sensorOptions[index].isSelected = !_sensorOptions[index].isSelected;
     });
   }
 
   void _confirmSelection() {
-    final selectedSensor = _sensorOptions
-        .firstWhere((sensor) => sensor.isSelected, orElse: () => _sensorOptions.first);
+    final selectedSensors = _sensorOptions
+        .where((sensor) => sensor.isSelected)
+        .map((sensor) => sensor.id)
+        .toList();
+
+    // If no sensors selected, select GPS Position by default
+    if (selectedSensors.isEmpty) {
+      selectedSensors.add('GPS Position');
+    }
 
     HapticFeedback.mediumImpact();
     Navigator.of(context).pop();
-    widget.onSelectionConfirmed(selectedSensor.id);
+    widget.onSelectionConfirmed(selectedSensors);
   }
 
 
@@ -148,8 +147,8 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
               opacity: _fadeAnimation.value,
               child: Container(
                 constraints: const BoxConstraints(
-                  maxWidth: 420,
-                  maxHeight: 600,
+                  maxWidth: 500,
+                  maxHeight: 750,
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -245,7 +244,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
           ),
           const SizedBox(height: 8),
           Text(
-            'Choose one sensor to stream to Liquid Galaxy',
+            'Choose sensors to stream to Liquid Galaxy',
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -365,7 +364,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(6), // Square corners for checkbox
                     color: sensor.isSelected ? sensor.color : Colors.transparent,
                     border: Border.all(
                       color: sensor.isSelected ? sensor.color : Colors.grey.shade400,
@@ -410,41 +409,86 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
   }
 
   Widget _buildModernActionButtons() {
-    final selectedSensor = _sensorOptions.firstWhere((sensor) => sensor.isSelected, orElse: () => _sensorOptions.first);
+    final selectedSensors = _sensorOptions.where((sensor) => sensor.isSelected).toList();
+    final selectedCount = selectedSensors.length;
     
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: selectedSensor.color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selectedSensor.color.withOpacity(0.2),
+          if (selectedCount > 0) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: selectedCount == 1 
+                    ? selectedSensors.first.color.withOpacity(0.1)
+                    : const Color(0xFF6366F1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selectedCount == 1 
+                      ? selectedSensors.first.color.withOpacity(0.2)
+                      : const Color(0xFF6366F1).withOpacity(0.2),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        selectedCount == 1 
+                            ? selectedSensors.first.icon
+                            : Icons.sensors,
+                        color: selectedCount == 1 
+                            ? selectedSensors.first.color
+                            : const Color(0xFF6366F1),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        selectedCount == 1 
+                            ? '${selectedSensors.first.name} selected'
+                            : '$selectedCount sensors selected',
+                        style: TextStyle(
+                          color: selectedCount == 1 
+                              ? selectedSensors.first.color
+                              : const Color(0xFF6366F1),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (selectedCount > 1) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: selectedSensors.map((sensor) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: sensor.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: sensor.color.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          sensor.name,
+                          style: TextStyle(
+                            color: sensor.color,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )).toList(),
+                    ),
+                  ],
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selectedSensor.icon,
-                  color: selectedSensor.color,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${selectedSensor.name} selected',
-                  style: TextStyle(
-                    color: selectedSensor.color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [

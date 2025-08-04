@@ -6,26 +6,16 @@ import json
 import time
 from typing import List
 import uvicorn
-import atexit
 import os
 
 from models import SensorData, ActuatorData, RGBCameraData
-from robot_simulator import RobotSimulator, ROS2_AVAILABLE
+from robot_simulator import RobotSimulator
 from pydantic import BaseModel
 import LG.lg_data as lg_data
 from LG.lg_service import lg_service
 
-#Here I try to import the ROS2 integration module.
-try:
-    from ros2_setup import ros2_manager
-    ROS2_AVAILABLE = True
-    print("ROS2 integration enabled")
-except ImportError as e:
-    ROS2_AVAILABLE = False
-    print(f"ROS2 integration disabled: {e}")
-
 #I import the FastAPI and other necessary modules.
-app = FastAPI(title="Robot Sensor API with ROS2", version="1.0.0")
+app = FastAPI(title="Robot Sensor API", version="1.0.0")
 
 #I set up CORS middleware to allow cross-origin requests.
 app.add_middleware(
@@ -300,26 +290,12 @@ async def get_rgb_camera_image_data():
         }
     }
 
-#I define the ROS2 status endpoint to check ROS2 integration status.
-@app.get("/ros2/status")
-async def get_ros2_status():
-    return {
-        "ros2_available": ROS2_AVAILABLE,
-        "ros2_initialized": ROS2_AVAILABLE and ros2_manager.node is not None,
-        "topics": {
-            "imu": "/robot/imu",
-            "gps": "/robot/gps"
-        } if ROS2_AVAILABLE else {},
-        "message": "ROS2 integration active" if ROS2_AVAILABLE else "ROS2 integration disabled"
-    }
-
 #I define the health check endpoint for monitoring.
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
-        "timestamp": time.time(),
-        "ros2_status": "available" if ROS2_AVAILABLE else "unavailable"
+        "timestamp": time.time()
     }
 
 #I define the WebSocket endpoint for real-time data streaming.
@@ -347,7 +323,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 #I run the server when this file is executed directly.
 if __name__ == "__main__":
-    print("🤖 Robot Sensor API Server with ROS2")
+    print("🤖 Robot Sensor API Server")
     print("=" * 50)
     print(f"📡 Data update interval: {robot.update_interval} seconds")
     print(f"📷 RGB Camera rotation interval: {robot.image_rotation_interval} seconds")
@@ -364,7 +340,6 @@ if __name__ == "__main__":
     print(f"   GET  /rgb-camera/image  - Current camera image file")
     print(f"   GET  /rgb-camera/image-data - Camera image as base64 + metadata")
     print(f"   WS   /ws                - WebSocket real-time data")
-    print(f"   GET  /ros2/status       - ROS2 integration status")
     print(f"   POST /lg-config         - Set Liquid Galaxy configuration")
     print(f"   GET  /lg-config         - Get Liquid Galaxy configuration")
     print(f"   POST /lg/login          - Login to Liquid Galaxy")
@@ -374,27 +349,6 @@ if __name__ == "__main__":
     print(f"   POST /lg/hide-sensors   - Hide sensor data from Liquid Galaxy")
     print(f"   POST /lg/disconnect     - Disconnect from Liquid Galaxy")
     print(f"   POST /lg/clear-all-kml  - Clear all KML content from Liquid Galaxy")
-    
-    #I initialize ROS2 if available.
-    if ROS2_AVAILABLE:
-        print("🤖 Initializing ROS2...")
-        if ros2_manager.initialize():
-            print("✅ ROS2 initialized successfully")
-            print("📡 Publishing sensor data to ROS2 topics:")
-            print("   - /robot/imu (sensor_msgs/Imu)")
-            print("   - /robot/gps (sensor_msgs/NavSatFix)")
-            
-            #I register cleanup function for ROS2 shutdown.
-            def cleanup_ros2():
-                print("🔄 Shutting down ROS2...")
-                ros2_manager.shutdown()
-                print("✅ ROS2 shutdown complete")
-                
-            atexit.register(cleanup_ros2)
-        else:
-            print("❌ Failed to initialize ROS2")
-    else:
-        print("⚠️  ROS2 integration disabled")
     
     print("=" * 50)
     #I start the FastAPI server with uvicorn.
