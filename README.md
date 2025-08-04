@@ -110,9 +110,7 @@ Configure your Liquid Galaxy connection:
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/bef763b5-337d-4476-ae3d-8429aa513fba" width="300" alt="Liquid Galaxy Configuration">
-</div>
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/bea62792-cae8-4649-82bf-578ea3177182" width="300" alt="Liquid Galaxy Configuration">
+  <img src="https://github.com/user-attachments/assets/bea62792-cae8-4649-82bf-578ea3177182" width="300" alt="Liquid Galaxy QR Scanner">
 </div>
 ---
 
