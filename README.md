@@ -123,10 +123,10 @@ The home screen provides easy access to all main features:
 - ⚙️ Settings button for configuration menu
 - 📊 Sensor cards displaying real-time data
 - 🎮 "Start Streaming" button to begin data transmission
-- 🔴🟢 Connection indicators (Server & Liquid Galaxy)
+- 🔴🟢 Connection indicators (Server, Robot & Liquid Galaxy)
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/165f5fca-7460-463d-b6bb-668b48f81188" width="300" alt="Home Screen">
+  <img src="https://github.com/user-attachments/assets/165dafc5-6cbf-4a73-bdca-300ab6a495b0" width="500" alt="Home Screen">
 </div>
 
 ---
@@ -142,9 +142,10 @@ Access the settings menu to modify your connections:
 - 🧹 Clear all KMLs from display
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/fc809aaa-3b40-4ff9-9df2-4166eab35109" width="250" alt="Settings Menu">
+  <img src="https://github.com/user-attachments/assets/98c75486-b939-4520-9dbf-8a2d8062874f" width="250" alt="Settings Menu">
   <img src="https://github.com/user-attachments/assets/a5c4b6be-0a48-493e-af64-0e6400c9f927" width="250" alt="Server Settings">
   <img src="https://github.com/user-attachments/assets/f85e71cf-6e40-4d8a-8098-2973f4a8e24b" width="250" alt="LG Settings">
+  <img src="https://github.com/user-attachments/assets/9b773d62-1693-44da-8b62-61917a889188" width="250" alt="Robot Settings">
 </div>
 
 ---
