@@ -179,8 +179,8 @@ Start streaming data to Liquid Galaxy:
 - ⏱️ **Update Frequency**: Data updates every 5 seconds during streaming
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/333a18ea-7d27-4dc0-b088-222786c13310" width="300" alt="Streaming Options">
-  <img src="https://github.com/user-attachments/assets/1d62ee7c-0069-4ad5-9bde-64dad96e2914" width="300" alt="Streaming Active">
+  <img src="https://github.com/user-attachments/assets/030606d9-2666-478a-9ae4-662e546085bf" width="300" alt="Streaming Options">
+  <img src="https://github.com/user-attachments/assets/0c2a7357-613a-4506-af3c-cc91b2dd9dc5" width="300" alt="Streaming Active">
 </div>
 
 ### 🖥️ Liquid Galaxy Display
