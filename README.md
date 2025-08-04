@@ -66,10 +66,14 @@ When you first open the app, you'll see the server configuration screen:
 </div>
 
 ---
-##  Robot Configuration (Not implemented yet, just visual)
-Configure the IP Address From the Robot, (In this case, I am still working on the implementation of ROS and the robot on the server, for the moment this is something just visual as a demo on how will it work when its finished)
-**Required Information:**
-- Robot IP Address
+
+## 🤖 Robot Configuration (Not implemented yet, just visual)
+
+Configure the IP Address from the Robot:
+
+- **Robot IP Address**: Input the IP address of the robot device
+- **Development Status**: Currently in development - ROS and robot implementation on the server is still in progress
+- **Current State**: This is a visual demo showing how it will work when fully implemented
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/898e08d0-6858-4885-bc12-3a5a9d86c77d" width="300" alt="Robot Configuration">
