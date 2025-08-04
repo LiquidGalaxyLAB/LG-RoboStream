@@ -117,11 +117,13 @@ class ModernStreamingButton extends StatelessWidget {
 class ConfigurationMenu extends StatelessWidget {
   final VoidCallback onServerConfigTap;
   final VoidCallback onLGConfigTap;
+  final VoidCallback onRobotConfigTap;
 
   const ConfigurationMenu({
     super.key,
     required this.onServerConfigTap,
     required this.onLGConfigTap,
+    required this.onRobotConfigTap,
   });
 
   @override
@@ -188,6 +190,17 @@ class ConfigurationMenu extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     onLGConfigTap();
+                  },
+                ),
+                const SizedBox(height: 16),
+                ConfigOption(
+                  icon: Icons.smart_toy,
+                  title: 'Robot',
+                  subtitle: 'Configure robot connection settings',
+                  color: const Color(0xFFEF4444),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onRobotConfigTap();
                   },
                 ),
                 const SizedBox(height: 32),

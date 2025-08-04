@@ -30,6 +30,7 @@ class EnhancedAppBar extends StatelessWidget {
   final Animation<double> indicatorsAnimation;
   final bool isConnected;
   final bool isLGConnected;
+  final bool isRobotConnected;
   final VoidCallback onConfigTap;
 
   const EnhancedAppBar({
@@ -38,6 +39,7 @@ class EnhancedAppBar extends StatelessWidget {
     required this.indicatorsAnimation,
     required this.isConnected,
     required this.isLGConnected,
+    required this.isRobotConnected,
     required this.onConfigTap,
   });
 
@@ -59,6 +61,7 @@ class EnhancedAppBar extends StatelessWidget {
           indicatorsAnimation: indicatorsAnimation,
           isConnected: isConnected,
           isLGConnected: isLGConnected,
+          isRobotConnected: isRobotConnected,
         ),
         background: AnimatedBuilder(
           animation: parallaxAnimation,
@@ -122,12 +125,14 @@ class HeaderTitle extends StatelessWidget {
   final Animation<double> indicatorsAnimation;
   final bool isConnected;
   final bool isLGConnected;
+  final bool isRobotConnected;
 
   const HeaderTitle({
     super.key,
     required this.indicatorsAnimation,
     required this.isConnected,
     required this.isLGConnected,
+    required this.isRobotConnected,
   });
 
   @override
@@ -198,7 +203,12 @@ class HeaderTitle extends StatelessWidget {
                                     isConnected: isConnected,
                                     label: 'Server',
                                   ),
-                                  const SizedBox(width: 20),
+                                  const SizedBox(width: 16),
+                                  ModernConnectionStatus(
+                                    isConnected: isRobotConnected,
+                                    label: 'Robot',
+                                  ),
+                                  const SizedBox(width: 16),
                                   ModernConnectionStatus(
                                     isConnected: isLGConnected,
                                     label: 'LG Connection',

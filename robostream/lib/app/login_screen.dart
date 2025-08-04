@@ -36,6 +36,7 @@ class _LoginView extends StatefulWidget {
 class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   bool _isServerConnected = false;
+  bool _isRobotConfigured = false;
   String _serverIp = '';
   
   Map<String, dynamic>? _qrData;
@@ -144,7 +145,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   void _openQRScanner() {
-    if (_isServerConnected) {
+    if (_isServerConnected && _isRobotConfigured) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => QRScannerScreen(
@@ -156,7 +157,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         _showErrorMessage('Error opening QR scanner: $error');
       });
     } else {
-      _showErrorMessage('Please connect to the server first before scanning QR codes.');
+      _showErrorMessage('Please complete server and robot configuration first before scanning QR codes.');
     }
   }
 
@@ -301,7 +302,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                   opacity: _fadeAnimation.value,
                                   child: Text(
                                     _isServerConnected
-                                        ? 'Configure Liquid Galaxy connection'
+                                        ? _isRobotConfigured
+                                            ? 'Configure Liquid Galaxy connection'
+                                            : 'Configure Robot IP address'
                                         : 'Connect to your robot server to begin',
                                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                       color: Colors.grey[600],
@@ -336,7 +339,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                   ? ServerConnectionForm(
                                       key: const ValueKey('server-form'),
                                       onConnectionSuccess: (serverIp) async {
-                                        _showSuccessMessage('Server connected successfully! Please configure Liquid Galaxy.');
+                                        _showSuccessMessage('Server connected successfully! Please configure robot IP.');
                                         await _fetchAndSaveLGConfigFromServer(serverIp);
                                         setState(() {
                                           _isServerConnected = true;
@@ -345,13 +348,29 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                       },
                                       onError: _onError,
                                     )
-                                  : LiquidGalaxyLoginForm(
-                                      key: ValueKey('lg-form-${_qrData?.hashCode ?? 0}'),
-                                      serverIp: _serverIp,
-                                      onLoginSuccess: _onLoginSuccess,
-                                      onError: _onError,
-                                      qrData: _qrData,
-                                    ),
+                                  : !_isRobotConfigured
+                                      ? RobotConfigForm(
+                                          key: const ValueKey('robot-form'),
+                                          onConfigSuccess: (robotIp) {
+                                            _showSuccessMessage('Robot IP configured successfully! Please configure Liquid Galaxy.');
+                                            setState(() {
+                                              _isRobotConfigured = true;
+                                            });
+                                          },
+                                          onError: _onError,
+                                          onSkip: () {
+                                            setState(() {
+                                              _isRobotConfigured = true;
+                                            });
+                                          },
+                                        )
+                                      : LiquidGalaxyLoginForm(
+                                          key: ValueKey('lg-form-${_qrData?.hashCode ?? 0}'),
+                                          serverIp: _serverIp,
+                                          onLoginSuccess: _onLoginSuccess,
+                                          onError: _onError,
+                                          qrData: _qrData,
+                                        ),
                             ),
                           ],
                         ),
@@ -361,7 +380,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 ),
               ),
               
-              if (_isServerConnected)
+              if (_isServerConnected && _isRobotConfigured)
                 Positioned(
                   top: 20,
                   right: 20,

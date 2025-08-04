@@ -9,8 +9,10 @@ import 'package:robostream/services/server.dart';
 import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/services/lg_server_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
+import 'package:robostream/services/robot_config_manager.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
+import 'package:robostream/app/robot_config_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool fromLogin;
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   final ScrollController _scrollController = ScrollController();
   bool _isConnected = false;
+  bool _isRobotConnected = false;
   
   final RobotServerService _serverService = RobotServerService();
   SensorData? _sensorData;
@@ -63,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _setupServerConnection();
     _loadLGConfigFromLogin();
     _initializeServerConnection();
+    _checkRobotConnection();
     
     _indicatorsController.value = 1.0;
     
@@ -75,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
         _checkLGConnection();
+        _checkRobotConnection();
       } else {
         timer.cancel();
       }
@@ -205,6 +210,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           _isLGConnected = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _checkRobotConnection() async {
+    try {
+      final robotIp = await RobotConfigManager.instance.getSavedRobotIp();
+      
+      if (robotIp == null || robotIp.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isRobotConnected = false;
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _isRobotConnected = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isRobotConnected = false;
         });
       }
     }
@@ -350,6 +381,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (result == true) {
       HapticFeedback.selectionClick();
       CustomSnackBar.showSuccess(context, 'Liquid Galaxy configuration saved');
+    }
+  }
+
+  Future<void> _showRobotConfigDialog() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const RobotConfigScreen(),
+      ),
+    );
+    
+    if (result != null && result.isNotEmpty) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      HapticFeedback.selectionClick();
+      CustomSnackBar.showSuccess(context, 'Robot configuration saved');
     }
   }
 
@@ -545,6 +591,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 indicatorsAnimation: _indicatorsAnimation,
                 isConnected: _isConnected,
                 isLGConnected: _isLGConnected,
+                isRobotConnected: _isRobotConnected,
                 onConfigTap: _showConfigurationMenu,
               ),
               _buildEnhancedGrid(cardsData),
@@ -802,6 +849,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         onLGConfigTap: () async {
           HapticFeedback.lightImpact();
           await _showLGConfigDialog();
+        },
+        onRobotConfigTap: () async {
+          HapticFeedback.lightImpact();
+          await _showRobotConfigDialog();
         },
       ),
     );

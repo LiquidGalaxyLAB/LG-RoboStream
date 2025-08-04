@@ -42,8 +42,13 @@ class LGSensorRequest(BaseModel):
 class LGServerRequest(BaseModel):
     server_host: str
 
+class RobotIPRequest(BaseModel):
+    robot_ip: str
+
 robot = RobotSimulator()
 connected_clients: List[WebSocket] = []
+
+ROBOT_IP = None
 
 @app.get("/")
 async def root():
@@ -67,7 +72,9 @@ async def root():
             "lg_show_camera": "/lg/show-camera",
             "lg_show_sensors": "/lg/show-sensors",
             "lg_hide_sensors": "/lg/hide-sensors",
-            "lg_disconnect": "/lg/disconnect"
+            "lg_disconnect": "/lg/disconnect",
+            "set_robot_ip": "/set-robot-ip",
+            "get_robot_ip": "/get-robot-ip"
         }
     }
 
@@ -175,6 +182,30 @@ async def lg_relaunch():
     return {
         "success": success,
         "message": "Liquid Galaxy relaunched successfully" if success else "Failed to relaunch Liquid Galaxy"
+    }
+
+@app.post("/set-robot-ip")
+async def set_robot_ip(request: RobotIPRequest):
+    global ROBOT_IP
+    ROBOT_IP = request.robot_ip
+    
+    try:
+        with open("../ROS/robot_data.py", "w") as f:
+            f.write(f"ROBOT_IP = '{request.robot_ip}'\n")
+    except Exception as e:
+        pass
+    
+    return {
+        "success": True,
+        "message": f"Robot IP set to {request.robot_ip}",
+        "robot_ip": request.robot_ip
+    }
+
+@app.get("/get-robot-ip")
+async def get_robot_ip():
+    return {
+        "robot_ip": ROBOT_IP,
+        "is_set": ROBOT_IP is not None
     }
 
 @app.get("/sensors", response_model=SensorData)
