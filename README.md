@@ -126,7 +126,7 @@ The home screen provides easy access to all main features:
 - 🔴🟢 Connection indicators (Server, Robot & Liquid Galaxy)
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/165dafc5-6cbf-4a73-bdca-300ab6a495b0" width="300" alt="Home Screen">
+  <img src="https://github.com/user-attachments/assets/165dafc5-6cbf-4a73-bdca-300ab6a495b0" width="500" alt="Home Screen">
 </div>
 
 ---
