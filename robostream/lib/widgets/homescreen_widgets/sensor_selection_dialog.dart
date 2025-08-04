@@ -400,7 +400,7 @@ class _SensorSelectionDialogState extends State<SensorSelectionDialog>
       case 'Wheel Motors':
         return 'Motor speed and power consumption';
       case 'Server Link':
-        return 'Robot server connection status';
+        return 'Server connection status';
       default:
         return 'Sensor data streaming';
     }

@@ -305,7 +305,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                         ? _isRobotConfigured
                                             ? 'Configure Liquid Galaxy connection'
                                             : 'Configure Robot IP address'
-                                        : 'Connect to your robot server to begin',
+                                        : 'Connect to your server to begin',
                                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                       color: Colors.grey[600],
                                       fontSize: 15,

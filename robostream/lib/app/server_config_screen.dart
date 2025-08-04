@@ -224,7 +224,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Configure robot server connection',
+                  'Configure server connection',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -304,7 +304,7 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Configure the robot server endpoint',
+                        'Configure the server endpoint',
                         style: TextStyle(
                           fontSize: 14,
                           color: _textSecondaryColor,

@@ -173,7 +173,7 @@ class ConfigurationMenu extends StatelessWidget {
                 const SizedBox(height: 32),
                 ConfigOption(
                   icon: Icons.dns_rounded,
-                  title: 'Robot Server',
+                  title: 'Server',
                   subtitle: 'Configure robot connection settings',
                   color: const Color(0xFF6366F1),
                   onTap: () {
