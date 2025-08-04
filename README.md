@@ -123,10 +123,10 @@ The home screen provides easy access to all main features:
 - ⚙️ Settings button for configuration menu
 - 📊 Sensor cards displaying real-time data
 - 🎮 "Start Streaming" button to begin data transmission
-- 🔴🟢 Connection indicators (Server & Liquid Galaxy)
+- 🔴🟢 Connection indicators (Server, Robot & Liquid Galaxy)
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/165f5fca-7460-463d-b6bb-668b48f81188" width="300" alt="Home Screen">
+  <img src="https://github.com/user-attachments/assets/165dafc5-6cbf-4a73-bdca-300ab6a495b0" width="300" alt="Home Screen">
 </div>
 
 ---
