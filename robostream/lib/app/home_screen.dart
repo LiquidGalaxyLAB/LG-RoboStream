@@ -691,16 +691,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
-            if (_isOrbitRunning)
-              Positioned(
-                top: 100,
-                left: 20,
-                right: 20,
-                child: OrbitInfoIndicator(
-                  isOrbitRunning: _isOrbitRunning,
-                  orbitInfo: null,
-                ),
-              ),
+            // Orbit indicator removed per request
           ],
         ),
       ),

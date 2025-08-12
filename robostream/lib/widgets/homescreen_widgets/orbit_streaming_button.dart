@@ -257,48 +257,7 @@ class OrbitInfoIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isOrbitRunning) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF10B981).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.threesixty_rounded,
-            color: Color(0xFF10B981),
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Orbit Active',
-            style: TextStyle(
-              color: Color(0xFF10B981),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (orbitInfo != null && orbitInfo!['steps'] != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              '${orbitInfo!['steps']} steps',
-              style: TextStyle(
-                color: const Color(0xFF10B981).withOpacity(0.7),
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+  // Deprecated indicator removed.
+  return const SizedBox.shrink();
   }
 }
