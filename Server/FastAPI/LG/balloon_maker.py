@@ -71,22 +71,22 @@ class BalloonMaker:
             
             data_rows += f'''
         <tr>
-          <td style="padding: 8px; border-bottom: 1px solid #374151; color: #9CA3AF; font-size: 14px;">
+          <td style="padding: 14px; border-bottom: 1px solid #374151; color: #9CA3AF; font-size: 24px;">
             {label}
           </td>
-          <td style="padding: 8px; border-bottom: 1px solid #374151; color: {color}; font-size: 16px; font-weight: bold; text-align: right;">
+          <td style="padding: 14px; border-bottom: 1px solid #374151; color: {color}; font-size: 26px; font-weight: bold; text-align: right;">
             {display_value}
           </td>
         </tr>'''
         
-        return f'''<div style="width: 420px; color: white; padding-left: 10px; padding-right: 10px;">
+        return f'''<div style="width: 700px; color: white; padding-left: 18px; padding-right: 18px;">
       <center>
-        <h1 style="color:white; font-size: 28px;">{sensor_name}</h1>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <h1 style="color:white; font-size: 46px;">{sensor_name}</h1>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 34px;">
           {data_rows}
         </table>
         <br>
-        <p style="color:white; font-size: 15px;">RoboStream | Liquid Galaxy | GSoC 2025</p>
+        <p style="color:white; font-size: 25px;">RoboStream | Liquid Galaxy | GSoC 2025</p>
       </center>
     </div>'''
     
@@ -106,28 +106,28 @@ class BalloonMaker:
                 
                 data_rows += f'''
           <tr>
-            <td style="padding: 6px 8px; color: #9CA3AF; font-size: 13px;">
+            <td style="padding: 10px 14px; color: #9CA3AF; font-size: 21px;">
               {label}
             </td>
-            <td style="padding: 6px 8px; color: {color}; font-size: 14px; font-weight: bold; text-align: right;">
+            <td style="padding: 10px 14px; color: {color}; font-size: 24px; font-weight: bold; text-align: right;">
               {display_value}
             </td>
           </tr>'''
 
             sections += f'''
-        <h3 style="color: #F3F4F6; font-size: 18px; margin: 16px 0 8px 0; font-weight: 600;">
+        <h3 style="color: #F3F4F6; font-size: 30px; margin: 26px 0 14px 0; font-weight: 600;">
           {sensor_name}
         </h3>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
           {data_rows}
         </table>'''
         
-        return f'''<div style="width: 480px; color: white; padding-left: 10px; padding-right: 10px;">
+        return f'''<div style="width: 800px; color: white; padding-left: 18px; padding-right: 18px;">
       <center>
-        <h1 style="color:white; font-size: 28px;">Multi-Sensor Dashboard</h1>
+        <h1 style="color:white; font-size: 46px;">Multi-Sensor Dashboard</h1>
         {sections}
         <br>
-        <p style="color:white; font-size: 15px;">RoboStream | Liquid Galaxy | GSoC 2025</p>
+        <p style="color:white; font-size: 25px;">RoboStream | Liquid Galaxy | GSoC 2025</p>
       </center>
     </div>'''
     

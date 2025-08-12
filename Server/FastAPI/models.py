@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class ThreeAxisData(BaseModel):
     x: float
@@ -46,3 +47,17 @@ class ActuatorData(BaseModel):
     front_right_wheel: ServoData
     back_left_wheel: ServoData
     back_right_wheel: ServoData
+
+# Orbit models
+class OrbitRequest(BaseModel):
+    latitude: float
+    longitude: float
+    zoom: Optional[int] = 4000
+    tilt: Optional[int] = 60
+    steps: Optional[int] = 30
+    step_ms: Optional[int] = 500
+    start_heading: Optional[float] = 0.0
+
+class OrbitStopRequest(BaseModel):
+    force: Optional[bool] = False
+    timeout: Optional[float] = 2.0

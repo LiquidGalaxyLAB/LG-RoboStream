@@ -137,11 +137,13 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   void _onQRScanned(Map<String, dynamic> qrData) {
-    setState(() {
-      _qrData = qrData;
-    });
+    if (mounted) {
+      setState(() {
+        _qrData = qrData;
+      });
 
-    _showSuccessMessage('QR configuration loaded! Data has been filled automatically.');
+      _showSuccessMessage('QR configuration loaded! Data has been filled automatically.');
+    }
   }
 
   void _openQRScanner() {
@@ -341,10 +343,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                       onConnectionSuccess: (serverIp) async {
                                         _showSuccessMessage('Server connected successfully! Please configure robot IP.');
                                         await _fetchAndSaveLGConfigFromServer(serverIp);
-                                        setState(() {
-                                          _isServerConnected = true;
-                                          _serverIp = serverIp;
-                                        });
+                                        if (mounted) {
+                                          setState(() {
+                                            _isServerConnected = true;
+                                            _serverIp = serverIp;
+                                          });
+                                        }
                                       },
                                       onError: _onError,
                                     )
@@ -353,15 +357,19 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                                           key: const ValueKey('robot-form'),
                                           onConfigSuccess: (robotIp) {
                                             _showSuccessMessage('Robot IP configured successfully! Please configure Liquid Galaxy.');
-                                            setState(() {
-                                              _isRobotConfigured = true;
-                                            });
+                                            if (mounted) {
+                                              setState(() {
+                                                _isRobotConfigured = true;
+                                              });
+                                            }
                                           },
                                           onError: _onError,
                                           onSkip: () {
-                                            setState(() {
-                                              _isRobotConfigured = true;
-                                            });
+                                            if (mounted) {
+                                              setState(() {
+                                                _isRobotConfigured = true;
+                                              });
+                                            }
                                           },
                                         )
                                       : LiquidGalaxyLoginForm(

@@ -33,6 +33,8 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   late TextEditingController _totalScreensController;
   bool _isSaving = false;
   bool _isClearing = false;
+  bool _isClearingLogos = false;
+  bool _isClearingKmlLogos = false;
   bool _isRelaunching = false;
 
   @override
@@ -102,30 +104,38 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
   }
 
   void _showErrorSnackBar(String message) {
-    CustomSnackBar.showError(context, message);
+    if (mounted) {
+      CustomSnackBar.showError(context, message);
+    }
   }
 
   void _showSuccessSnackBar(String message) {
-    CustomSnackBar.showSuccess(context, message);
+    if (mounted) {
+      CustomSnackBar.showSuccess(context, message);
+    }
   }
 
   void _saveConfiguration() async {
     final fields = _getValidatedFields();
     if (fields == null) return;
 
-    setState(() {
-      _isSaving = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isSaving = true;
+      });
+    }
 
     try {
       HapticFeedback.mediumImpact();
 
       final serverUrl = await ServerConfigManager.instance.getServerUrl();
       if (serverUrl == null) {
-        _showErrorSnackBar('Server URL is not configured.');
-        setState(() {
-          _isSaving = false;
-        });
+        if (mounted) {
+          _showErrorSnackBar('Server URL is not configured.');
+          setState(() {
+            _isSaving = false;
+          });
+        }
         return;
       }
 
@@ -160,10 +170,14 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
         
         if(mounted) Navigator.pop(context, true);
       } else {
-        _showErrorSnackBar('Failed to save configuration on server: ${response.body}');
+        if (mounted) {
+          _showErrorSnackBar('Failed to save configuration on server: ${response.body}');
+        }
       }
     } catch (e) {
-      _showErrorSnackBar('Error saving configuration: ${e.toString()}');
+      if (mounted) {
+        _showErrorSnackBar('Error saving configuration: ${e.toString()}');
+      }
     } finally {
       if(mounted) {
         setState(() {
@@ -177,9 +191,20 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     final fields = _getValidatedFields();
     if (fields == null) return;
 
-    setState(() {
-      _isClearing = true;
-    });
+    final confirmed = await _showGenericConfirmationDialog(
+      title: 'Confirm Clear KML',
+      message: 'This will remove the current KML overlays from the rightmost screen.',
+      icon: Icons.clear_all_rounded,
+      color: const Color(0xFF9333EA),
+      confirmLabel: 'Clear',
+    );
+    if (!confirmed) return;
+
+    if (mounted) {
+      setState(() {
+        _isClearing = true;
+      });
+    }
 
     try {
       final serverIp = await ServerConfigManager.instance.getSavedServerIp();
@@ -193,26 +218,130 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
           final responseData = json.decode(response.body);
           if (responseData['success'] == true) {
             HapticFeedback.mediumImpact();
-            _showSuccessSnackBar('All KML content cleared successfully from Liquid Galaxy');
+            if (mounted) {
+              _showSuccessSnackBar('All KML content cleared successfully from Liquid Galaxy');
+            }
           } else {
-            _showErrorSnackBar('Failed to clear all KML: ${responseData['message']}');
+            if (mounted) {
+              _showErrorSnackBar('Failed to clear all KML: ${responseData['message']}');
+            }
           }
         } else {
-          _showErrorSnackBar('Failed to clear all KML from Liquid Galaxy');
+          if (mounted) {
+            _showErrorSnackBar('Failed to clear all KML from Liquid Galaxy');
+          }
         }
       } else {
-        _showErrorSnackBar('Server configuration not found');
+        if (mounted) {
+          _showErrorSnackBar('Server configuration not found');
+        }
       }
     } catch (e) {
-      _showErrorSnackBar('Error clearing KML files: ${e.toString()}');
+      if (mounted) {
+        _showErrorSnackBar('Error clearing KML files: ${e.toString()}');
+      }
     } finally {
-      setState(() {
-        _isClearing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isClearing = false;
+        });
+      }
+    }
+  }
+
+  void _clearLogos() async {
+    final fields = _getValidatedFields();
+    if (fields == null) return;
+
+    final confirmed = await _showGenericConfirmationDialog(
+      title: 'Confirm Clear Logos',
+      message: 'This will remove the logos from the leftmost screen.',
+      icon: Icons.image_not_supported_outlined,
+      color: const Color(0xFF0EA5E9),
+      confirmLabel: 'Clear',
+    );
+    if (!confirmed) return;
+
+    if (mounted) {
+      setState(() { _isClearingLogos = true; });
+    }
+
+    try {
+      final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+      if (serverIp != null) {
+        final response = await http.post(
+          Uri.parse('http://$serverIp:8000/lg/clear-logos'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+            if (data['success'] == true) {
+              HapticFeedback.mediumImpact();
+              if (mounted) _showSuccessSnackBar('Leftmost screen cleared');
+            } else {
+              if (mounted) _showErrorSnackBar('Failed to clear logos: ${data['message']}');
+            }
+        } else {
+          if (mounted) _showErrorSnackBar('Failed to clear logos');
+        }
+      } else {
+        if (mounted) _showErrorSnackBar('Server configuration not found');
+      }
+    } catch (e) {
+      if (mounted) _showErrorSnackBar('Error clearing logos: $e');
+    } finally {
+      if (mounted) setState(() { _isClearingLogos = false; });
+    }
+  }
+
+  void _clearKmlAndLogos() async {
+    final fields = _getValidatedFields();
+    if (fields == null) return;
+
+    final confirmed = await _showGenericConfirmationDialog(
+      title: 'Confirm Clear KML + Logos',
+      message: 'This will clear both the rightmost screen KML overlays and the leftmost screen logos.',
+      icon: Icons.layers_clear_outlined,
+      color: const Color(0xFFEF4444),
+      confirmLabel: 'Clear All',
+    );
+    if (!confirmed) return;
+
+    if (mounted) {
+      setState(() { _isClearingKmlLogos = true; });
+    }
+
+    try {
+      final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+      if (serverIp != null) {
+        final response = await http.post(
+          Uri.parse('http://$serverIp:8000/lg/clear-kml-logos'),
+          headers: {'Content-Type': 'application/json'},
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+            if (data['success'] == true) {
+              HapticFeedback.mediumImpact();
+              if (mounted) _showSuccessSnackBar('Leftmost & rightmost screens cleared');
+            } else {
+              if (mounted) _showErrorSnackBar('Failed to clear KML + logos: ${data['message']}');
+            }
+        } else {
+          if (mounted) _showErrorSnackBar('Failed to clear KML + logos');
+        }
+      } else {
+        if (mounted) _showErrorSnackBar('Server configuration not found');
+      }
+    } catch (e) {
+      if (mounted) _showErrorSnackBar('Error clearing KML + logos: $e');
+    } finally {
+      if (mounted) setState(() { _isClearingKmlLogos = false; });
     }
   }
 
   Future<bool> _showRelaunchConfirmationDialog() async {
+    if (!mounted) return false;
+    
     final bool? result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -349,6 +478,111 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     return result ?? false;
   }
 
+  Future<bool> _showGenericConfirmationDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+    String confirmLabel = 'Confirm',
+  }) async {
+    if (!mounted) return false;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(icon, color: color, size: 26),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF475569), fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: color.withOpacity(0.3), width: 1),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(icon, color: color, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'This action cannot be undone.',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(context).pop(false);
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  ),
+                  const SizedBox(width: 14),
+                  ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      Navigator.of(context).pop(true);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 18),
+                        const SizedBox(width: 6),
+                        Text(confirmLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            ],
+        );
+      }
+    );
+    return result ?? false;
+  }
+
   void _relaunchLG() async {
     final fields = _getValidatedFields();
     if (fields == null) return;
@@ -356,9 +590,11 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
     final shouldRelaunch = await _showRelaunchConfirmationDialog();
     if (!shouldRelaunch) return;
 
-    setState(() {
-      _isRelaunching = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isRelaunching = true;
+      });
+    }
 
     try {
       final serverIp = await ServerConfigManager.instance.getSavedServerIp();
@@ -372,22 +608,34 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
           final responseData = json.decode(response.body);
           if (responseData['success'] == true) {
             HapticFeedback.mediumImpact();
-            _showSuccessSnackBar('Liquid Galaxy relaunched successfully');
+            if (mounted) {
+              _showSuccessSnackBar('Liquid Galaxy relaunched successfully');
+            }
           } else {
-            _showErrorSnackBar('Failed to relaunch LG: ${responseData['message']}');
+            if (mounted) {
+              _showErrorSnackBar('Failed to relaunch LG: ${responseData['message']}');
+            }
           }
         } else {
-          _showErrorSnackBar('Failed to relaunch Liquid Galaxy');
+          if (mounted) {
+            _showErrorSnackBar('Failed to relaunch Liquid Galaxy');
+          }
         }
       } else {
-        _showErrorSnackBar('Server configuration not found');
+        if (mounted) {
+          _showErrorSnackBar('Server configuration not found');
+        }
       }
     } catch (e) {
-      _showErrorSnackBar('Error relaunching LG: ${e.toString()}');
+      if (mounted) {
+        _showErrorSnackBar('Error relaunching LG: ${e.toString()}');
+      }
     } finally {
-      setState(() {
-        _isRelaunching = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isRelaunching = false;
+        });
+      }
     }
   }
 
@@ -403,12 +651,11 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
             children: [
               _buildModernHeader(),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      _buildConfigForm(),
-                    ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _buildConfigForm(),
                   ),
                 ),
               ),
@@ -617,149 +864,107 @@ class _LGConfigScreenState extends State<LGConfigScreen> {
 
   Widget _buildBottomActions() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       child: SafeArea(
         top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // All buttons always visible (compact spacing)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    isLoading: _isClearingLogos,
+                    onPressed: _clearLogos,
+                    color: const Color(0xFF0EA5E9),
+                    icon: Icons.image_not_supported_outlined,
+                    text: 'Clear Logos',
+                    loadingText: 'Clearing...'),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionButton(
+                    isLoading: _isClearing,
+                    onPressed: _clearAllKML,
+                    color: const Color(0xFF9333EA),
+                    icon: Icons.clear_all_rounded,
+                    text: 'Clear KML',
+                    loadingText: 'Clearing...'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildActionButton(
+              isLoading: _isClearingKmlLogos,
+              onPressed: _clearKmlAndLogos,
+              color: const Color(0xFFEF4444),
+              icon: Icons.layers_clear_outlined,
+              text: 'Clear KML + Logos',
+              loadingText: 'Clearing...'),
+            const SizedBox(height: 8),
+            _buildActionButton(
+              isLoading: _isRelaunching,
+              onPressed: _relaunchLG,
+              color: const Color(0xFF6366F1),
+              icon: Icons.restart_alt_rounded,
+              text: 'Relaunch Liquid Galaxy',
+              loadingText: 'Relaunching...'),
+            const SizedBox(height: 10),
+            _buildActionButton(
+              isLoading: _isSaving,
+              onPressed: _saveConfiguration,
+              color: const Color(0xFF10B981),
+              icon: Icons.save_rounded,
+              text: 'Save Configuration',
+              loadingText: 'Saving...'),
+          ],
+        ),
+      ),
+    );
+  }
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isRelaunching ? null : _relaunchLG,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: _isRelaunching ? 0 : 4,
+  Widget _buildActionButton({
+    required bool isLoading,
+    required VoidCallback onPressed,
+    required Color color,
+    required IconData icon,
+    required String text,
+    required String loadingText,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : () { HapticFeedback.mediumImpact(); onPressed(); },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            elevation: isLoading ? 0 : 3,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isRelaunching)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.restart_alt_rounded,
-                        size: 20,
-                      ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isRelaunching ? 'Relaunching...' : 'Relaunch Liquid Galaxy',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isClearing ? null : _clearAllKML,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF4444),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: _isClearing ? 0 : 4,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isClearing)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.clear_all_rounded,
-                        size: 20,
-                      ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isClearing ? 'Clearing...' : 'Clear ALL KML',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveConfiguration,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: _isSaving ? 0 : 4,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_isSaving)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.save_rounded,
-                        size: 20,
-                      ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isSaving ? 'Saving...' : 'Save Configuration',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              )
+            else
+              Icon(icon, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              isLoading ? loadingText : text,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ],
         ),

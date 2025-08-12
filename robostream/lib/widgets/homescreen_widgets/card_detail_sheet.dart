@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/widgets/common/custom_snackbar.dart';
 
 class CardDetailSheet extends StatefulWidget {
   final Map<String, dynamic> cardData;
@@ -366,6 +367,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
           _buildDetailRow('Longitude', '${gps.longitude.toStringAsFixed(6)}°'),
           _buildDetailRow('Altitude', '${gps.altitude.toStringAsFixed(1)} m'),
           _buildDetailRow('Speed', '${gps.speed.toStringAsFixed(2)} m/s'),
+          const SizedBox(height: 16),
+          _buildGPSSimulationButtons(),
         ]);
       }
     } else if (label == 'Wheel Motors' && _currentActuatorData != null) {
@@ -724,6 +727,117 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
       ),
       icon: const Icon(Icons.refresh, size: 16),
       label: const Text('Refresh Image', style: TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _buildGPSSimulationButtons() {
+    const Map<String, Map<String, double>> gpsLocations = {
+      'Lleida': {'lat': 41.6176, 'lng': 0.6200},
+      'Pozuelo': {'lat': 40.4378, 'lng': -3.8040},
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.location_city,
+                size: 16,
+                color: Color(0xFF6366F1),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'GPS Simulation Zones',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          childAspectRatio: 2.5,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          children: gpsLocations.entries.map((entry) {
+            return _buildGPSLocationButton(
+              entry.key, 
+              entry.value['lat']!, 
+              entry.value['lng']!
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGPSLocationButton(String cityName, double lat, double lng) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF6366F1),
+            Color(0xFF8B5CF6),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _onGPSLocationSelected(cityName, lat, lng),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  cityName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onGPSLocationSelected(String cityName, double lat, double lng) {
+    CustomSnackBar.showSuccess(
+      context,
+      'GPS Simulation Zone Established',
     );
   }
 }

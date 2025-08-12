@@ -10,9 +10,11 @@ import 'package:robostream/services/server_config_manager.dart';
 import 'package:robostream/services/lg_server_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/services/robot_config_manager.dart';
+import 'package:robostream/services/orbit_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
 import 'package:robostream/app/robot_config_screen.dart';
+import 'package:robostream/widgets/homescreen_widgets/orbit_streaming_button.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool fromLogin;
@@ -27,6 +29,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const Duration _indicatorDuration = Duration(milliseconds: 600);
   static const Duration _indicatorReverseDuration = Duration(milliseconds: 450);
   static const Duration _refreshDelay = Duration(milliseconds: 1500);
+  
+  static const double _orbitLatitude = 41.605725;
+  static const double _orbitLongitude = 0.606787;
+  static const int _orbitAltitude = 197;
   
   late AnimationController _parallaxController;
   late AnimationController _indicatorsController;
@@ -54,7 +60,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _lgTotalScreens = 3;
   String _serverHost = '192.168.1.100';
 
-
+  OrbitService? _orbitService;
+  bool _isOrbitRunning = false;
+  Timer? _orbitStatusTimer;
   
   Timer? _lgStreamingTimer;
 
@@ -84,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         timer.cancel();
       }
     });
+    
+    _startOrbitStatusTimer();
   }
 
   void _initializeServerConnection() async {
@@ -91,12 +101,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       await _loadServerConfig();
       await _serverService.checkConnection();
     } catch (e) {
-
     }
     
     if (!_serverService.isStreaming) {
       _serverService.startStreaming();
     }
+    
+    final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+    final serverPort = await ServerConfigManager.instance.getSavedServerPort();
+    if (serverIp != null) {
+      _orbitService = OrbitService(baseUrl: 'http://$serverIp:$serverPort');
+    }
+  }
+  
+  void _startOrbitStatusTimer() {
+    _orbitStatusTimer?.cancel();
+    _orbitStatusTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      print("1");
+      if (_orbitService != null && mounted) {
+        try {
+          final isRunning = await _orbitService!.isOrbitRunning();
+          if (mounted && _isOrbitRunning != isRunning) {
+            setState(() {
+              _isOrbitRunning = isRunning;
+            });
+          }
+        } catch (e) {
+          print(e);
+        }
+      }
+    });
   }
 
   Future<void> _loadServerConfig() async {
@@ -319,6 +353,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _serverService.dispose();
     _lgService?.disconnect();
     _lgStreamingTimer?.cancel();
+    _orbitStatusTimer?.cancel(); 
     super.dispose();
   }
 
@@ -489,6 +524,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     _selectedSensors = [];
     
+    if (_isOrbitRunning) {
+      _stopOrbit();
+    }
+    
     if (mounted) {
       setState(() {
         _isStreamingToLG = false;
@@ -522,6 +561,57 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _lgService = null;
         }
       });
+    }
+  }
+
+  void _toggleOrbit() async {
+    if (_isOrbitRunning) {
+      await _stopOrbit();
+    } else {
+      await _startOrbit();
+    }
+  }
+
+  Future<void> _startOrbit() async {
+    if (_orbitService == null) {
+      CustomSnackBar.showWarning(context, 'Orbit service not available');
+      return;
+    }
+
+    try {
+      final success = await _orbitService!.startDefaultOrbit();
+
+      if (success) {
+        setState(() {
+          _isOrbitRunning = true;
+        });
+        CustomSnackBar.showSuccess(context, 'Orbit started around coordinates $_orbitLatitude, $_orbitLongitude at ${_orbitAltitude.toStringAsFixed(1)}m altitude');
+      } else {
+        CustomSnackBar.showError(context, 'Failed to start orbit');
+      }
+    } catch (e) {
+      CustomSnackBar.showError(context, 'Error starting orbit: $e');
+    }
+  }
+
+  Future<void> _stopOrbit() async {
+    if (_orbitService == null) {
+      return;
+    }
+
+    try {
+      final success = await _orbitService!.stopOrbit(force: true, timeout: 2.0);
+
+      if (success) {
+        setState(() {
+          _isOrbitRunning = false;
+        });
+        CustomSnackBar.showInfo(context, 'Orbit stopped');
+      } else {
+        CustomSnackBar.showWarning(context, 'Orbit may still be running');
+      }
+    } catch (e) {
+      CustomSnackBar.showError(context, 'Error stopping orbit: $e');
     }
   }
 
@@ -576,35 +666,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          backgroundColor: Colors.white,
-          color: AppStyles.primaryColor,
-          strokeWidth: 3,
-          displacement: 120,
-          child: CustomScrollView(
-            controller: _scrollController,
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              EnhancedAppBar(
-                parallaxAnimation: _parallaxAnimation,
-                indicatorsAnimation: _indicatorsAnimation,
-                isConnected: _isConnected,
-                isLGConnected: _isLGConnected,
-                isRobotConnected: _isRobotConnected,
-                onConfigTap: _showConfigurationMenu,
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: _onRefresh,
+              backgroundColor: Colors.white,
+              color: AppStyles.primaryColor,
+              strokeWidth: 3,
+              displacement: 120,
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  EnhancedAppBar(
+                    parallaxAnimation: _parallaxAnimation,
+                    indicatorsAnimation: _indicatorsAnimation,
+                    isConnected: _isConnected,
+                    isLGConnected: _isLGConnected,
+                    isRobotConnected: _isRobotConnected,
+                    onConfigTap: _showConfigurationMenu,
+                  ),
+                  _buildEnhancedGrid(cardsData),
+                  _buildFooterSection(),
+                ],
               ),
-              _buildEnhancedGrid(cardsData),
-              _buildFooterSection(),
-            ],
-          ),
+            ),
+            if (_isOrbitRunning)
+              Positioned(
+                top: 100,
+                left: 20,
+                right: 20,
+                child: OrbitInfoIndicator(
+                  isOrbitRunning: _isOrbitRunning,
+                  orbitInfo: null,
+                ),
+              ),
+          ],
         ),
       ),
-      floatingActionButton: ModernStreamingButton(
+      floatingActionButton: OrbitStreamingButton(
         isConnected: _isConnected,
         isStreamingToLG: _isStreamingToLG,
+        isOrbitRunning: _isOrbitRunning,
         selectedSensors: _selectedSensors,
-        onTap: _showStreamingMenu,
+        onStreamingTap: _showStreamingMenu,
+        onOrbitTap: _toggleOrbit,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

@@ -11,6 +11,18 @@ from . import lg_data
 from .slave_calculator import SlaveCalculator
 from .kml_builder import KMLBuilder
 
+class Coordinates:
+    def __init__(self, latitude, longitude, elevation, tilt, bearing, altitude):
+        self.latitude = latitude
+        self.longitude = longitude
+        self.elevation = elevation
+        self.tilt = tilt
+        self.bearing = bearing
+        self.altitude = altitude
+
+    def LookAt(self):
+        return f"<LookAt><latitude>{self.latitude}</latitude><longitude>{self.longitude}</longitude><altitude>{self.altitude}</altitude><tilt>{self.tilt}</tilt><heading>{self.bearing}</heading><gx:altitudeMode>relativeToGround</gx:altitudeMode></LookAt>"
+
 class LoginResult:
     def __init__(self, success: bool, message: str):
         self.success = success
@@ -28,6 +40,10 @@ class LGConnectionManager:
         
         self.slave_calculator = SlaveCalculator(total_screens)
         self.kml_builder = KMLBuilder(host)
+        
+        # Variables for placemark file management to avoid cache issues
+        self.placemark_counter = 0
+        self.current_placemark_file = None
         
     async def connect(self) -> bool:
         try:
@@ -55,6 +71,9 @@ class LGConnectionManager:
             return False
     
     async def disconnect(self):
+        # Clean up current placemark file reference (but keep counter for next session)
+        self.current_placemark_file = None
+        
         if self.sftp:
             self.sftp.close()
             self.sftp = None
@@ -81,6 +100,225 @@ class LGConnectionManager:
     
     async def send_kml_to_rightmost_screen(self, kml_content: str) -> bool:
         return await self.send_kml_to_slave(kml_content, self.slave_calculator.rightmost_screen)
+    
+    async def send_robot_placemark(self, latitude: float, longitude: float, altitude: float = 0) -> bool:
+        if not self.is_connected or not self.client or not self.sftp:
+            return False
+            
+        try:
+            # Delete previous placemark file if exists
+            await self._delete_previous_placemark()
+            
+            # Generate new placemark filename with counter to avoid cache
+            self.placemark_counter += 1
+            new_placemark_filename = f"placemark{self.placemark_counter}.kml"
+            self.current_placemark_file = new_placemark_filename
+            
+            # CRITICAL: Always upload Amiga robot icon to LG1 first before creating placemark
+            robot_icon_path = "AMIGA_ROBOT_PNG/amiga-base.png"
+            if not os.path.exists(robot_icon_path):
+                print(f"ERROR: Amiga robot icon file not found at {robot_icon_path}")
+                return False
+                
+            # Ensure the Amiga icon is uploaded to the master server (LG1)
+            icon_uploaded = await self._upload_robot_icon(robot_icon_path)
+            if not icon_uploaded:
+                print("ERROR: Failed to upload Amiga robot icon to LG1. Cannot create placemark.")
+                return False
+            
+            # Small delay to ensure the file is fully written and accessible
+            await asyncio.sleep(0.1)
+            
+            placemark_kml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Style id="robotStyle">
+      <IconStyle>
+        <Icon>
+          <href>http://{self.host}:81/amiga-base.png</href>
+        </Icon>
+        <scale>2.5</scale>
+      </IconStyle>
+    </Style>
+    <Placemark>
+      <name></name>
+      <styleUrl>#robotStyle</styleUrl>
+      <Point>
+        <coordinates>{longitude},{latitude},{altitude}</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>'''
+            
+            remote_path = f'/var/www/html/{new_placemark_filename}'
+            with BytesIO(placemark_kml.encode('utf-8')) as kml_io:
+                self.sftp.putfo(kml_io, remote_path)
+            await self.update_kmls_txt()
+            
+            print(f"Robot placemark updated: {new_placemark_filename} at coordinates {latitude}, {longitude}")
+            return True
+        except Exception as e:
+            print(f"Error sending robot placemark: {e}")
+            return False
+
+    async def _delete_previous_placemark(self) -> bool:
+        """Delete the previous placemark file to avoid cache issues"""
+        if not self.current_placemark_file or not self.is_connected or not self.client:
+            return True
+            
+        try:
+            # Remove the file from the server
+            command = f"rm -f /var/www/html/{self.current_placemark_file}"
+            stdin, stdout, stderr = self.client.exec_command(command)
+            stdout.read()
+            
+            print(f"Previous placemark file deleted: {self.current_placemark_file}")
+            return True
+        except Exception as e:
+            print(f"Error deleting previous placemark file {self.current_placemark_file}: {e}")
+            return False
+
+    async def _upload_robot_icon(self, local_icon_path: str) -> bool:
+        """Upload robot icon to the server ensuring it's available on the master server (LG1)"""
+        if not self.is_connected or not self.sftp:
+            return False
+            
+        try:
+            remote_icon_path = "/var/www/html/amiga-base.png"
+            
+            # Always ensure the icon is available on the server
+            # Even if it exists, we'll verify/re-upload to make sure it's properly accessible
+            if os.path.exists(local_icon_path):
+                # Upload the icon to the master server (LG1)
+                self.sftp.put(local_icon_path, remote_icon_path)
+                
+                # Set proper permissions to ensure it's accessible via HTTP
+                command = f"chmod 644 {remote_icon_path}"
+                stdin, stdout, stderr = self.client.exec_command(command)
+                stdout.read()
+                
+                print(f"Amiga robot icon uploaded to master server (LG1): {local_icon_path} -> {remote_icon_path}")
+                return True
+            else:
+                print(f"Local Amiga robot icon file not found: {local_icon_path}")
+                return False
+        except Exception as e:
+            print(f"Error uploading Amiga robot icon to master server: {e}")
+            return False
+    
+    async def update_kmls_txt(self) -> bool:
+        if not self.is_connected or not self.client or not self.current_placemark_file:
+            return False
+            
+        try:
+            try:
+                stdin, stdout, stderr = self.client.exec_command('cat /var/www/html/kmls.txt')
+                current_content = stdout.read().decode('utf-8').strip()
+            except:
+                current_content = ""
+
+            # Create new placemark line with current file name
+            placemark_line = f"http://{self.host}:81/{self.current_placemark_file}"
+            lines = current_content.split('\n') if current_content else []
+
+            # Remove any existing placemark lines (both old Placemark.kml and new placemark*.kml)
+            lines = [line.strip() for line in lines if line.strip() and 
+                    'Placemark.kml' not in line and 'placemark' not in line.lower()]
+            lines.append(placemark_line)
+
+            new_content = '\n'.join(lines)
+            command = f"echo '{new_content}' > /var/www/html/kmls.txt"
+            stdin, stdout, stderr = self.client.exec_command(command)
+            stdout.read()
+            
+            print(f"kmls.txt updated with new placemark: {placemark_line}")
+            return True
+        except Exception as e:
+            print(f"Error updating kmls.txt: {e}")
+            return False
+
+    async def clean_all_placemark_files(self) -> bool:
+        """Clean all placemark files (both old Placemark.kml and new placemark*.kml) from the server"""
+        if not self.is_connected or not self.client:
+            return False
+            
+        try:
+            # Remove all placemark files
+            commands = [
+                'rm -f /var/www/html/Placemark.kml',  # Old static file
+                'rm -f /var/www/html/placemark*.kml'  # New dynamic files
+            ]
+            
+            for command in commands:
+                stdin, stdout, stderr = self.client.exec_command(command)
+                stdout.read()
+            
+            # Update kmls.txt to remove all placemark lines
+            try:
+                stdin, stdout, stderr = self.client.exec_command('cat /var/www/html/kmls.txt')
+                current_content = stdout.read().decode('utf-8').strip()
+            except:
+                current_content = ""
+
+            if current_content:
+                lines = current_content.split('\n')
+                # Remove any lines containing placemark references
+                lines = [line.strip() for line in lines if line.strip() and 
+                        'Placemark.kml' not in line and 'placemark' not in line.lower()]
+                
+                new_content = '\n'.join(lines)
+                command = f"echo '{new_content}' > /var/www/html/kmls.txt"
+                stdin, stdout, stderr = self.client.exec_command(command)
+                stdout.read()
+
+            # Reset current file reference
+            self.current_placemark_file = None
+            print("All placemark files cleaned from server")
+            return True
+        except Exception as e:
+            print(f"Error cleaning placemark files: {e}")
+            return False
+    
+    async def remove_robot_placemark(self) -> bool:
+        if not self.is_connected or not self.client:
+            return False
+            
+        try:
+            # Remove current placemark file if it exists
+            if self.current_placemark_file:
+                command = f'rm -f /var/www/html/{self.current_placemark_file}'
+                stdin, stdout, stderr = self.client.exec_command(command)
+                stdout.read()
+            
+            # Also remove old static Placemark.kml file for backward compatibility
+            stdin, stdout, stderr = self.client.exec_command('rm -f /var/www/html/Placemark.kml')
+            stdout.read()
+            
+            # Update kmls.txt to remove all placemark lines
+            try:
+                stdin, stdout, stderr = self.client.exec_command('cat /var/www/html/kmls.txt')
+                current_content = stdout.read().decode('utf-8').strip()
+                
+                if current_content:
+                    lines = current_content.split('\n')
+                    # Remove any lines containing placemark references
+                    lines = [line.strip() for line in lines if line.strip() and 
+                            'Placemark.kml' not in line and 'placemark' not in line.lower()]
+                    new_content = '\n'.join(lines)
+                    
+                    command = f"echo '{new_content}' > /var/www/html/kmls.txt"
+                    stdin, stdout, stderr = self.client.exec_command(command)
+                    stdout.read()
+            except Exception as e:
+                print(f"Error updating kmls.txt during removal: {e}")
+            
+            # Clear current file reference
+            self.current_placemark_file = None
+            print("Robot placemark removed from server")
+            return True
+        except Exception as e:
+            print(f"Error removing robot placemark: {e}")
+            return False
     
     async def send_image(self, image_bytes: bytes, filename: str) -> bool:
         if not self.is_connected or not self.sftp:
@@ -215,9 +453,36 @@ fi
             print(f"Error executing lg-relaunch command: {e}")
             return False
 
+    async def navigate(self, coordinates: Coordinates) -> Optional[str]:
+        """Navigate to specified coordinates using flytoview command"""
+        try:
+            if not self.is_connected or not self.client:
+                print("Error: LG not connected")
+                return None
+                
+            coordinates_lookat = coordinates.LookAt()
+            # Escape quotes properly for shell command
+            escaped_lookat = coordinates_lookat.replace('"', '\\"')
+            command = f'echo "flytoview={escaped_lookat}" > /tmp/query.txt'
+            
+            # Debug: Print the exact command being sent
+            print(f"Debug: Executing command: {command}")
+            print(f"Debug: LookAt XML: {coordinates_lookat}")
+            
+            stdin, stdout, stderr = self.client.exec_command(command)
+            stdout.read()
+            
+            print(f"Debug: Navigate command sent - Lat: {coordinates.latitude}, Lon: {coordinates.longitude}")
+            return coordinates_lookat
+        except Exception as e:
+            print(f"Error in navigate: {e}")
+            return None
+
 class LGService:
     def __init__(self):
         self.connection_manager: Optional[LGConnectionManager] = None
+        self.gps_flyto_sent = False
+        self.robot_tracking_active = False
         
     def _get_connection_manager(self) -> Optional[LGConnectionManager]:
         if not all([lg_data.LG_HOST, lg_data.LG_USERNAME, lg_data.LG_PASSWORD, lg_data.LG_TOTAL_SCREENS]):
@@ -362,15 +627,50 @@ class LGService:
             else:
                 return False
 
-            if 'GPS Position' in selected_sensors and sensor_data.get('gps'):
-                await self._fly_to_gps_location(sensor_data['gps'], manager)
+            if 'GPS Position' in selected_sensors and not self.gps_flyto_sent:
+                await self._fly_to_default_gps_location(manager)
+                self.gps_flyto_sent = True
+            
+            if 'GPS Position' in selected_sensors:
+                gps_data = sensor_data.get('gps', {})
+                latitude = gps_data.get('latitude', 0.0)
+                longitude = gps_data.get('longitude', 0.0)
+                altitude = gps_data.get('altitude', 0.0)
+                
+                print(f"Debug: Showing robot placemark at GPS position: {latitude}, {longitude}, {altitude}")
+                await manager.send_robot_placemark(latitude, longitude, altitude)
+                self.robot_tracking_active = True
             
             return kml_sent
         except Exception as e:
             print(f"Error showing sensor data: {e}")
             return False
     
+    async def _fly_to_default_gps_location(self, manager) -> bool:
+        try:
+            coords = Coordinates(
+                latitude=41.606515,  
+                longitude=0.607994,  
+                elevation=226.0573119713049,       
+                tilt=35,            
+                bearing=225,    
+                altitude=197        
+            )
+
+            result = await manager.navigate(coords)
+            if result:
+                print("Debug: Successfully navigated to GPS position")
+                return True
+            else:
+                print("Debug: Failed to navigate to GPS position")
+                return False
+                
+        except Exception as e:
+            print(f"Error flying to GPS location: {e}")
+            return False
+
     async def _fly_to_gps_location(self, gps_data: Dict[str, Any], manager) -> bool:
+        """Navigate to GPS location using Coordinates class and flytoview"""
         try:
             latitude = gps_data.get('latitude', 0.0)
             longitude = gps_data.get('longitude', 0.0)
@@ -378,23 +678,31 @@ class LGService:
             
             print(f"Debug: GPS data received - Lat: {latitude}, Lon: {longitude}, Alt: {altitude}")
 
-            look_at_kml = f'''<LookAt><longitude>{longitude}</longitude><latitude>{latitude}</latitude><altitude>{altitude + 100}</altitude><heading>0</heading><tilt>45</tilt><range>1000</range><altitudeMode>relativeToGround</altitudeMode></LookAt>'''
-
-            escaped_look_at = look_at_kml.replace('"', '\\"')
-
-            command = f'echo "flytoview={escaped_look_at}" > /tmp/query.txt'
+            # Create coordinates object
+            coords = Coordinates(
+                latitude=latitude,
+                longitude=longitude,
+                elevation=altitude,
+                tilt=45,
+                bearing=0,
+                altitude=altitude + 100
+            )
             
-            if manager.client:
-                stdin, stdout, stderr = manager.client.exec_command(command)
-                stdout.read()
-                print(f"Debug: FlyTo command sent for GPS coordinates: {latitude}, {longitude}")
+            # Use the navigate method
+            result = await manager.navigate(coords)
+            if result:
+                print(f"Debug: Successfully navigated to GPS coordinates: {latitude}, {longitude}")
                 return True
-            return False
+            else:
+                print(f"Debug: Failed to navigate to GPS coordinates: {latitude}, {longitude}")
+                return False
+                
         except Exception as e:
             print(f"Error flying to GPS location: {e}")
             return False
 
     async def hide_sensor_data(self) -> bool:
+        self.gps_flyto_sent = False  # Reset on hide
         manager = self._get_connection_manager()
         if not manager:
             return False
@@ -405,7 +713,16 @@ class LGService:
                 if not connected:
                     return False
             
-            return await manager.clear_slave(manager.slave_calculator.rightmost_screen)
+            # Clear sensor data from screen
+            clear_result = await manager.clear_slave(manager.slave_calculator.rightmost_screen)
+            
+            # Also hide robot placemark if it was being displayed
+            if self.robot_tracking_active:
+                print("Debug: Hiding robot placemark when stopping sensor streaming")
+                await manager.remove_robot_placemark()
+                self.robot_tracking_active = False
+            
+            return clear_result
         except Exception as e:
             print(f"Error hiding sensor data: {e}")
             return False
@@ -463,6 +780,45 @@ class LGService:
         except Exception as e:
             print(f"Error clearing rightmost screen KML: {e}")
             return False
+
+    async def clear_logos(self) -> bool:
+        """Clear logos from the leftmost screen by sending an empty KML."""
+        manager = self._get_connection_manager()
+        if not manager:
+            return False
+        try:
+            if not manager.is_connected:
+                connected = await manager.connect()
+                if not connected:
+                    return False
+
+            leftmost = manager.slave_calculator.leftmost_screen
+            result = await manager.clear_slave(leftmost)
+            if not result:
+                print(f"Failed to clear leftmost screen {leftmost}")
+            return result
+        except Exception as e:
+            print(f"Error clearing logos (leftmost screen): {e}")
+            return False
+
+    async def clean_kml_and_logos(self) -> bool:
+        """Clear both rightmost screen KML overlays and leftmost screen logos."""
+        manager = self._get_connection_manager()
+        if not manager:
+            return False
+        try:
+            if not manager.is_connected:
+                connected = await manager.connect()
+                if not connected:
+                    return False
+
+            leftmost = manager.slave_calculator.leftmost_screen
+            rightmost_cleared = await manager.clear_rightmost_screen()
+            leftmost_cleared = await manager.clear_slave(leftmost)
+            return rightmost_cleared and leftmost_cleared
+        except Exception as e:
+            print(f"Error cleaning KML + logos: {e}")
+            return False
     
     async def relaunch_lg(self) -> bool:
         manager = self._get_connection_manager()
@@ -479,5 +835,65 @@ class LGService:
         except Exception as e:
             print(f"Error relaunching Liquid Galaxy: {e}")
             return False
+
+    async def show_robot_location(self, latitude: float, longitude: float, altitude: float = 0) -> bool:
+        """Show robot location on LG with placemark"""
+        print(f"Debug: show_robot_location called with lat={latitude}, lon={longitude}, alt={altitude}")
+        manager = self._get_connection_manager()
+        if not manager:
+            print("Debug: No connection manager available")
+            return False
+            
+        try:
+            if not manager.is_connected:
+                print("Debug: Attempting to connect to LG...")
+                connected = await manager.connect()
+                if not connected:
+                    print("Debug: Failed to connect to LG")
+                    return False
+            
+            print("Debug: Sending robot placemark...")
+            result = await manager.send_robot_placemark(latitude, longitude, altitude)
+            print(f"Debug: send_robot_placemark result: {result}")
+            
+            if result:
+                self.robot_tracking_active = True
+                print(f"Debug: Robot location updated successfully at {latitude}, {longitude}")
+            
+            return result
+        except Exception as e:
+            print(f"Error showing robot location: {e}")
+            return False
+    
+    async def hide_robot_location(self) -> bool:
+        """Hide robot location from LG"""
+        print("Debug: hide_robot_location called")
+        manager = self._get_connection_manager()
+        if not manager:
+            print("Debug: No connection manager available")
+            return False
+            
+        try:
+            if not manager.is_connected:
+                connected = await manager.connect()
+                if not connected:
+                    return False
+            
+            print("Debug: Removing robot placemark...")
+            result = await manager.remove_robot_placemark()
+            print(f"Debug: remove_robot_placemark result: {result}")
+            
+            if result:
+                self.robot_tracking_active = False
+                print("Debug: Robot location hidden successfully")
+            
+            return result
+        except Exception as e:
+            print(f"Error hiding robot location: {e}")
+            return False
+    
+    def is_robot_tracking_active(self) -> bool:
+        """Check if robot tracking is currently active"""
+        return self.robot_tracking_active
 
 lg_service = LGService()

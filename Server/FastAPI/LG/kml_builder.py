@@ -16,7 +16,7 @@ class KMLBuilder:
                 f'http://{self.lg_host}:81/robostream_complete_logo.png',
                 overlay_xy='0,1',
                 screen_xy='0.02,0.98',
-                size='554,550,pixels',
+                size='739,733,pixels',
             ),
         )
     
@@ -29,7 +29,7 @@ class KMLBuilder:
                 f'http://{server_host}:8000/rgb-camera/image?t={timestamp}',
                 overlay_xy='1,1',
                 screen_xy='0.98,0.98',
-                size='600,500,pixels',
+                size='800,667,pixels',
             ),
         )
     
