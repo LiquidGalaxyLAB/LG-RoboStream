@@ -11,6 +11,7 @@ import 'package:robostream/services/lg_server_service.dart';
 import 'package:robostream/services/lg_config_service.dart';
 import 'package:robostream/services/robot_config_manager.dart';
 import 'package:robostream/services/orbit_service.dart';
+import 'package:robostream/services/location_service.dart';
 import 'package:robostream/app/server_config_screen.dart';
 import 'package:robostream/app/lg_config_screen.dart';
 import 'package:robostream/app/robot_config_screen.dart';
@@ -30,9 +31,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const Duration _indicatorReverseDuration = Duration(milliseconds: 450);
   static const Duration _refreshDelay = Duration(milliseconds: 1500);
   
-  static const double _orbitLatitude = 41.605725;
-  static const double _orbitLongitude = 0.606787;
-  static const int _orbitAltitude = 197;
+  double? _orbitLatitude;
+  double? _orbitLongitude;
+  double? _orbitAltitude;
   
   late AnimationController _parallaxController;
   late AnimationController _indicatorsController;
@@ -61,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _serverHost = '192.168.1.100';
 
   OrbitService? _orbitService;
+  LocationService? _locationService;
   bool _isOrbitRunning = false;
   Timer? _orbitStatusTimer;
   
@@ -111,6 +113,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final serverPort = await ServerConfigManager.instance.getSavedServerPort();
     if (serverIp != null) {
       _orbitService = OrbitService(baseUrl: 'http://$serverIp:$serverPort');
+      _locationService = LocationService(baseUrl: 'http://$serverIp:$serverPort');
+      
+      await _loadOrbitCoordinates();
     }
   }
   
@@ -131,6 +136,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       }
     });
+  }
+
+  Future<void> _loadOrbitCoordinates() async {
+    try {
+      final coordinates = await _locationService?.getOrbitCoordinates();
+      if (coordinates != null) {
+        setState(() {
+          _orbitLatitude = coordinates['latitude']?.toDouble();
+          _orbitLongitude = coordinates['longitude']?.toDouble();
+          _orbitAltitude = coordinates['altitude']?.toDouble();
+        });
+      } else {
+        setState(() {
+          _orbitLatitude = 41.605725;
+          _orbitLongitude = 0.606787;
+          _orbitAltitude = 197.0;
+        });
+      }
+    } catch (e) {
+      print('Error loading orbit coordinates: $e');
+      setState(() {
+        _orbitLatitude = 41.605725;
+        _orbitLongitude = 0.606787;
+        _orbitAltitude = 197.0;
+      });
+    }
   }
 
   Future<void> _loadServerConfig() async {
@@ -585,7 +616,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         setState(() {
           _isOrbitRunning = true;
         });
-        CustomSnackBar.showSuccess(context, 'Orbit started around coordinates $_orbitLatitude, $_orbitLongitude at ${_orbitAltitude.toStringAsFixed(1)}m altitude');
+        
+        final lat = _orbitLatitude ?? 41.605725;
+        final lng = _orbitLongitude ?? 0.606787;
+        final alt = _orbitAltitude ?? 197.0;
+        
+        CustomSnackBar.showSuccess(context, 'Orbit started around coordinates $lat, $lng at ${alt.toStringAsFixed(1)}m altitude');
       } else {
         CustomSnackBar.showError(context, 'Failed to start orbit');
       }
@@ -691,7 +727,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
-            // Orbit indicator removed per request
           ],
         ),
       ),
@@ -936,6 +971,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (result != null && result.isNotEmpty) {
 
             _serverService.updateServerUrl(result);
+            
+            final serverIp = await ServerConfigManager.instance.getSavedServerIp();
+            final serverPort = await ServerConfigManager.instance.getSavedServerPort();
+            if (serverIp != null) {
+              _orbitService = OrbitService(baseUrl: 'http://$serverIp:$serverPort');
+              _locationService = LocationService(baseUrl: 'http://$serverIp:$serverPort');
+              await _loadOrbitCoordinates();
+            }
             
             await _refreshConnectionStatus();
             

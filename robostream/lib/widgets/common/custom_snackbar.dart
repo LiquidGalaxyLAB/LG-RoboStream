@@ -50,8 +50,11 @@ class CustomSnackBar {
     required Color color,
     Duration duration = const Duration(seconds: 3),
   }) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+    try {
+      if (!context.mounted) return;
+      
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -81,10 +84,17 @@ class CustomSnackBar {
           label: 'OK',
           textColor: Colors.white,
           onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            try {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              }
+            } catch (e) {
+            }
           },
         ),
       ),
     );
+    } catch (e) {
+    }
   }
 }

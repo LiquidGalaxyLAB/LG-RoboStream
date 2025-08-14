@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import LG.lg_data as lg_data
 from LG.lg_service import lg_service
 from Orbit_Builder import OrbitBuilder
+from SimulatedGPS import LocationData
 
 app = FastAPI(title="Robot Sensor API", version="1.0.0")
 
@@ -59,7 +60,6 @@ connected_clients: List[WebSocket] = []
 
 ROBOT_IP = None
 
-# Global orbit instance
 _orbit_builder: OrbitBuilder = None
 
 @app.get("/")
@@ -368,14 +368,13 @@ async def start_orbit(orbit_request: OrbitRequest):
         
         _orbit_builder = OrbitBuilder(
             ip=lg_host,
-            port=22,  # Default SSH port
+            port=22,  
             user=lg_username,
             password=lg_password
         )
     
     print(2)
     
-    # Check if orbit is already running
     if _orbit_builder.is_running():
         return {
             "success": False,
@@ -383,7 +382,6 @@ async def start_orbit(orbit_request: OrbitRequest):
             "message": "There is already an orbit running. Stop it first before starting a new one."
         }
     
-    # Start the orbit
     print(orbit_request)
     print(type(orbit_request))
     started = _orbit_builder.start_orbit(
@@ -430,14 +428,13 @@ async def start_orbit_around_robot():
     print(3)
     print(gps_data);
     
-    # Create orbit request with robot's current position
     orbit_request = OrbitRequest(
         latitude=gps_data.latitude,
         longitude=gps_data.longitude,
         zoom=4000,
         tilt=60,
-        steps=36,  # 10 degrees per step
-        step_ms=300,  # Faster orbit
+        steps=36, 
+        step_ms=300, 
         start_heading=0.0
     )
     
@@ -530,31 +527,30 @@ async def get_orbit_status():
 
 @app.post("/orbit/quick-start")
 async def quick_start_orbit(
-    latitude: float = Query(41.605725, description="Latitude for orbit center"),
-    longitude: float = Query(0.606787, description="Longitude for orbit center"),
+    latitude: float = Query(None, description="Latitude for orbit center"),
+    longitude: float = Query(None, description="Longitude for orbit center"),
     orbit_type: str = Query("normal", regex="^(slow|normal|fast)$", description="Orbit speed type")
 ):
-    orbit_params = {
-        "slow": {"steps": 72, "step_ms": 800, "zoom": 197, "tilt": 45},
-        "normal": {"steps": 36, "step_ms": 500, "zoom": 197, "tilt": 60},
-        "fast": {"steps": 24, "step_ms": 200, "zoom": 197, "tilt": 75}
-    }
+    if latitude is None or longitude is None:
+        default_coords = LocationData.get_default_orbit_coordinates()
+        latitude = default_coords["latitude"]
+        longitude = default_coords["longitude"]
     
-    params = orbit_params[orbit_type]
+    orbit_params = LocationData.get_orbit_parameters(orbit_type)
     
     orbit_request = OrbitRequest(
         latitude=latitude,
         longitude=longitude,
-        zoom=params["zoom"],
-        tilt=params["tilt"],
-        steps=params["steps"],
-        step_ms=params["step_ms"],
+        zoom=orbit_params["zoom"],
+        tilt=orbit_params["tilt"],
+        steps=orbit_params["steps"],
+        step_ms=orbit_params["step_ms"],
         start_heading=0.0
     )
     
     result = await start_orbit(orbit_request)
     result["orbit_type"] = orbit_type
-    result["predefined_parameters"] = params
+    result["predefined_parameters"] = orbit_params
     
     return result
 
@@ -566,7 +562,6 @@ async def lg_update_robot_location():
             "message": "Robot tracking is not active"
         }
     
-    # Get current robot GPS data
     robot.update_sensors()
     gps_data = robot.sensor_data.gps
     
@@ -612,11 +607,81 @@ async def get_robot_ip():
         "is_set": ROBOT_IP is not None
     }
 
+@app.get("/location/info")
+async def get_location_info():
+    return {
+        "success": True,
+        "location_info": LocationData.get_location_info()
+    }
+
+@app.post("/location/set")
+async def set_location(location_name: str):
+    success = LocationData.set_current_location(location_name)
+    if success:
+        robot.gps_positions = LocationData.get_robot_gps_sequence()
+        robot.current_gps_index = 0
+        base_coords = LocationData.get_robot_base_coordinates()
+        robot.base_lat = base_coords["latitude"]
+        robot.base_lon = base_coords["longitude"]
+        robot.reset_to_initial_position()
+        
+        return {
+            "success": True,
+            "message": f"Location changed to {location_name}",
+            "current_location": LocationData.CURRENT_LOCATION,
+            "location_data": LocationData.get_current_location_data()
+        }
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid location name. Available locations: {LocationData.get_available_locations()}"
+        )
+
+@app.get("/location/gps-status")
+async def get_gps_status():
+    return {
+        "success": True,
+        "gps_status": LocationData.get_gps_status_info()
+    }
+
+@app.get("/location/gps-simulation-zones")
+async def get_gps_simulation_zones():
+    return {
+        "success": True,
+        "zones": LocationData.get_gps_simulation_zones()
+    }
+
+@app.get("/location/orbit-coordinates")
+async def get_orbit_coordinates():
+    return {
+        "success": True,
+        "coordinates": LocationData.get_default_orbit_coordinates()
+    }
+
+@app.get("/location/robot-positions")
+async def get_robot_positions():
+    return {
+        "success": True,
+        "positions": LocationData.get_robot_gps_sequence(),
+        "current_index": robot.current_gps_index,
+        "current_position": LocationData.get_robot_gps_sequence()[robot.current_gps_index],
+        "current_location": LocationData.CURRENT_LOCATION
+    }
+
+@app.get("/location/orbit-parameters")
+async def get_orbit_parameters(orbit_type: str = Query("normal", regex="^(slow|normal|fast)$")):
+    return {
+        "success": True,
+        "orbit_type": orbit_type,
+        "parameters": LocationData.get_orbit_parameters(orbit_type)
+    }
+
 @app.post("/orbit/default")
 async def start_default_orbit():
+    default_coords = LocationData.get_default_orbit_coordinates()
     return await quick_start_orbit(
-        latitude=41.605725,
-        longitude=0.606787,
+        latitude=default_coords["latitude"],
+        longitude=default_coords["longitude"],
         orbit_type="normal"
     )
 
@@ -719,8 +784,6 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             robot.update_sensors()
             
-            # Actualizar placemark inmediatamente si las coordenadas GPS han cambiado
-            # y el tracking está activo
             if lg_service.is_robot_tracking_active() and robot.has_gps_changed():
                 try:
                     gps_data = robot.sensor_data.gps
@@ -781,10 +844,19 @@ if __name__ == "__main__":
     print(f"   POST /orbit/start - Start orbit around specified coordinates")
     print(f"   POST /orbit/start-robot - Start orbit around current robot position")
     print(f"   POST /orbit/quick-start - Quick start orbit with predefined parameters")
-    print(f"   POST /orbit/default - Start orbit with default coordinates (41.605725, 0.606787) at altitude 197.92m")
+    print(f"   POST /orbit/default - Start orbit with default coordinates from LocationData")
     print(f"   POST /orbit/stop - Stop running orbit")
     print(f"   GET  /orbit/status - Get current orbit status")
     print(f"   GET  /orbit/config - Get orbit and LG configuration")
+    print(f"")
+    print(f"🌍 Location Data Endpoints:")
+    print(f"   GET  /location/info - Get current location info and available locations")
+    print(f"   GET  /location/gps-status - Get GPS status (real/simulated) and current zone")
+    print(f"   POST /location/set?location_name=<name> - Change current location (Lleida/Pozuelo)")
+    print(f"   GET  /location/gps-simulation-zones - Get available GPS simulation zones")
+    print(f"   GET  /location/orbit-coordinates - Get default orbit coordinates")
+    print(f"   GET  /location/robot-positions - Get robot GPS position sequence")
+    print(f"   GET  /location/orbit-parameters - Get orbit parameters for different types")
     print(f"   GET  /lg/robot-tracking-status - Get robot tracking status")
     print("=" * 50)
 

@@ -4,21 +4,17 @@ import random
 import base64
 from typing import List
 from models import SensorData, IMUData, ThreeAxisData, GPSData, RGBCameraData, ActuatorData, ServoData
+from SimulatedGPS import LocationData
 
 class RobotSimulator:
     def __init__(self):
         
-        self.gps_positions = [
-            (41.606269, 0.607061),  
-            (41.605460, 0.606053), 
-            (41.605143, 0.606491), 
-            (41.605932, 0.607541),
-            (41.606269, 0.607061)  
-        ]
+        self.gps_positions = LocationData.get_robot_gps_sequence()
         self.current_gps_index = 0
         
-        self.base_lat = 41.6175
-        self.base_lon = 0.6200
+        base_coords = LocationData.get_robot_base_coordinates()
+        self.base_lat = base_coords["latitude"]
+        self.base_lon = base_coords["longitude"]
         
         self.update_interval = 5.0
         self.last_update = 0.0
@@ -40,7 +36,7 @@ class RobotSimulator:
             gps=GPSData(
                 latitude=self.gps_positions[0][0], 
                 longitude=self.gps_positions[0][1],
-                altitude=175.0,
+                altitude=LocationData.DEFAULT_ALTITUDE,
                 speed=0.0
             ),
             lidar="Connected",
@@ -154,7 +150,7 @@ class RobotSimulator:
         
         self.current_gps_index = (self.current_gps_index + 1) % len(self.gps_positions)
         
-        self.sensor_data.gps.altitude = round(random.uniform(150.0, 200.0), 1)
+        self.sensor_data.gps.altitude = round(random.uniform(LocationData.ALTITUDE_MIN, LocationData.ALTITUDE_MAX), 1)
         self.sensor_data.gps.speed = round(random.uniform(0.0, 8.0), 1)
         
         self.sensor_data.lidar = "Connected" if random.random() > 0.1 else "Disconnected"

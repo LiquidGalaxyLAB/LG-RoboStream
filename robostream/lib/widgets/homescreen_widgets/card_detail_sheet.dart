@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:robostream/services/server.dart';
+import 'package:robostream/services/location_service.dart';
 import 'package:robostream/widgets/common/custom_snackbar.dart';
 
 class CardDetailSheet extends StatefulWidget {
@@ -35,6 +36,7 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
   SensorData? _currentSensorData;
   ActuatorData? _currentActuatorData;
   bool _currentConnectionStatus = false;
+  LocationService? _locationService;
 
   @override
   void initState() {
@@ -43,6 +45,8 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     _currentSensorData = widget.sensorData;
     _currentActuatorData = widget.actuatorData;
     _currentConnectionStatus = widget.isConnected;
+    
+    _locationService = LocationService(baseUrl: widget.serverBaseUrl);
 
     _sensorSubscription = widget.serverService.sensorStream.listen((sensorData) {
       if (mounted) {
@@ -731,11 +735,6 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
   }
 
   Widget _buildGPSSimulationButtons() {
-    const Map<String, Map<String, double>> gpsLocations = {
-      'Lleida': {'lat': 41.6176, 'lng': 0.6200},
-      'Pozuelo': {'lat': 40.4378, 'lng': -3.8040},
-    };
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -761,20 +760,54 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
           ),
         ),
         const SizedBox(height: 8),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 2.5,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          children: gpsLocations.entries.map((entry) {
-            return _buildGPSLocationButton(
-              entry.key, 
-              entry.value['lat']!, 
-              entry.value['lng']!
+        FutureBuilder<Map<String, dynamic>?>(
+          future: _locationService?.getGPSSimulationZones(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            
+            if (snapshot.hasError || !snapshot.hasData) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Unable to load GPS zones',
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+            
+            final zones = snapshot.data!['zones'] as Map<String, dynamic>? ?? {};
+            
+            if (zones.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'No GPS zones available',
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+            
+            return GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              childAspectRatio: 2.5,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              children: zones.entries.map((entry) {
+                final zoneData = entry.value as Map<String, dynamic>;
+                return _buildGPSLocationButton(
+                  entry.key,
+                  zoneData['lat']?.toDouble() ?? 0.0,
+                  zoneData['lng']?.toDouble() ?? 0.0,
+                );
+              }).toList(),
             );
-          }).toList(),
+          },
         ),
       ],
     );
@@ -834,10 +867,36 @@ class _CardDetailSheetState extends State<CardDetailSheet> {
     );
   }
 
-  void _onGPSLocationSelected(String cityName, double lat, double lng) {
-    CustomSnackBar.showSuccess(
-      context,
-      'GPS Simulation Zone Established',
-    );
+  void _onGPSLocationSelected(String cityName, double lat, double lng) async {
+    try {
+      final result = await _locationService?.setLocation(cityName);
+      if (result != null && result['success'] == true) {
+        if (mounted) {
+          CustomSnackBar.showSuccess(
+            context,
+            'Location changed to $cityName successfully',
+          );
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              Navigator.pop(context);
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          CustomSnackBar.showError(
+            context,
+            'Failed to change location to $cityName',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackBar.showError(
+          context,
+          'Error changing location: $e',
+        );
+      }
+    }
   }
 }

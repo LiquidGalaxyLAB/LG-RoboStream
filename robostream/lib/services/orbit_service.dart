@@ -16,7 +16,6 @@ class OrbitService {
     double startHeading = 0,
   }) async {
     try {
-
       final response = await http.post(
         Uri.parse('$baseUrl/orbit/start'),
         headers: {'Content-Type': 'application/json'},
@@ -43,13 +42,21 @@ class OrbitService {
   }
 
   Future<bool> startQuickOrbit({
-    double latitude = 41.605725,
-    double longitude = 0.606787,
+    double? latitude,
+    double? longitude,
     String orbitType = "normal",
   }) async {
     try {
+      String url = '$baseUrl/orbit/quick-start?orbit_type=$orbitType';
+      if (latitude != null) {
+        url += '&latitude=$latitude';
+      }
+      if (longitude != null) {
+        url += '&longitude=$longitude';
+      }
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/orbit/quick-start?latitude=$latitude&longitude=$longitude&orbit_type=$orbitType'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -134,6 +141,87 @@ class OrbitService {
       return null;
     } catch (e) {
       print('Error getting orbit config: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getOrbitStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/orbit/status'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting orbit status: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getGPSSimulationZones() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/location/gps-simulation-zones'),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting GPS simulation zones: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getOrbitCoordinates() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/location/orbit-coordinates'),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting orbit coordinates: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getRobotPositions() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/location/robot-positions'),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting robot positions: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getOrbitParameters(String orbitType) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/location/orbit-parameters?orbit_type=$orbitType'),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting orbit parameters: $e');
       return null;
     }
   }
