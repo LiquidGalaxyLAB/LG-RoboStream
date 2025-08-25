@@ -47,8 +47,7 @@ class ActuatorData(BaseModel):
     front_right_wheel: ServoData
     back_left_wheel: ServoData
     back_right_wheel: ServoData
-
-# Orbit models
+    
 class OrbitRequest(BaseModel):
     latitude: float
     longitude: float
